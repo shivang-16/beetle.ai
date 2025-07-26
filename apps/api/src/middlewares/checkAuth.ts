@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from "express";
 import { getAuth, clerkClient } from '@clerk/express';
 import User from "../models/user.model.js";
 import { logError, logInfo, logTrace, logWarn } from "../utils/logger.js";
+import { createUser } from "../queries/user.queries.js";
 
 declare global {
   namespace Express {
@@ -32,14 +33,14 @@ export const checkAuth = async (req: Request, res: Response, next: NextFunction)
         email: clerkUser.primaryEmailAddress?.emailAddress,
         firstName: clerkUser.firstName,
         lastName: clerkUser.lastName,
+        username: clerkUser.username || clerkUser.externalAccounts?.[0]?.username,
         avatarUrl: clerkUser.imageUrl,
       }
 
-      user = new User(fieldsForDB);
-      await user.save();
-      logInfo(`New user created with username: ${user.email}`);
+      user = await createUser(fieldsForDB);
+      logInfo(`New user created with username: ${user.username}`);
     } else {
-      logInfo(`User found in DB: ${user.email}`);
+      logInfo(`User found in DB: ${user.username}`);
     }
  
     req.user = user; // attach full user object for downstream handlers

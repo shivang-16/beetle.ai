@@ -1,8 +1,9 @@
 // webhooks/github.webhooks.ts
 import { Webhooks } from '@octokit/webhooks';
 import { getInstallationOctokit } from '../lib/githubApp.js';
-import { Github_Installation } from '../models/github_Installation.js';
+import { Github_Installation } from '../models/github_installations.model.js';
 import { env } from '../config/env.js';
+import { create_github_installation, delete_github_installation } from '../queries/github.queries.js';
   // Set up GitHub webhooks
   export const webhooks = new Webhooks({ secret: env.GITHUB_WEBHOOK_SECRET! });
   
@@ -22,21 +23,33 @@ import { env } from '../config/env.js';
       
       console.log(`App installed for account: ${accountLogin}`);
       
-      // Save installation to database
-      const installation = new Github_Installation({
+      await create_github_installation({
         installationId: payload.installation.id,
-        accountLogin: accountLogin,
-        accountId: account.id,
-        accountType: accountType as 'User' | 'Organization',
-        targetType: payload.installation.target_type,
+        account: {
+          login: accountLogin,
+          id: account.id,
+          type: accountType,
+          avatarUrl: account.avatar_url,
+          htmlUrl: account.html_url
+        },
+        sender: {
+          login: payload.sender.login,
+          id: payload.sender.id,
+          type: payload.sender.type,
+          avatarUrl: payload.sender.avatar_url,
+          htmlUrl: payload.sender.html_url
+        },
+        targetType: accountType,
         repositorySelection: payload.installation.repository_selection,
+        repositories: payload.repositories?.map(repo => ({
+          id: repo.id,
+          fullName: repo.full_name,
+          private: repo.private
+        })),
         permissions: payload.installation.permissions,
         events: payload.installation.events,
-        installedAt: new Date(payload.installation.created_at)
-      });
-      
-      await installation.save();
-      console.log(`Installation ${payload.installation.id} saved to database`);
+        installedAt: new Date()
+      })
       
       // Get authenticated Octokit instance for this installation
       const octokit = getInstallationOctokit(payload.installation.id);
@@ -71,7 +84,7 @@ import { env } from '../config/env.js';
       console.log(`App uninstalled for account: ${accountLogin}`);
       
       // Mark installation as deleted (soft delete) or remove it
-      await Github_Installation.findOneAndDelete({ installationId: payload.installation.id });
+      await delete_github_installation(payload.installation.id);
       console.log(`Installation ${payload.installation.id} removed from database`);
     } catch (error) {
       console.error('Error handling installation.deleted:', error);

@@ -1,6 +1,6 @@
 'use client'
 import { useAuth, useUser } from '@clerk/nextjs'
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface GitHubInstallation {
   _id: string;
@@ -19,6 +19,34 @@ export default function Home() {
   const [installations, setInstallations] = useState<GitHubInstallation[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [apiUser, setApiUser] = useState<any | null>(null);
+
+  useEffect(() => {
+    const fetchUserFromApi = async () => {
+      if (isSignedIn) {
+        try {
+          const token = await getToken();
+          const response = await fetch('http://localhost:3001/api/user', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch user data from your API');
+          }
+
+          const data = await response.json();
+          setApiUser(data.data);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'An error occurred');
+          console.error('Error fetching user from API:', err);
+        }
+      }
+    };
+
+    fetchUserFromApi();
+  }, [isSignedIn, getToken]);
 
   const fetchInstallations = async () => {
     try {
@@ -47,7 +75,18 @@ export default function Home() {
     }
   };
 
-  if (!isSignedIn || !user) return <div>Not signed in</div>
+  console.log(isSignedIn, "isSignedIn", user)
+
+  // if (!isSignedIn) {
+  //   if (typeof window !== 'undefined') {
+  //     window.location.href = '/login';
+  //   } 
+  //   return null; 
+  // }
+
+  if (!user) {
+    return <div>Loading user...</div>
+  }
 
   // Extract fields for database saving
   const fieldsForDB = {
@@ -101,6 +140,15 @@ export default function Home() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {apiUser && (
+        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+          <h2 className="text-lg font-bold text-indigo-800 mb-2">👤 User Data from API</h2>
+          <pre className="text-xs bg-gray-100 rounded-lg p-2 overflow-x-auto">
+            {JSON.stringify(apiUser, null, 2)}
+          </pre>
         </div>
       )}
 
