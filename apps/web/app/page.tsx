@@ -1,6 +1,6 @@
 'use client'
 import { useAuth, useUser } from '@clerk/nextjs'
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 interface GitHubInstallation {
   _id: string;
