@@ -1,17 +1,36 @@
 // apps/api/src/app.ts
 import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
+import expressWinston from "express-winston";
+import winston from "winston";
 import { createNodeMiddleware } from '@octokit/webhooks';
 import errorMiddleware from './middlewares/error.js';
 import { webhooks } from './webooks/github.webooks.js';
 import GithubRoutes from "./routes/github.routes.js"
+import { clerkMiddleware } from '@clerk/express'
 
 export function createApp(): Application {
   const app = express();
 
+
+app.use(
+  expressWinston.logger({
+    transports: [new winston.transports.Console()],
+    format: winston.format.combine(
+      winston.format.colorize(),
+      winston.format.cli()
+    ),
+    meta: true,
+    expressFormat: true,
+    colorize: true,
+  })
+);
+
+
   // Middleware
   app.use(cors()); // Enable CORS for all routes
-  
+  app.use(clerkMiddleware())
+
   // We need express.json() for non-webhook routes, but webhooks need raw body
   app.use((req, res, next) => {
     if (req.path === '/api/webhooks') {
@@ -34,7 +53,7 @@ export function createApp(): Application {
   app.use(webhookMiddleware);
 
   // API Routes
-  app.get('/api/github', GithubRoutes);
+  app.use('/api/github', GithubRoutes);
 
   // 404 handler
   app.use((req: Request, res: Response) => {

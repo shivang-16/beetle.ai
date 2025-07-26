@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
-import { CustomError } from "./error.js";
-import jwt, { JwtPayload } from "jsonwebtoken";
+import { getAuth, clerkClient } from '@clerk/express';
 import User from "../models/user.model.js";
+import { logError, logInfo, logTrace, logWarn } from "../utils/logger.js";
 
 declare global {
   namespace Express {
@@ -11,20 +11,42 @@ declare global {
     }
   }
 }
-export const checkAuth = async (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  const { token } = req.cookies;
-  if (!token) return next(new CustomError("Authentication required", 401));
 
-  const secret = process.env.JWT_SECRET;
-  if (!secret) return next(new CustomError("JWT Secret not defined", 400));
+export const checkAuth = async (req: Request, res: Response, next: NextFunction) => {
+  logTrace("checkAuth middleware execution started");
+  try {
+    const { userId } = getAuth(req);
 
-  const decoded = jwt.verify(token, secret) as JwtPayload;
-  req.user = await User.findById(decoded.id);
+    if (!userId) {
+      logError("Authentication failed: No userId found in request.");
+      return res.status(401).json({ message: 'Authentication required' });
+    }
 
-  next();
+    const clerkUser = await clerkClient.users.getUser(userId);
+
+    let user = await User.findById(userId);
+    if (!user) {
+      logInfo(`User not found in DB for clerkId: ${userId}. Creating new user.`);
+      const fieldsForDB = {
+        _id: clerkUser.id,
+        email: clerkUser.primaryEmailAddress?.emailAddress,
+        firstName: clerkUser.firstName,
+        lastName: clerkUser.lastName,
+        avatarUrl: clerkUser.imageUrl,
+      }
+
+      user = new User(fieldsForDB);
+      await user.save();
+      logInfo(`New user created with username: ${user.email}`);
+    } else {
+      logInfo(`User found in DB: ${user.email}`);
+    }
+ 
+    req.user = user; // attach full user object for downstream handlers
+    logInfo(`User authenticated successfully: ${user.email}`);
+    next();
+  } catch (err) {
+    logError(`Auth error: ${err}`);
+    res.status(401).json({ message: 'Unauthorized' });
+  }
 };
-

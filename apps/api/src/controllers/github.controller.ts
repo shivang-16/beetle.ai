@@ -67,9 +67,9 @@ export const listRepositories = async (req: Request, res: Response, next: NextFu
 
 
 // Get all installations
-export async function listInstallations(req: Request, res: Response, next: NextFunction) {
+export async function  listUserInstallations(req: Request, res: Response, next: NextFunction) {
   try {
-    const installations = await Github_Installation.find({}).sort({ installedAt: -1 });
+    const installations = await Github_Installation.find({userId: req.user.id}).sort({ installedAt: -1 });
     res.json({
       status: 'success',
       count: installations.length,

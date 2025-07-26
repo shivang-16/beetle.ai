@@ -1,9 +1,12 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IUser extends Document {
-  name: string;
+  _id: string;
+  firstName: string;
+  lastName: string;
+  avatarUrl: string;
   email: string;
-  password: string;
+  password?: string;
   github_installations: Schema.Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
@@ -11,7 +14,21 @@ export interface IUser extends Document {
 
 const userSchema = new Schema<IUser>(
   {
-    name: {
+    _id: {
+      type: String,
+      required: true,
+    },
+    firstName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    lastName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    avatarUrl: {
       type: String,
       required: true,
       trim: true,
