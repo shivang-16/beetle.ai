@@ -1,50 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* App-specific overrides can go here */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
   }
 }
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
+/* Custom scrollbar for dark theme */
+.dark-scrollbar::-webkit-scrollbar {
+  width: 8px;
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
+.dark-scrollbar::-webkit-scrollbar-track {
+  background: #1a1a1a;
 }
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+.dark-scrollbar::-webkit-scrollbar-thumb {
+  background: #404040;
+  border-radius: 4px;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+.dark-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #606060;
 }
 
-.imgDark {
-  display: none;
+/* Terminal-like font for code blocks */
+.font-mono {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+/* Cursor-like animations */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
 
-  .imgLight {
-    display: none;
-  }
-  .imgDark {
-    display: unset;
-  }
+.animate-pulse-dot {
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+/* Terminal-like output styling */
+.terminal-output {
+  background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
+}
+
+/* Code syntax highlighting adjustments */
+pre {
+  background: rgba(15, 15, 15, 0.8) !important;
+  border: 1px solid rgba(64, 64, 64, 0.3);
+  border-radius: 8px;
+}
+
+/* Loading spinner */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
 }

@@ -100,97 +100,107 @@ export default function Home() {
   }
 
   return (
-    <div className="p-6 space-y-8">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">👋 Welcome, {user.firstName}!</h1>
-        <button
-          onClick={fetchInstallations}
-          disabled={loading}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md disabled:opacity-50"
-        >
-          {loading ? 'Loading...' : 'List GitHub Installations'}
-        </button>
+    <div className="min-h-screen bg-gray-50">
+      {/* Tailwind Test Banner */}
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 text-center">
+        <p className="text-lg font-semibold">🎉 Tailwind CSS is working! Design system ready.</p>
       </div>
 
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          {error}
+      <div className="max-w-7xl mx-auto p-6 space-y-8">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold text-gray-900">👋 Welcome, {user.firstName}!</h1>
+          <button
+            onClick={fetchInstallations}
+            disabled={loading}
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium px-6 py-3 rounded-lg transition-colors shadow-lg"
+          >
+            {loading ? 'Loading...' : 'List GitHub Installations'}
+          </button>
         </div>
-      )}
 
-      {installations.length > 0 && (
-        <div className="bg-white shadow-md rounded-xl p-6 border">
-          <h2 className="text-xl font-semibold mb-4">GitHub Installations</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {installations.map((installation) => (
-              <div key={installation._id} className="border p-4 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <img
-                    src={installation.account.avatarUrl}
-                    alt={installation.account.login}
-                    className="w-10 h-10 rounded-full"
-                  />
-                  <div>
-                    <p className="font-medium">{installation.account.login}</p>
-                    <p className="text-sm text-gray-500">
-                      Installed on: {new Date(installation.installedAt).toLocaleDateString()}
-                    </p>
+        {error && (
+          <div className="bg-red-50 border-l-4 border-red-400 text-red-800 px-4 py-3 rounded-lg">
+            <p className="font-medium">Error</p>
+            <p>{error}</p>
+          </div>
+        )}
+
+        {installations.length > 0 && (
+          <div className="bg-white shadow-xl rounded-xl p-6 border border-gray-200">
+            <h2 className="text-2xl font-bold mb-6 text-gray-900">GitHub Installations</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {installations.map((installation) => (
+                <div key={installation._id} className="border border-gray-200 p-6 rounded-xl hover:shadow-lg transition-shadow">
+                  <div className="flex items-center space-x-4">
+                    <img
+                      src={installation.account.avatarUrl}
+                      alt={installation.account.login}
+                      className="w-12 h-12 rounded-full ring-2 ring-gray-200"
+                    />
+                    <div>
+                      <p className="font-semibold text-gray-900">{installation.account.login}</p>
+                      <p className="text-sm text-gray-500">
+                        Installed on: {new Date(installation.installedAt).toLocaleDateString()}
+                      </p>
+                    </div>
                   </div>
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {apiUser && (
+          <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-6">
+            <h2 className="text-xl font-bold text-indigo-900 mb-4">👤 User Data from API</h2>
+            <pre className="text-sm bg-white rounded-lg p-4 overflow-x-auto border">
+              {JSON.stringify(apiUser, null, 2)}
+            </pre>
+          </div>
+        )}
+
+        {/* Basic Info Card */}
+        <div className="bg-white shadow-xl rounded-xl p-6 border border-gray-200">
+          <div className="flex items-center space-x-6">
+            <img
+              src={user.imageUrl}
+              alt="Profile"
+              width={80}
+              height={80}
+              className="w-20 h-20 rounded-full border-4 border-gray-200"
+            />
+            <div>
+              <p className="text-2xl font-bold text-gray-900">{user.fullName}</p>
+              <p className="text-gray-600">{user.primaryEmailAddress?.emailAddress}</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Auth Providers: {fieldsForDB.providerAccounts.join(', ')}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Fields to Save in Database */}
+        <div className="bg-green-50 border border-green-200 rounded-xl p-6">
+          <h2 className="text-xl font-bold text-green-800 mb-4">🗄️ Data to Save in DB</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {Object.entries(fieldsForDB).map(([key, value]) => (
+              <div key={key} className="bg-white rounded-lg p-3 border">
+                <strong className="capitalize text-gray-700">{key}:</strong>{' '}
+                <span className="text-gray-900">
+                  {Array.isArray(value) ? value.join(', ') : value || 'null'}
+                </span>
               </div>
             ))}
           </div>
         </div>
-      )}
 
-      {apiUser && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
-          <h2 className="text-lg font-bold text-indigo-800 mb-2">👤 User Data from API</h2>
-          <pre className="text-xs bg-gray-100 rounded-lg p-2 overflow-x-auto">
-            {JSON.stringify(apiUser, null, 2)}
+        {/* Full User Metadata (Expandable/Raw JSON) */}
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-6">
+          <h2 className="text-xl font-bold mb-4 text-gray-900">🔍 Full Clerk User Object</h2>
+          <pre className="text-xs bg-white rounded-lg p-4 overflow-x-auto border max-h-96">
+            {JSON.stringify(user, null, 2)}
           </pre>
         </div>
-      )}
-
-      {/* Basic Info Card */}
-      <div className="bg-white shadow-md rounded-xl p-6 border">
-        <div className="flex items-center space-x-4">
-          <img
-            src={user.imageUrl}
-            alt="Profile"
-            width={64}
-            height={64}
-            className="w-16 h-16 rounded-full border"
-          />
-          <div>
-            <p className="text-lg font-semibold">{user.fullName}</p>
-            <p className="text-sm text-gray-500">{user.primaryEmailAddress?.emailAddress}</p>
-            <p className="text-sm text-gray-500">
-              Auth Providers: {fieldsForDB.providerAccounts.join(', ')}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Fields to Save in Database */}
-      <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-        <h2 className="text-lg font-bold text-green-800 mb-2">🗄️ Data to Save in DB</h2>
-        <ul className="text-sm text-gray-800 space-y-1">
-          {Object.entries(fieldsForDB).map(([key, value]) => (
-            <li key={key}>
-              <strong className="capitalize">{key}:</strong>{' '}
-              {Array.isArray(value) ? value.join(', ') : value || 'null'}
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* Full User Metadata (Expandable/Raw JSON) */}
-      <div className="bg-gray-50 border rounded-xl p-4">
-        <h2 className="text-lg font-semibold mb-2">🔍 Full Clerk User Object</h2>
-        <pre className="text-xs bg-gray-100 rounded-lg p-2 overflow-x-auto">
-          {JSON.stringify(user, null, 2)}
-        </pre>
       </div>
     </div>
   )

@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Shared component styles */
+@layer components {
+  .btn-primary {
+    @apply bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors shadow-lg;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-600 hover:bg-gray-700 text-white font-medium px-4 py-2 rounded-lg transition-colors;
+  }
+  
+  .card {
+    @apply bg-white shadow-xl rounded-xl p-6 border border-gray-200;
+  }
+  
+  .dark-card {
+    @apply bg-dark-secondary border border-gray-700 rounded-lg p-4;
+  }
+}
+
+/* Dark theme scrollbar */
+.dark-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dark-scrollbar::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+.dark-scrollbar::-webkit-scrollbar-thumb {
+  background: #404040;
+  border-radius: 4px;
+}
+
+.dark-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #606060;
+}
+
+/* Terminal-like output styling */
+.terminal-output {
+  background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
+}
+
+/* Code syntax highlighting adjustments */
+pre {
+  background: rgba(15, 15, 15, 0.8) !important;
+  border: 1px solid rgba(64, 64, 64, 0.3);
+  border-radius: 8px;
+} 
