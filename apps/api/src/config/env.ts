@@ -26,6 +26,13 @@ export const env = {
   
   // MongoDB Configuration
   CODETECTOR_DB: process.env.CODETECTOR_DB || '',
+
+  // Redis Configuration
+  REDIS_URL: process.env.REDIS_URL || '',
+  
+  // E2B Configuration
+  E2B_API_KEY: process.env.E2B_API_KEY || '',
+  E2B_SANDBOX_TEMPLATE: process.env.E2B_SANDBOX_TEMPLATE || 'gh622yvblp3exdpk9tya',
   
   // Server Configuration
   PORT: process.env.PORT ? parseInt(process.env.PORT) : 3001,
@@ -37,7 +44,9 @@ const requiredEnvVars = [
   'GITHUB_APP_ID',
   'GITHUB_PRIVATE_KEY_BASE64',
   'GITHUB_WEBHOOK_SECRET',
-  'CODETECTOR_DB'
+  'CODETECTOR_DB',
+  'REDIS_URL',
+  'E2B_API_KEY',
 ];
 
 const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
