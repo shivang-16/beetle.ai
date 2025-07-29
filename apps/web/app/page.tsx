@@ -1,6 +1,7 @@
 'use client'
 import { useAuth, useUser } from '@clerk/nextjs'
 import { useState } from 'react';
+import MainWebsite from './components/websiteComp/mainWebsite';
 
 interface GitHubInstallation {
   _id: string;
@@ -47,7 +48,7 @@ export default function Home() {
     }
   };
 
-  if (!isSignedIn || !user) return <div>Not signed in</div>
+  if (!isSignedIn || !user) return <MainWebsite />
 
   // Extract fields for database saving
   const fieldsForDB = {
