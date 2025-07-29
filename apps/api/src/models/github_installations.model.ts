@@ -9,15 +9,15 @@ export interface IGithub_Installation extends Document {
     avatarUrl: string,
     htmlUrl: string,
   },
+  sender: {
+    login: string,
+    id: number,
+    type: 'User' | 'Organization',
+    avatarUrl: string,
+    htmlUrl: string,
+  },
   targetType: 'User' | 'Organization';
   repositorySelection: 'all' | 'selected';
-  repositories: [  
-    {
-      id: Number,
-      fullName: String,
-      private: Boolean
-    }
-  ];
   permissions: Record<string, string>;
   events: string[];
   installedAt: Date;
@@ -37,6 +37,10 @@ const InstallationSchema = new Schema<IGithub_Installation>({
     type: Object,
     required: true
   },
+  sender: {
+    type: Object,
+    required: true
+  },
   targetType: {
     type: String,
     required: true,
@@ -47,20 +51,7 @@ const InstallationSchema = new Schema<IGithub_Installation>({
     required: true,
     enum: ['all', 'selected']
   },
-  repositories: [{
-    id: {
-      type: Number,
-      required: true
-    },
-    fullName: {
-      type: String,
-      required: true
-    },
-    private: {
-      type: Boolean,
-      required: true
-    }
-  }],
+ 
   permissions: {
     type: Map,
     of: String
