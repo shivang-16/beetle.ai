@@ -9,6 +9,7 @@ import { webhooks } from './webooks/github.webooks.js';
 import { clerkMiddleware } from '@clerk/express'
 import GithubRoutes from "./routes/github.routes.js"
 import UserRoutes from "./routes/user.routes.js"
+import AnalysisRoutes from "./routes/analysis.routes.js"
 
 export function createApp(): Application {
   const app = express();
@@ -56,6 +57,7 @@ app.use(
   // API Routes
   app.use('/api/github', GithubRoutes);
   app.use('/api/user', UserRoutes)
+  app.use('/api/analysis', AnalysisRoutes);
 
   // 404 handler
   app.use((req: Request, res: Response) => {
