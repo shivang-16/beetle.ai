@@ -2,6 +2,8 @@
 import { useAuth, useUser } from '@clerk/nextjs'
 import MainWebsite from './components/websiteComp/mainWebsite';
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { Brain, Github, User } from 'lucide-react';
 
 interface GitHubInstallation {
   _id: string;
@@ -92,15 +94,66 @@ export default function Home() {
 
   return (
     <div className="p-6 space-y-8">
-      <div className="flex justify-between items-center">
+      {/* Navigation Header */}
+      <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-bold">👋 Welcome, {user.firstName}!</h1>
+        <div className="flex space-x-4">
+          <Link
+            href="/analysis"
+            className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+          >
+            <Brain className="w-4 h-4" />
+            <span>Code Analysis</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <Link
+          href="/analysis"
+          className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-shadow"
+        >
+          <div className="flex items-center space-x-3">
+            <div className="p-3 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+              <Brain className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900 dark:text-white">Code Analysis</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Analyze repositories with AI</p>
+            </div>
+          </div>
+        </Link>
+
         <button
           onClick={fetchInstallations}
           disabled={loading}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md disabled:opacity-50"
+          className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-shadow text-left"
         >
-          {loading ? 'Loading...' : 'List GitHub Installations'}
+          <div className="flex items-center space-x-3">
+            <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-lg">
+              <Github className="w-6 h-6 text-green-600 dark:text-green-400" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900 dark:text-white">GitHub Installations</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                {loading ? 'Loading...' : 'Manage GitHub integrations'}
+              </p>
+            </div>
+          </div>
         </button>
+
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center space-x-3">
+            <div className="p-3 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
+              <User className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900 dark:text-white">User Profile</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">View account information</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {error && (
