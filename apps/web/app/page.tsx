@@ -1,5 +1,6 @@
 'use client'
 import { useAuth, useUser } from '@clerk/nextjs'
+import MainWebsite from './components/websiteComp/mainWebsite';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Brain, Github, User } from 'lucide-react';
@@ -77,18 +78,8 @@ export default function Home() {
     }
   };
 
+  if (!isSignedIn || !user) return <MainWebsite />
   console.log(isSignedIn, "isSignedIn", user)
-
-  // if (!isSignedIn) {
-  //   if (typeof window !== 'undefined') {
-  //     window.location.href = '/login';
-  //   } 
-  //   return null; 
-  // }
-
-  if (!user) {
-    return <div>Loading user...</div>
-  }
 
   // Extract fields for database saving
   const fieldsForDB = {

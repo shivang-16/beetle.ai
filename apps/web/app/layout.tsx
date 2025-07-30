@@ -4,7 +4,7 @@ import {
   SignedIn,
   UserButton,
 } from '@clerk/nextjs'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Geist, Geist_Mono, Work_Sans } from 'next/font/google'
 import './globals.css'
 
 const geistSans = Geist({
@@ -15,6 +15,12 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
+})
+
+const workSans = Work_Sans({
+  variable: '--font-work-sans',
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'],
 })
 
 export const metadata: Metadata = {
@@ -30,12 +36,7 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en">
-        <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-          <header className="flex justify-end items-center p-4 gap-4 h-16">
-            <SignedIn>
-              <UserButton />
-            </SignedIn>
-          </header>
+        <body className={`${workSans.variable} ${geistSans.variable} ${geistMono.variable} antialiased`}>
           {children}
         </body>
       </html>
