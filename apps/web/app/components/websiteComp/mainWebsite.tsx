@@ -4,10 +4,9 @@ import HeroSection from "./heroSection";
 import StatsSection from "./StatsSection";
 import FeaturesSection from "./FeaturesSection";
 
-
 const MainWebsite = () => {
   return (
-    <div className="min-h-screen main-website-bg bg-[#17171D]">
+    <div className="min-h-screen bg-[#010010]">
       {/* Navbar - Fixed at top */}
       <NavbarWeb />
       <HeroSection />

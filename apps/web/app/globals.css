@@ -1,15 +1,16 @@
 @import "tailwindcss";
 
-
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #010010;
+  --primary: #4ec6a0;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
+    --background: #010010;
     --foreground: #ededed;
+    --primary: #4ec6a0;
   }
 }
 
@@ -22,8 +23,16 @@ body {
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: var(--font-work-sans), Arial, system-ui, -apple-system, sans-serif !important;
-  font-feature-settings: "ss04" on, "salt" on, "ss01" on;
+  font-family:
+    var(--font-work-sans),
+    Arial,
+    system-ui,
+    -apple-system,
+    sans-serif !important;
+  font-feature-settings:
+    "ss04" on,
+    "salt" on,
+    "ss01" on;
 }
 
 * {
@@ -45,19 +54,19 @@ body {
 
 /* Navbar Glass Effect Styles */
 .tt-navbar-strip {
-    backdrop-filter: blur(0.6rem) !important;
-    pointer-events: auto !important;
-    background-color: rgba(255, 255, 255, 0.85) !important;
-    align-items: center !important;
-    display: flex !important;
-    position: relative !important;
-    box-shadow: rgba(0, 0, 0, 0.08) 0px 1px !important;
-    border-radius: 0.6rem !important;
-    padding: 1rem 1rem 1rem 0.9rem !important;
+  backdrop-filter: blur(0.6rem) !important;
+  pointer-events: auto !important;
+  background-color: rgba(255, 255, 255, 0.85) !important;
+  align-items: center !important;
+  display: flex !important;
+  position: relative !important;
+  box-shadow: rgba(0, 0, 0, 0.08) 0px 1px !important;
+  border-radius: 0.6rem !important;
+  padding: 1rem 1rem 1rem 0.9rem !important;
 }
 
 .tt-navbar.dark .tt-navbar-strip {
-    background: rgba(43, 43, 43, 0.7) !important;
+  background: rgba(43, 43, 43, 0.7) !important;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -66,9 +75,9 @@ body {
   }
 }
 .container {
-        max-width: 1200px;
-        padding-right: 2rem;
-        padding-left: 2rem;
+  max-width: 1200px;
+  padding-right: 2rem;
+  padding-left: 2rem;
 }
 
 .grainy-hover:hover::before {
@@ -76,7 +85,7 @@ body {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background-image: linear-gradient(135deg, #f095cc, #9caee0, #FF6A75, #fa9d94);
+  background-image: linear-gradient(135deg, #f095cc, #9caee0, #ff6a75, #fa9d94);
   background-size: 300%;
   mix-blend-mode: screen;
   animation: pulse-bg 3s ease infinite;
@@ -116,20 +125,19 @@ body {
   position: relative;
   min-height: 100vh;
   background: 
-    /* Noise overlay from public folder */
-    url("/noise-texture.png"),
+    /* Noise overlay from public folder */ url("/noise-texture.png");
 }
 
 @font-face {
-  font-family: 'Scandia';
-  src: url('/fonts/Scandia-Medium.woff') format('woff');
+  font-family: "Scandia";
+  src: url("/fonts/Scandia-Medium.woff") format("woff");
   font-weight: normal;
   font-style: normal;
 }
 
 /* Fallback for testing - you can remove this once you have the actual font file */
 .font-scandia {
-  font-family: 'Scandia', serif !important;
+  font-family: "Scandia", serif !important;
 }
 
 /* Custom styles for markdown content */
