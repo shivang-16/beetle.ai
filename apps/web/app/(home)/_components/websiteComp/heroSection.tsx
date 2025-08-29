@@ -7,18 +7,29 @@ const heroSection = () => {
     <section className="mb-40">
       <div className="relative z-10">
         {/* Hero Section */}
-        <div className="container mx-auto px-6 pt-[8%]">
-          <div className="relative z-10 font-scandia py-10 rounded-4xl flex">
+        <div className="container mx-auto px-6 pt-[6%]">
+          <div className="relative z-10 font-scandia py-10 rounded-4xl flex h-[85vh]">
             <div
               className="absolute inset-0 z-0 mask-radial-[100%_100%] mask-radial-from-[5%] mask-radial-at-right rounded-4xl"
               style={{
-                backgroundImage: `
-                radial-gradient(circle at 1px 1px, rgba(78, 198, 160, 1) 1px, transparent 0),
-                repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.02) 2px, rgba(0,0,0,0.05) 4px),
-                repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(0,0,0,0.02) 2px, rgba(0,0,0,0.05) 4px)
-              `,
-                backgroundSize: "6px 6px, 32px 32px, 32px 32px",
+                backgroundImage: "url('/smoke.png')",
+                backgroundSize: "cover",
+                backgroundPosition: "right center",
+                backgroundRepeat: "no-repeat",
               }}
+              // style={{
+              //   backgroundImage: `
+              //     radial-gradient(circle at 1px 1px, rgba(78, 198, 160, 1) 1px, transparent 0),
+              //     repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.02) 2px, rgba(0,0,0,0.05) 4px),
+              //     repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(0,0,0,0.02) 2px, rgba(0,0,0,0.05) 4px),
+              //     url("/smoke.png")
+              //   `,
+              //   backgroundSize: "4px 4px, 20px 20px, 16px 16px, cover",
+              //   backgroundPosition: "top left, top left, top left, center",
+              //   backgroundRepeat: "repeat, repeat, repeat, no-repeat",
+              //   backgroundBlendMode: "normal, normal, normal, multiply", // apply blend to smoke
+              // }}
+              
             />
             <div className="relative z-10 flex-2 pl-4 flex flex-col justify-between">
               <h1 className="text-5xl md:text-6xl leading-tight font-bold text-white mb-6">
