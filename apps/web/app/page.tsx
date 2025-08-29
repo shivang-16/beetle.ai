@@ -28,7 +28,8 @@ export default function Home() {
     const fetchUserFromApi = async () => {
       if (isSignedIn) {
         try {
-          const token = await getToken();
+          const token = await getToken()
+          console.log("Token:", token)
           const response = await fetch('http://localhost:3001/api/user', {
             headers: {
               'Authorization': `Bearer ${token}`,

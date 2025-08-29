@@ -8,7 +8,7 @@ const router: Router = express.Router();
 router.get("/status", getAnalysisStatus);
 
 // Protected analysis endpoint
-// router.use(checkAuth);
+router.use(checkAuth);
 router.post("/execute", executeAnalysis);
 
 export default router; 

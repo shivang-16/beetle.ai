@@ -1,6 +1,8 @@
 import { NextFunction, Request, Response } from 'express';
 import { createSandbox } from '../config/sandbox.js';
 import { CustomError } from '../middlewares/error.js';
+import { generateInstallationToken } from '../lib/githubApp.js';
+import { getUserGitHubInstallation } from '../queries/github.queries.js';
 
 export const executeAnalysis = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -8,10 +10,12 @@ export const executeAnalysis = async (req: Request, res: Response, next: NextFun
         
         // Extract parameters from request body or use defaults
         const { 
-            repoUrl = 'https://github.com/shivang-16/Infinity_Social_Media.api',
+            repoUrl,
             model = 'gemini-2.5-flash',
-            prompt = 'Analyze this codebase for security vulnerabilities and code quality'
+            prompt = 'Analyze this codebase for security vulnerabilities and code quality',
         } = req.body;
+
+        const userId = req.user._id;
         
         console.log(`📊 Analysis Configuration:
         Repository: ${repoUrl}
@@ -22,6 +26,20 @@ export const executeAnalysis = async (req: Request, res: Response, next: NextFun
         console.log('🔧 Creating E2B sandbox...');
         const sandbox = await createSandbox();
         console.log('✅ Sandbox created successfully');
+
+        // Generate GitHub token for private repo access if user is authenticated
+        let githubToken = null;
+        if (userId) {
+            try {
+                console.log('🔑 Generating GitHub installation token...');
+                const installation = await getUserGitHubInstallation(userId);
+                githubToken = await generateInstallationToken(installation.installationId);
+                console.log('✅ GitHub token generated successfully', githubToken);
+            } catch (error) {
+                console.log('⚠️ Could not generate GitHub token:', error);
+                // Continue without token - will work for public repos
+            }
+        }
 
         // Set response headers for streaming
         res.setHeader('Content-Type', 'text/plain');
@@ -52,9 +70,24 @@ export const executeAnalysis = async (req: Request, res: Response, next: NextFun
         streamToClient('✅ Streaming confirmed working, starting analysis...');
         streamToClient('');
 
-        // Construct the analysis command with unbuffered Python output and explicit flushing
-        const analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrl}" "${model}" "${prompt}"`;
-        streamToClient(`🔄 Executing command: ${analysisCommand}`);
+        // Construct the analysis command with GitHub token embedded in repo URL
+        let authenticatedRepoUrl = repoUrl;
+        if (githubToken) {
+            // Embed token directly in the repo URL for private repos
+            if (repoUrl.startsWith('https://github.com/')) {
+                authenticatedRepoUrl = repoUrl.replace(
+                    'https://github.com/',
+                    `https://x-access-token:${githubToken}@github.com/`
+                );
+                streamToClient('🔐 Using GitHub token for private repository access');
+            }
+        } else {
+            streamToClient('🌐 Accessing public repository (no authentication required)');
+        }
+        
+        // Now the Python script just needs to use the repo URL as-is
+        const analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${authenticatedRepoUrl}" "${model}" "${prompt}"`;
+        streamToClient(`🔄 Executing command: ${analysisCommand.replace(githubToken || '', '[TOKEN_HIDDEN]')}`);
         streamToClient('');
 
         // Start the analysis command in the background with streaming
