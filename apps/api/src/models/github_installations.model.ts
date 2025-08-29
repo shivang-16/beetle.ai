@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IGithub_Installation extends Document {
   installationId: number;
+  userId: string;
   account: {
     login: string,
     id: number,
@@ -31,6 +32,11 @@ const InstallationSchema = new Schema<IGithub_Installation>({
     type: Number,
     required: true,
     unique: true,
+    index: true
+  },
+  userId: {
+    type: String,
+    required: false,
     index: true
   },
   account: {

@@ -24,3 +24,20 @@ export const getInstallationOctokit = (installationId: number): Octokit => {
     }
   });
 };
+
+// Generate installation access token for private repo access
+export const generateInstallationToken = async (installationId: number): Promise<string> => {
+  try {
+    const auth = createAppAuth({
+      appId: env.GITHUB_APP_ID!,
+      privateKey: Buffer.from(env.GITHUB_PRIVATE_KEY_BASE64, 'base64').toString('utf8'),
+      installationId: installationId
+    });
+    
+    const { token } = await auth({ type: 'installation' });
+    return token;
+  } catch (error) {
+    console.error('Error generating installation token:', error);
+    throw new Error(`Failed to generate GitHub installation token: ${error}`);
+  }
+};

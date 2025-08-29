@@ -23,10 +23,12 @@ export const create_github_installation = async (payload: CreateInstallationInpu
              if (existingInstallation) {
                  return new CustomError('Installation already exists', 409);
              }
-     
-             // Create new installation
-             const installation = new Github_Installation({
-                 installationId: input.installationId,
+            
+             const user = await User.findOne({ username: input.sender.login });
+
+             const installation_data = {
+              installationId: input.installationId,
+              userId: user ? user._id.toString() : null,
                  account: {
                      login: input.account.login,
                      id: input.account.id,
@@ -46,16 +48,14 @@ export const create_github_installation = async (payload: CreateInstallationInpu
                  permissions: input.permissions,
                  events: input.events,
                  installedAt: input.installedAt || new Date()
-             });
+             }
+
+             // Create new installation
+             const installation = new Github_Installation(installation_data);
      
              await installation.save();
      
-            //  Update user with the new installation
-             await User.updateOne(
-                 { username: input.sender.login }, 
-                 { $addToSet: { github_installations: installation._id } }
-             );  
-
+      
              await Github_Repository.insertMany(
                  input.repositories?.map((repo) => ({
                      github_installationId: installation._id,
@@ -95,5 +95,21 @@ export const delete_github_installation = async (installationId: number) => {
   } catch (error) {
     console.error("Error deleting GitHub installation:", error);
     throw new CustomError("Failed to delete GitHub installation", 500);
+  }
+};
+
+// Get user's GitHub installation for token generation
+export const getUserGitHubInstallation = async (userId: string) => {
+  try {
+    const installation = await Github_Installation.findOne({ userId });
+    
+    if (!installation) {
+      throw new CustomError("No GitHub installation found for this user. Please install the GitHub App first.", 404);
+    }
+    
+    return installation;
+  } catch (error) {
+    console.error("Error getting user GitHub installation:", error);
+    throw new CustomError("Failed to get GitHub installation", 500);
   }
 };

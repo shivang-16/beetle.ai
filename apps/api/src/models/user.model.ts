@@ -44,11 +44,7 @@ const userSchema = new Schema<IUser>(
     },
     password: {
       type: String,
-    },
-    github_installations: {
-      type: [Schema.Types.ObjectId],
-      ref: 'Github_Installation',
-    },
+    }
   },
   {
     timestamps: true,
