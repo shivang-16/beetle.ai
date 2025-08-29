@@ -8,9 +8,9 @@ export const createUser = async (data: any) => {
         const github_installations = await Github_Installation.find({ "sender.login": user.username });
 
         if (github_installations.length > 0) {
-            user.github_installations = github_installations;
-            await user.save();
+            await Github_Installation.updateMany({ "sender.login": user.username }, { userId: user._id });
         }
+        
         return user;
     } catch (error) {
         throw error;
