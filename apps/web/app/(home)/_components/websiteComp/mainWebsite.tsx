@@ -1,8 +1,5 @@
-import Image from "next/image";
 import NavbarWeb from "../ui/navbarWeb";
 import HeroSection from "./heroSection";
-import StatsSection from "./StatsSection";
-import FeaturesSection from "./FeaturesSection";
 
 const MainWebsite = () => {
   return (
@@ -10,8 +7,8 @@ const MainWebsite = () => {
       {/* Navbar - Fixed at top */}
       <NavbarWeb />
       <HeroSection />
-      <StatsSection />
-      <FeaturesSection />
+      {/* <StatsSection />
+      <FeaturesSection /> */}
     </div>
   );
 };
