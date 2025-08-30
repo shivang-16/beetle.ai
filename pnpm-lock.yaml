@@ -110,6 +110,7 @@ importers:
       autoprefixer: ^10.4.21
       class-variance-authority: ^0.7.1
       clsx: ^2.1.1
+      date-fns: ^4.1.0
       eslint: ^9.31.0
       lucide-react: ^0.532.0
       motion: ^12.23.12
@@ -127,6 +128,7 @@ importers:
       tailwindcss-animate: ^1.0.7
       tw-animate-css: ^1.3.7
       typescript: 5.8.2
+      use-debounce: ^10.0.5
     dependencies:
       '@clerk/nextjs': 6.31.4_rgwe4jslpbtftcynf224dz2rnu
       '@radix-ui/react-dialog': 1.1.15_igtg2ppxjmyrvjjofdwxp77nqm
@@ -136,6 +138,7 @@ importers:
       '@repo/ui': link:../../packages/ui
       class-variance-authority: 0.7.1
       clsx: 2.1.1
+      date-fns: 4.1.0
       lucide-react: 0.532.0_react@19.1.1
       motion: 12.23.12_6qpiazawufkd5n22ferrdsggza
       next: 15.5.0_6qpiazawufkd5n22ferrdsggza
@@ -148,6 +151,7 @@ importers:
       sonner: 2.0.7_6qpiazawufkd5n22ferrdsggza
       tailwind-merge: 3.3.1
       tailwindcss-animate: 1.0.7_tailwindcss@4.1.12
+      use-debounce: 10.0.5_react@19.1.1
     devDependencies:
       '@repo/eslint-config': link:../../packages/eslint-config
       '@repo/typescript-config': link:../../packages/typescript-config
@@ -2693,6 +2697,10 @@ packages:
       es-errors: 1.3.0
       is-data-view: 1.0.2
     dev: true
+
+  /date-fns/4.1.0:
+    resolution: {integrity: sha512-Ukq0owbQXxa/U3EGtsdVBkR1w7KOQ5gIBqdH2hkvknzZPYvBxb/aa6E8L7tmjFtkwZBu3UXBbjIgPo/Ez4xaNg==}
+    dev: false
 
   /debug/4.4.1:
     resolution: {integrity: sha512-KcKCqiftBJcZr++7ykoDIEwSa3XWowTfNPo92BYxjXiyYEVrUQh2aLyhxBCwww+heortUFxEJYcRzosstTEBYQ==}
@@ -6481,6 +6489,15 @@ packages:
       '@types/react': 19.1.0
       react: 19.1.1
       tslib: 2.8.1
+    dev: false
+
+  /use-debounce/10.0.5_react@19.1.1:
+    resolution: {integrity: sha512-Q76E3lnIV+4YT9AHcrHEHYmAd9LKwUAbPXDm7FlqVGDHiSOhX3RDjT8dm0AxbJup6WgOb1YEcKyCr11kBJR5KQ==}
+    engines: {node: '>= 16.0.0'}
+    peerDependencies:
+      react: '*'
+    dependencies:
+      react: 19.1.1
     dev: false
 
   /use-sidecar/1.1.3_2ztr5q6knzl2semzv7krmofqeq:
