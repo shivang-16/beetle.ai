@@ -37,7 +37,7 @@ const AppMenuItem = ({
           )}>
           <Button
             variant={"ghost"}
-            className="flex items-center justify-center cursor-pointer h-10">
+            className="flex items-center justify-center cursor-pointer h-10 hover:bg-transparent">
             <item.icon />
           </Button>
         </Link>

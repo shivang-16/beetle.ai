@@ -1,26 +1,17 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import {
-  // ChevronDown,
-  Github,
-  // LogIn,
-  // MessageCircleMore,
-  // Rocket,
-  // Sparkles,
-  // Users,
-} from "lucide-react";
+import { Github } from "lucide-react";
 import { SignInButton, SignUpButton, SignedOut } from "@clerk/nextjs";
 import CodetectorLogo from "@/components/shared/codetector-logo";
+import ThemeToggle from "@/components/shared/theme-toggle";
+import { Button } from "@/components/ui/button";
 
 export default function Navbar() {
-  // const [dropdownOpen, setDropdownOpen] = useState(false);
-
   return (
-    <header className="fixed mt-4 font-scandia top-0 left-0 right-0 z-50 w-full">
-      <div className=" container mx-auto px-6">
-        <div className="tt-navbar-strip flex items-center justify-between">
+    <header className="fixed mt-3 font-scandia top-0 left-0 right-0 z-50 w-full rounded-full">
+      <div className="max-w-7xl w-full mx-auto px-6 ">
+        <div className="flex items-center justify-between bg-[#010010]/20 backdrop-blur-lg p-4 rounded-full">
           {/* Logo */}
           <Link
             href="/"
@@ -29,87 +20,32 @@ export default function Navbar() {
             Codetector
           </Link>
 
-          {/* <nav className="hidden text-xl items-center gap-6 md:flex">
-            <div className="relative">
-              <button
-                className="flex items-center gap-1 text-sm font-medium text-neutral-300 hover:text-white transition-colors duration-200"
-                onClick={() => setDropdownOpen(!dropdownOpen)}>
-                Features <ChevronDown className="h-4 w-4" />
-              </button>
-              {dropdownOpen && (
-                <div className="absolute left-0 mt-2 w-72 rounded-xl border backdrop-blur-md p-4 shadow-lg border-neutral-800/50 bg-neutral-900/90">
-                  <FeatureItem
-                    icon={<Sparkles className="h-5 w-5 text-indigo-500" />}
-                    title="Editor"
-                    description="A modern editor that works like Notion."
-                    href="/product/editor"
-                  />
-                  <FeatureItem
-                    icon={
-                      <MessageCircleMore className="h-5 w-5 text-pink-500" />
-                    }
-                    title="Comments"
-                    description="Inline and sidebar commenting support."
-                    href="/product/comments"
-                  />
-                  <FeatureItem
-                    icon={<Rocket className="h-5 w-5 text-green-500" />}
-                    title="Content AI"
-                    description="AI assistance for writing and editing."
-                    href="/product/content-ai"
-                  />
-                  <FeatureItem
-                    icon={<Users className="h-5 w-5 text-orange-500" />}
-                    title="Collaboration"
-                    description="Real-time multi-user collaboration."
-                    href="/product/collaboration"
-                  />
-                </div>
-              )}
-            </div>
-
-            <Link
-              href="/customers"
-              className="text-sm text-neutral-300 hover:text-white transition-colors duration-200">
-              Customers
-            </Link>
-            <Link
-              href="/enterprise"
-              className="text-sm text-neutral-300 hover:text-white transition-colors duration-200">
-              Enterprise
-            </Link>
-            <Link
-              href="/pricing"
-              className="text-sm text-neutral-300 hover:text-white transition-colors duration-200">
-              Pricing
-            </Link>
-            <Link
-              href="/docs"
-              className="text-sm text-neutral-300 hover:text-white transition-colors duration-200">
-              Docs
-            </Link>
-          </nav> */}
-
           {/* Right section (icons + auth buttons) */}
           <div className="flex items-center gap-4">
             <Link
               href="https://github.com/shivang-16/codetector.ai"
               target="_blank"
-              className="text-neutral-300 hover:text-white transition-colors duration-200">
+              className="text-white transition-colors duration-200">
               <Github className="h-5 w-5" />
             </Link>
+
+            <ThemeToggle />
 
             {/* Clerk Authentication */}
             <SignedOut>
               <SignInButton>
-                <button className="text-sm text-neutral-300 hover:text-white transition-colors duration-200">
+                <Button
+                  variant={"ghost"}
+                  className="cursor-pointer text-primary hover:text-primary">
                   Sign In
-                </button>
+                </Button>
               </SignInButton>
               <SignUpButton>
-                <button className="px-2 py-1 rounded-full text-sm text-white border border-[#4ec6a0] hover:border-white hover:cursor-pointer transition-all duration-200">
+                <Button
+                  variant={"outline"}
+                  className="rounded-full cursor-pointer border-primary text-primary hover:text-primary bg-transparent">
                   Sign Up
-                </button>
+                </Button>
               </SignUpButton>
             </SignedOut>
           </div>
@@ -118,27 +54,3 @@ export default function Navbar() {
     </header>
   );
 }
-
-// function FeatureItem({
-//   icon,
-//   title,
-//   description,
-//   href,
-// }: {
-//   icon: React.ReactNode;
-//   title: string;
-//   description: string;
-//   href: string;
-// }) {
-//   return (
-//     <Link
-//       href={href}
-//       className="flex items-start gap-3 rounded-lg p-3 hover:bg-white/60 hover:backdrop-blur-sm transition-all duration-200">
-//       <div className="mt-1">{icon}</div>
-//       <div>
-//         <div className="text-sm font-semibold text-white">{title}</div>
-//         <div className="text-xs text-neutral-400">{description}</div>
-//       </div>
-//     </Link>
-//   );
-// }

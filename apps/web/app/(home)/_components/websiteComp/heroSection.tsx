@@ -7,8 +7,8 @@ const heroSection = () => {
     <section className="mb-40">
       <div className="relative z-10">
         {/* Hero Section */}
-        <div className="container mx-auto px-6 pt-[6%]">
-          <div className="relative z-10 font-scandia py-10 rounded-4xl flex h-[85vh]">
+        <div className="max-w-7xl w-full mx-auto px-6 pt-[7%]">
+          <div className="relative z-10 font-scandia py-10 rounded-4xl flex h-[80vh]">
             <div
               className="absolute inset-0 z-0 mask-radial-[100%_100%] mask-radial-from-[5%] mask-radial-at-right rounded-4xl"
               style={{
@@ -29,7 +29,6 @@ const heroSection = () => {
               //   backgroundRepeat: "repeat, repeat, repeat, no-repeat",
               //   backgroundBlendMode: "normal, normal, normal, multiply", // apply blend to smoke
               // }}
-              
             />
             <div className="relative z-10 flex-2 pl-4 flex flex-col justify-between">
               <h1 className="text-5xl md:text-6xl leading-tight font-bold text-white mb-6">
@@ -49,7 +48,7 @@ const heroSection = () => {
 
                 {/* CTA Buttons */}
                 <div className="flex flex-col items-start gap-6 mb-8">
-                  <Button className="rounded-full" size={"lg"}>
+                  <Button className="rounded-full dark:text-white" size={"lg"}>
                     <span className="">Get started free</span>
                   </Button>
                 </div>
