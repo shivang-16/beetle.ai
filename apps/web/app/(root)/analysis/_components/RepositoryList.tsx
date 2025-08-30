@@ -5,7 +5,7 @@ import { GithubRepository } from "@/types/types";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { currentUser } from "@clerk/nextjs/server";
+import { getUser } from "@/_actions/user-actions";
 
 const RepositoryList = async ({ query }: { query: string }) => {
   let data: GithubRepository[] | undefined;
@@ -21,7 +21,7 @@ const RepositoryList = async ({ query }: { query: string }) => {
     );
   }
 
-  const user = await currentUser();
+  const user = await getUser();
 
   return (
     <ul className="h-full">
