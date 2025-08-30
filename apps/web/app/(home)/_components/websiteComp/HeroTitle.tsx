@@ -5,9 +5,10 @@ import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 const HeroTitle = ({ title }: { title: string }) => {
+  const heading = title.split(" ");
   return (
     <>
-      {title.split(" ").map((word, index) => (
+      {heading.map((word, index) => (
         <motion.span
           key={index}
           initial={{ opacity: 0, filter: "blur(5px)", y: 10 }}
@@ -19,7 +20,7 @@ const HeroTitle = ({ title }: { title: string }) => {
           }}
           className={cn(
             "mr-2.5 inline-block",
-            index === title.length - 1 ? "text-[#4ec6a0]" : ""
+            index === heading.length - 1 ? "text-primary" : ""
           )}>
           {word}
         </motion.span>
