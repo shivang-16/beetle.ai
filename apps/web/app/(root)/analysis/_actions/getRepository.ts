@@ -14,6 +14,7 @@ export const getRepository = async (query: string) => {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        cache: "force-cache",
         next: {
           tags: ["repository_list"],
         },

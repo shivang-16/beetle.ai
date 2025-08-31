@@ -328,19 +328,19 @@ body {
 
 /* Custom scrollbar for output */
 .output-scrollbar::-webkit-scrollbar {
-  width: 8px;
+  width: 3px;
 }
 
 .output-scrollbar::-webkit-scrollbar-track {
-  @apply bg-gray-800;
+  @apply bg-transparent;
 }
 
 .output-scrollbar::-webkit-scrollbar-thumb {
-  @apply bg-gray-600 rounded;
+  @apply bg-gray-300 rounded;
 }
 
 .output-scrollbar::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-500;
+  @apply bg-gray-400;
 }
 
 @layer base {
@@ -350,33 +350,4 @@ body {
   body {
     @apply bg-background text-foreground;
   }
-}
-
-/* Custom Blue Scrollbar */
-.scrollBar::-webkit-scrollbar,
-.whiteScrollBar::-webkit-scrollbar {
-  -webkit-appearance: none;
-}
-
-.scrollHide::-webkit-scrollbar {
-  -webkit-appearance: none;
-}
-.scrollBar::-webkit-scrollbar:vertical {
-  position: relative;
-  width: 4px;
-}
-
-.scrollBar::-webkit-scrollbar:horizontal,
-.whiteScrollBar::-webkit-scrollbar:horizontal {
-  height: 4px;
-  border-radius: 0px !important;
-}
-
-.scrollBar::-webkit-scrollbar-thumb {
-  background-color: var(--primary);
-  border: transparent;
-  border-radius: 22px;
-  width: 4px;
-  height: 45px;
-  right: 50px;
 }
