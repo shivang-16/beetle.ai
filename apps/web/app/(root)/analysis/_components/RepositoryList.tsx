@@ -14,14 +14,9 @@ const RepositoryList = async ({ query }: { query: string }) => {
     // Combine all repositories from all objects and reverse the order
     const allRepos = Object.values(res?.data || {}).flat();
     data = allRepos.reverse();
-
   } catch (error) {
     console.log(error);
   }
-
-  console.log(data, "here is data 2", data?.length);
-
-  const user = await getUser();
 
   return (
     <ul className="h-full">
