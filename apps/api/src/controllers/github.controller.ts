@@ -2,7 +2,8 @@
 import { NextFunction, Request, Response } from "express";
 import { CustomError } from "../middlewares/error.js";
 import { generateInstallationToken } from "../lib/githubApp.js";
-import { getUserGitHubInstallation, getOrganizationInstallationForRepo, getAllUserInstallations, checkIssueCreationPermission } from "../queries/github.queries.js";
+import { getUserGitHubInstallation, getOrganizationInstallationForRepo, getAllUserInstallations, checkIssueCreationPermission, checkPullRequestPermission } from "../queries/github.queries.js";
+import { Octokit } from "@octokit/rest";
 
 export const getRepoTree = async (
   req: Request,
@@ -57,7 +58,6 @@ export const getRepoTree = async (
     }
 
     // Import Octokit dynamically
-    const { Octokit } = await import("@octokit/rest");
     const octokit = new Octokit(githubToken ? { auth: githubToken } : {});
 
     // 1. Get default branch commit SHA
@@ -202,7 +202,6 @@ export const getRepoInfo = async (
       );
     }
 
-    const { Octokit } = await import("@octokit/rest");
     const octokit = new Octokit(githubToken ? { auth: githubToken } : {});
 
     // Get repository information
@@ -329,7 +328,6 @@ export const createIssue = async (
     }
 
     // Import Octokit dynamically
-    const { Octokit } = await import("@octokit/rest");
     const octokit = new Octokit({ auth: githubToken });
 
     // Create the issue
@@ -388,6 +386,257 @@ export const createIssue = async (
     } else {
       next(
         new CustomError(error.message || "Failed to create issue", 500)
+      );
+    }
+  }
+};
+
+export const createPullRequest = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { 
+      repoUrl, 
+      filePath, 
+      before, 
+      after, 
+      title, 
+      body, 
+      branchName,
+      issueNumber 
+    } = req.body;
+
+    // Validate required fields
+    if (!repoUrl || !filePath || !before || !after || !title) {
+      throw new CustomError("repoUrl, filePath, before, after, and title are required", 400);
+    }
+
+    // Parse GitHub URL to extract owner and repo
+    const githubUrlMatch = repoUrl.match(
+      /github\.com\/([^\/]+)\/([^\/]+?)(?:\.git)?$/
+    );
+    if (!githubUrlMatch) {
+      throw new CustomError("Invalid GitHub repository URL", 400);
+    }
+
+    const [, owner, repo] = githubUrlMatch;
+
+    console.log(`🔀 Creating pull request in: ${owner}/${repo}`);
+    console.log(`📁 File path: ${filePath}`);
+    console.log(`📝 Title: ${title}`);
+
+    // Get GitHub token for authenticated user
+    const userId = req.user?._id;
+    let githubToken: string | undefined = process.env.GITHUB_TOKEN;
+
+    if (userId) {
+      try {
+        console.log("🔑 Generating GitHub installation token...");
+        
+        // First try to get user's personal installation
+        let installation;
+        try {
+          installation = await getUserGitHubInstallation(userId);
+        } catch (error) {
+          console.log("⚠️ No personal GitHub installation found, checking organization installations...");
+        }
+
+        // If no personal installation, check if user has access to organization installations
+        if (!installation) {
+          const orgInstallation = await getOrganizationInstallationForRepo(owner, repo, userId);
+          if (orgInstallation) {
+            installation = orgInstallation;
+          }
+        }
+
+        if (installation) {
+          // Check if the installation has permission to create pull requests
+          const hasPermission = checkPullRequestPermission(installation);
+          if (!hasPermission) {
+            throw new CustomError(
+              "GitHub App installation does not have permission to create pull requests. Required permission: 'contents: write'",
+              403
+            );
+          }
+          
+          githubToken = await generateInstallationToken(
+            installation.installationId
+          );
+          console.log("✅ GitHub token generated successfully");
+        } else {
+          console.log("⚠️ No GitHub installation found for user or organization");
+        }
+      } catch (error) {
+        console.log(
+          "⚠️ Could not generate GitHub token, using fallback:",
+          error
+        );
+      }
+    }
+
+    // GitHub token is required for creating pull requests
+    if (!githubToken) {
+      throw new CustomError(
+        "GitHub authentication required to create pull requests",
+        401
+      );
+    }
+
+    // Import Octokit dynamically
+    const octokit = new Octokit({ auth: githubToken });
+
+    // Get the default branch
+    const { data: repoInfo } = await octokit.repos.get({ owner, repo });
+    const defaultBranch = repoInfo.default_branch;
+    console.log(`🌿 Default branch: ${defaultBranch}`);
+
+    // Generate branch name if not provided
+    const newBranchName = branchName || `fix/${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    console.log(`🌿 New branch name: ${newBranchName}`);
+
+    // Get the latest commit SHA from the default branch
+    const { data: ref } = await octokit.git.getRef({
+      owner,
+      repo,
+      ref: `heads/${defaultBranch}`,
+    });
+    const baseSha = ref.object.sha;
+    console.log(`📋 Base commit SHA: ${baseSha.substring(0, 8)}...`);
+
+    // Create a new branch
+    await octokit.git.createRef({
+      owner,
+      repo,
+      ref: `refs/heads/${newBranchName}`,
+      sha: baseSha,
+    });
+    console.log(`✅ Created new branch: ${newBranchName}`);
+
+    // Get the current file content
+    let currentContent: string;
+    let currentSha: string;
+    
+    try {
+      const { data: fileData } = await octokit.repos.getContent({
+        owner,
+        repo,
+        path: filePath,
+        ref: defaultBranch,
+      });
+      
+      if (Array.isArray(fileData)) {
+        throw new CustomError(`Path ${filePath} is a directory, not a file`, 400);
+      }
+      
+      // Check if it's a file (not a symlink or submodule)
+      if (fileData.type !== 'file') {
+        throw new CustomError(`Path ${filePath} is not a regular file (type: ${fileData.type})`, 400);
+      }
+      
+      currentContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
+      currentSha = fileData.sha;
+      console.log(`📄 Current file content retrieved (${currentContent.length} characters)`);
+    } catch (error: any) {
+      if (error.status === 404) {
+        throw new CustomError(`File ${filePath} not found in the repository`, 404);
+      }
+      throw error;
+    }
+
+    // Check if the 'before' content exists in the file
+    if (!currentContent.includes(before)) {
+      throw new CustomError(
+        `The specified 'before' content was not found in the file ${filePath}`,
+        400
+      );
+    }
+
+    // Replace the content
+    const newContent = currentContent.replace(before, after);
+    console.log(`🔄 Content replacement completed`);
+
+    // Create the commit
+    const commitMessage = title;
+    const { data: commit } = await octokit.repos.createOrUpdateFileContents({
+      owner,
+      repo,
+      path: filePath,
+      message: commitMessage,
+      content: Buffer.from(newContent).toString('base64'),
+      sha: currentSha,
+      branch: newBranchName,
+    });
+    console.log(`✅ File updated and committed`);
+
+    // Create pull request body
+    let prBody = body || `This pull request updates \`${filePath}\` with the following changes:\n\n`;
+    prBody += `**Changes made:**\n`;
+    prBody += `- Replaced: \`${before.substring(0, 100)}${before.length > 100 ? '...' : ''}\`\n`;
+    prBody += `- With: \`${after.substring(0, 100)}${after.length > 100 ? '...' : ''}\`\n\n`;
+    
+    // Link to issue if provided
+    if (issueNumber) {
+      prBody += `**Related Issue:** #${issueNumber}\n\n`;
+    }
+    
+    prBody += `**File:** \`${filePath}\`\n`;
+    prBody += `**Branch:** \`${newBranchName}\` → \`${defaultBranch}\``;
+
+    // Create the pull request
+    const { data: pullRequest } = await octokit.pulls.create({
+      owner,
+      repo,
+      title,
+      body: prBody,
+      head: newBranchName,
+      base: defaultBranch,
+    });
+
+    console.log(`✅ Pull request created successfully! PR #${pullRequest.number}`);
+
+    res.json({
+      success: true,
+      data: {
+        pull_request_number: pullRequest.number,
+        title: pullRequest.title,
+        body: pullRequest.body,
+        state: pullRequest.state,
+        url: pullRequest.html_url,
+        created_at: pullRequest.created_at,
+        updated_at: pullRequest.updated_at,
+        branch: {
+          head: newBranchName,
+          base: defaultBranch,
+        },
+        file_changes: {
+          file_path: filePath,
+          before_length: before.length,
+          after_length: after.length,
+        },
+        repository: {
+          owner,
+          repo,
+          full_name: `${owner}/${repo}`,
+        },
+        issue_number: issueNumber || null,
+      },
+    });
+  } catch (error: any) {
+    console.error("❌ Error creating pull request:", error);
+
+    if (error.status === 404) {
+      next(new CustomError("Repository or file not found", 404));
+    } else if (error.status === 401) {
+      next(new CustomError("GitHub authentication failed", 401));
+    } else if (error.status === 403) {
+      next(new CustomError("Repository access forbidden", 403));
+    } else if (error.status === 422) {
+      next(new CustomError("Invalid pull request data or repository configuration", 422));
+    } else {
+      next(
+        new CustomError(error.message || "Failed to create pull request", 500)
       );
     }
   }

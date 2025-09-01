@@ -210,3 +210,27 @@ export const checkIssueCreationPermission = (installation: any) => {
     return false;
   }
 };
+
+// Check if installation has permission to create pull requests
+export const checkPullRequestPermission = (installation: any) => {
+  try {
+    if (!installation.permissions) {
+      console.log("⚠️ No permissions found in installation");
+      return false;
+    }
+
+    // Check if the installation has permission to create pull requests
+    // GitHub App permissions for pull requests: "contents": "write" or "contents": "admin"
+    const contentsPermission = installation.permissions.get ? 
+      installation.permissions.get("contents") : 
+      installation.permissions["contents"];
+    
+    console.log(`🔐 Contents permission: ${contentsPermission}`);
+    
+    // Return true if permission is "write" or "admin"
+    return contentsPermission === "write" || contentsPermission === "admin";
+  } catch (error) {
+    console.error("Error checking pull request permission:", error);
+    return false;
+  }
+};

@@ -1,6 +1,6 @@
 import express, { Router } from "express";
 import { checkAuth } from "../middlewares/checkAuth.js";
-import { getRepoTree, getRepoInfo, createIssue } from "../controllers/github.controller.js";
+import { getRepoTree, getRepoInfo, createIssue, createPullRequest } from "../controllers/github.controller.js";
 import { getAllUserInstallations } from "../queries/github.queries.js";
 
 const router: Router = express.Router();
@@ -11,6 +11,7 @@ router.post("/info", getRepoInfo);
 
 // Protected routes (auth required)
 router.post("/issue", checkAuth, createIssue);
+router.post("/pull-request", checkAuth, createPullRequest);
 
 // Debug endpoint to check installations
 router.get("/installations", checkAuth, async (req, res) => {
