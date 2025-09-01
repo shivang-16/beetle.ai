@@ -12,7 +12,10 @@ const RepositoryList = async ({ query }: { query: string }) => {
 
   try {
     const res = await getRepository(query);
-    data = Object.values(res?.data || {})[0];
+    // Combine all repositories from all objects and reverse the order
+    const allRepos = Object.values(res?.data || {}).flat();
+    data = allRepos.reverse();
+
   } catch (error) {
     console.log(error);
 
@@ -20,6 +23,8 @@ const RepositoryList = async ({ query }: { query: string }) => {
       error instanceof Error ? `${error.message}` : "Something went wrong!"
     );
   }
+
+  console.log(data, "here is data 2", data?.length);
 
   const user = await getUser();
 
@@ -31,7 +36,7 @@ const RepositoryList = async ({ query }: { query: string }) => {
             <li className="py-5">
               <Link href={`/analysis/${encodeURIComponent(repo.fullName)}`}>
                 <div className="flex items-center gap-3">
-                  <span>{repo.fullName.split(`${user?.username}/`)[1]}</span>
+                  <span>{repo.fullName}</span>
                   <Badge
                     variant={"outline"}
                     className="border-primary text-primary text-sm rounded-full">

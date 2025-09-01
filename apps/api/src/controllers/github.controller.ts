@@ -2,7 +2,7 @@
 import { NextFunction, Request, Response } from "express";
 import { CustomError } from "../middlewares/error.js";
 import { generateInstallationToken } from "../lib/githubApp.js";
-import { getUserGitHubInstallation } from "../queries/github.queries.js";
+import { getUserGitHubInstallation, getOrganizationInstallationForRepo, getAllUserInstallations, checkIssueCreationPermission } from "../queries/github.queries.js";
 
 export const getRepoTree = async (
   req: Request,
@@ -238,5 +238,157 @@ export const getRepoInfo = async (
     next(
       new CustomError(error.message || "Failed to get repository info", 500)
     );
+  }
+};
+
+export const createIssue = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { repoUrl, title, body, labels, assignees } = req.body;
+
+    // Parse GitHub URL to extract owner and repo
+    const githubUrlMatch = repoUrl.match(
+      /github\.com\/([^\/]+)\/([^\/]+?)(?:\.git)?$/
+    );
+    if (!githubUrlMatch) {
+      throw new CustomError("Invalid GitHub repository URL", 400);
+    }
+
+    const [, owner, repo] = githubUrlMatch;
+
+    console.log(`🐛 Creating issue in: ${owner}/${repo}`);
+    console.log(`📝 Title: ${title}`);
+
+    // Get GitHub token for authenticated user
+    const userId = req.user?._id;
+    let githubToken: string | undefined = process.env.GITHUB_TOKEN;
+
+    if (userId) {
+      try {
+        console.log("🔑 Generating GitHub installation token...");
+        console.log(`🎯 Target repository: ${owner}/${repo}`);
+        console.log(`👤 User ID: ${userId}`);
+        
+        // Debug: Check all installations for this user
+        const allInstallations = await getAllUserInstallations(userId);
+        console.log("📋 All installations found:", allInstallations);
+        
+        // First try to get user's personal installation
+        let installation;
+        try {
+          installation = await getUserGitHubInstallation(userId);
+          console.log("✅ Found personal installation:", installation.installationId);
+        } catch (error) {
+          console.log("⚠️ No personal GitHub installation found, checking organization installations...");
+        }
+
+        // If no personal installation, check if user has access to organization installations
+        if (!installation) {
+          // Check if the target repository belongs to an organization where user has access
+          const orgInstallation = await getOrganizationInstallationForRepo(owner, repo, userId);
+          if (orgInstallation) {
+            installation = orgInstallation;
+            console.log(`✅ Found organization installation for ${owner}/${repo}:`, orgInstallation.installationId);
+          }
+        }
+
+        if (installation) {
+          // Check if the installation has permission to create issues
+          const hasPermission = checkIssueCreationPermission(installation);
+          if (!hasPermission) {
+            throw new CustomError(
+              "GitHub App installation does not have permission to create issues. Required permission: 'issues: write' or 'issues: admin'",
+              403
+            );
+          }
+          
+          githubToken = await generateInstallationToken(
+            installation.installationId
+          );
+          console.log("✅ GitHub token generated successfully");
+        } else {
+          console.log("⚠️ No GitHub installation found for user or organization");
+        }
+      } catch (error) {
+        console.log(
+          "⚠️ Could not generate GitHub token, using fallback:",
+          error
+        );
+      }
+    }
+
+    // GitHub token is required for creating issues
+    if (!githubToken) {
+      throw new CustomError(
+        "GitHub authentication required to create issues",
+        401
+      );
+    }
+
+    // Import Octokit dynamically
+    const { Octokit } = await import("@octokit/rest");
+    const octokit = new Octokit({ auth: githubToken });
+
+    // Create the issue
+    const issueData: any = {
+      owner,
+      repo,
+      title,
+      body: body || "",
+    };
+
+    // Add optional fields if provided
+    if (labels && Array.isArray(labels) && labels.length > 0) {
+      issueData.labels = labels;
+    }
+
+    if (assignees && Array.isArray(assignees) && assignees.length > 0) {
+      issueData.assignees = assignees;
+    }
+
+    console.log("📤 Creating issue with data:", issueData);
+
+    const { data: issue } = await octokit.issues.create(issueData);
+
+    console.log(`✅ Issue created successfully! Issue #${issue.number}`);
+
+    res.json({
+      success: true,
+      data: {
+        issue_number: issue.number,
+        title: issue.title,
+        body: issue.body,
+        state: issue.state,
+        url: issue.html_url,
+        created_at: issue.created_at,
+        updated_at: issue.updated_at,
+        labels: issue.labels,
+        assignees: issue.assignees,
+        repository: {
+          owner,
+          repo,
+          full_name: `${owner}/${repo}`,
+        },
+      },
+    });
+  } catch (error: any) {
+    console.error("❌ Error creating issue:", error);
+
+    if (error.status === 404) {
+      next(new CustomError("Repository not found or access denied", 404));
+    } else if (error.status === 401) {
+      next(new CustomError("GitHub authentication failed", 401));
+    } else if (error.status === 403) {
+      next(new CustomError("Repository access forbidden", 403));
+    } else if (error.status === 422) {
+      next(new CustomError("Invalid issue data or repository configuration", 422));
+    } else {
+      next(
+        new CustomError(error.message || "Failed to create issue", 500)
+      );
+    }
   }
 };

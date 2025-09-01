@@ -15,7 +15,7 @@ export const executeAnalysis = async (
     // Extract parameters from request body or use defaults
     const {
       repoUrl,
-      model = "gemini-2.5-flash",
+      model = "gemini-2.0-flash",
       prompt = "Analyze this codebase for security vulnerabilities and code quality",
     } = req.body;
 

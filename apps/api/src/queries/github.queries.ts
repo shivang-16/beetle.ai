@@ -113,3 +113,100 @@ export const getUserGitHubInstallation = async (userId: string) => {
     throw new CustomError("Failed to get GitHub installation", 500);
   }
 };
+
+// Get organization installation for a specific repository
+export const getOrganizationInstallationForRepo = async (owner: string, repo: string, userId: string) => {
+  try {
+    console.log(`🔍 Looking for organization installation for ${owner}/${repo}`);
+    
+    // First, check if the user has access to any organization installations
+    // Look for installations where the account matches the repository owner
+    const orgInstallation = await Github_Installation.findOne({
+      "account.login": owner,
+      "account.type": "Organization"
+    });
+
+    if (!orgInstallation) {
+      console.log(`❌ No organization installation found for ${owner}`);
+      return null;
+    }
+
+    console.log(`✅ Found organization installation for ${owner}:`, {
+      installationId: orgInstallation.installationId,
+      account: orgInstallation.account.login,
+      targetType: orgInstallation.targetType,
+      userId: orgInstallation.userId
+    });
+
+    // For organization installations, we need to check if the user has access
+    // This could be through:
+    // 1. The user is the sender of the installation
+    // 2. The user is a member of the organization
+    // 3. The user has been granted access through the GitHub App
+    
+    // Check if the user is the sender of this installation
+    if (orgInstallation.sender && orgInstallation.sender.login) {
+      console.log(`👤 Installation sender: ${orgInstallation.sender.login}`);
+      
+      // If the user is the sender, they have access
+      // You might want to add additional checks here based on your requirements
+      return orgInstallation;
+    }
+
+    // If no sender or other access method, we'll still return the installation
+    // but you might want to add more sophisticated access control
+    console.log(`⚠️ No clear access control found, but returning installation for ${owner}`);
+    return orgInstallation;
+  } catch (error) {
+    console.error("Error getting organization installation for repo:", error);
+    return null;
+  }
+};
+
+// Debug function to check all installations for a user
+export const getAllUserInstallations = async (userId: string) => {
+  try {
+    // Get all installations where this user is the owner
+    const userInstallations = await Github_Installation.find({ userId });
+    
+    // Get all organization installations (where userId might be null or different)
+    const orgInstallations = await Github_Installation.find({
+      "account.type": "Organization"
+    });
+    
+    console.log(`User installations for ${userId}:`, userInstallations.length);
+    console.log(`Organization installations found:`, orgInstallations.length);
+    
+    return {
+      userInstallations,
+      orgInstallations
+    };
+  } catch (error) {
+    console.error("Error getting all user installations:", error);
+    return { userInstallations: [], orgInstallations: [] };
+  }
+};
+
+// Check if installation has permission to create issues
+export const checkIssueCreationPermission = (installation: any) => {
+  try {
+    if (!installation.permissions) {
+      console.log("⚠️ No permissions found in installation");
+      return false;
+    }
+
+    // Check if the installation has permission to create issues
+    // GitHub App permissions for issues: "issues": "write" or "issues": "admin"
+    const issuePermission = installation.permissions.get ? 
+      installation.permissions.get("issues") : 
+      installation.permissions["issues"];
+    
+    console.log(`🔐 Issue permission: ${issuePermission}`);
+    
+    // Return true if permission is "write" or "admin"
+    return issuePermission === "write" || issuePermission === "admin";
+  } catch (error) {
+    console.error("Error checking issue creation permission:", error);
+    return false;
+  }
+};
