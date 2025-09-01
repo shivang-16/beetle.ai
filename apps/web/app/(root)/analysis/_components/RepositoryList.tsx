@@ -1,5 +1,4 @@
 import React from "react";
-import { toast } from "sonner";
 import { getRepository } from "../_actions/getRepository";
 import { GithubRepository } from "@/types/types";
 import Link from "next/link";
@@ -15,10 +14,6 @@ const RepositoryList = async ({ query }: { query: string }) => {
     data = Object.values(res?.data || {})[0];
   } catch (error) {
     console.log(error);
-
-    toast.error(
-      error instanceof Error ? `${error.message}` : "Something went wrong!"
-    );
   }
 
   const user = await getUser();

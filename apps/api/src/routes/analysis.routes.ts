@@ -1,5 +1,8 @@
 import express, { Router } from "express";
-import { executeAnalysis, getAnalysisStatus } from "../controllers/analysis.controller.js";
+import {
+  executeAnalysis,
+  getAnalysisStatus,
+} from "../controllers/analysis.controller.js";
 import { checkAuth } from "../middlewares/checkAuth.js";
 
 const router: Router = express.Router();
@@ -11,4 +14,4 @@ router.get("/status", getAnalysisStatus);
 router.use(checkAuth);
 router.post("/execute", executeAnalysis);
 
-export default router; 
+export default router;

@@ -12,15 +12,36 @@ export const analyzeRepo = async (repoName: string) => {
     const res = await fetch(`${_config.API_BASE_URL}/api/analysis/execute`, {
       method: "POST",
       body: JSON.stringify({ repoUrl }),
+      credentials: "include",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
     });
 
-    const data = await res.text();
+    const reader = res.body?.getReader();
+    let receivedData = "";
 
-    return data;
+    function read() {
+      reader
+        ?.read()
+        .then(({ done, value }) => {
+          if (done) {
+            console.log("====Stream finished=====");
+
+            console.log("Full Data====> ", receivedData);
+            return;
+          }
+
+          receivedData += new TextDecoder().decode(value);
+          read();
+        })
+        .catch((error) => {
+          console.log("Error reading stream: ", error);
+        });
+    }
+
+    read();
   } catch (error) {
     if (error instanceof Error) {
       throw new Error(`${error.message}`);

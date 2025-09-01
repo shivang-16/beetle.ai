@@ -28,7 +28,12 @@ export function createApp(): Application {
   );
 
   // Middleware
-  app.use(cors()); // Enable CORS for all routes
+  app.use(
+    cors({
+      origin: "http://localhost:3000", // Specific origin instead of '*'
+      credentials: true,
+    })
+  );
   app.use(clerkMiddleware());
 
   // We need express.json() for non-webhook routes, but webhooks need raw body
