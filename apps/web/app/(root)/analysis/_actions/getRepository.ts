@@ -1,6 +1,7 @@
 "use server";
 
 import { getAuthToken } from "@/_actions/auth-token";
+import { _config } from "@/lib/_config";
 import { GithubRepository } from "@/types/types";
 
 export const getRepository = async (query: string) => {
@@ -8,7 +9,7 @@ export const getRepository = async (query: string) => {
     const { token } = await getAuthToken();
 
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/user/repositories?search=${query}`,
+      `${_config.API_BASE_URL}/api/user/repositories?search=${query}`,
       {
         method: "GET",
         headers: {

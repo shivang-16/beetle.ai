@@ -1,8 +1,11 @@
+"use server";
+
+import { _config } from "@/lib/_config";
 import { getAuthToken } from "./auth-token";
 
 export const getUser = async () => {
   const { token } = await getAuthToken();
-  const user = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/user`, {
+  const user = await fetch(`${_config.API_BASE_URL}/api/user`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
