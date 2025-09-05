@@ -55,25 +55,25 @@ export const executeAnalysis = async (
 
     // Function to stream data to client
     const streamToClient = (data: string) => {
-      console.log("[CLIENT STREAMING]", data); // Log to server console
+      console.log(data); // Log to server console
       res.write(data + "\n"); // Stream to client
     };
 
     streamToClient("🧠 CodeDetector - Intelligent Code Analysis");
     streamToClient("=".repeat(50));
-    streamToClient(`📁 Repository: ${repoUrl}`);
-    streamToClient(`🤖 Model: ${model}`);
-    streamToClient(`💭 Prompt: ${prompt}`);
+    streamToClient(`📁 Repository: ${repoUrl}\n`);
+    streamToClient(`🤖 Model: ${model}\n`);
+    streamToClient(`💭 Prompt: ${prompt}\n`);
     streamToClient("=".repeat(50));
     streamToClient("");
 
     // Test immediate streaming first
-    streamToClient("🔄 Testing real-time streaming...");
+    streamToClient("🔄 Testing real-time streaming...\n");
     for (let i = 1; i <= 3; i++) {
       await new Promise((resolve) => setTimeout(resolve, 500));
-      streamToClient(`⏳ Stream test ${i}/3 - Real-time output working!`);
+      streamToClient(`⏳ Stream test ${i}/3 - Real-time output working!\n`);
     }
-    streamToClient("✅ Streaming confirmed working, starting analysis...");
+    streamToClient("✅ Streaming confirmed working, starting analysis...\n");
     streamToClient("");
 
     // Construct the analysis command with GitHub token embedded in repo URL
@@ -85,7 +85,7 @@ export const executeAnalysis = async (
           "https://github.com/",
           `https://x-access-token:${githubToken}@github.com/`
         );
-        streamToClient("🔐 Using GitHub token for private repository access");
+        streamToClient("🔐 Using GitHub token for private repository access\n");
       }
     } else {
       streamToClient(
@@ -96,7 +96,7 @@ export const executeAnalysis = async (
     // Now the Python script just needs to use the repo URL as-is
     const analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${authenticatedRepoUrl}" "${model}"`;
     streamToClient(
-      `🔄 Executing command: ${analysisCommand.replace(githubToken || "", "[TOKEN_HIDDEN]")}`
+      `🔄 Executing command: ${analysisCommand.replace(githubToken || "", "[TOKEN_HIDDEN]")}\n`
     );
     streamToClient("");
 
@@ -106,7 +106,7 @@ export const executeAnalysis = async (
       onStdout: (data) => {
         // Strip ANSI color codes for cleaner client output
         const cleanData = data.replace(/\x1b\[[0-9;]*m/g, "");
-        streamToClient(cleanData);
+        streamToClient(`${cleanData}\n`);
       },
       onStderr: (data) => {
         const cleanData = data.replace(/\x1b\[[0-9;]*m/g, "");
@@ -120,12 +120,14 @@ export const executeAnalysis = async (
 
     streamToClient("");
     streamToClient("=".repeat(50));
-    streamToClient(`✅ Analysis completed with exit code: ${result.exitCode}`);
+    streamToClient(
+      `✅ Analysis completed with exit code: ${result.exitCode}\n`
+    );
 
     if (result.exitCode === 0) {
-      streamToClient("🎉 Analysis finished successfully!");
+      streamToClient("🎉 Analysis finished successfully!\n");
     } else {
-      streamToClient("⚠️ Analysis completed with warnings or errors");
+      streamToClient("⚠️ Analysis completed with warnings or errors\n");
     }
 
     streamToClient("=".repeat(50));
