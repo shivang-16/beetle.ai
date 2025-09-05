@@ -56,27 +56,29 @@ export const executeAnalysis = async (
         phase1Logs.push(data);
         res.write(data + "\n"); // Stream all logs to client
       }
+
     };
 
     // Phase 1: Initial setup and configuration logs
     streamToClient("🧠 CodeDetector - Intelligent Code Analysis");
     streamToClient("=".repeat(50));
-    streamToClient(`📁 Repository: ${repoUrl}`);
-    streamToClient(`🤖 Model: ${model}`);
-    streamToClient(`💭 Prompt: ${prompt}`);
+    streamToClient(`📁 Repository: ${repoUrl}\n`);
+    streamToClient(`🤖 Model: ${model}\n`);
+    streamToClient(`💭 Prompt: ${prompt}\n`);
     streamToClient("=".repeat(50));
     streamToClient("");
 
     // Test immediate streaming first
-    streamToClient("🔄 Testing real-time streaming...");
+    streamToClient("🔄 Testing real-time streaming...\n");
     for (let i = 1; i <= 3; i++) {
       await new Promise((resolve) => setTimeout(resolve, 500));
-      streamToClient(`⏳ Stream test ${i}/3 - Real-time output working!`);
+      streamToClient(`⏳ Stream test ${i}/3 - Real-time output working!\n`);
     }
-    streamToClient("✅ Streaming confirmed working, starting analysis...");
+    streamToClient("✅ Streaming confirmed working, starting analysis...\n");
     streamToClient("");
 
     // Construct the analysis command with GitHub token embedded in repo URL
+
     const authResult = await authenticateGithubRepo(repoUrl, userId);
     if (!authResult.success) {
       return next(new CustomError(authResult.message, 500));
@@ -86,6 +88,7 @@ export const executeAnalysis = async (
     console.log("🔄 Repo URL for analysis: ", repoUrlForAnalysis);
 
     // Now the Python script just needs to use the repo URL as-is
+
     const analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" "${model}"`;
     const maskedCommand = authResult.usedToken
       ? analysisCommand.replace(repoUrlForAnalysis, "[TOKEN_HIDDEN]")
@@ -105,6 +108,7 @@ export const executeAnalysis = async (
       onStdout: (data) => {
         // Strip ANSI color codes for cleaner client output
         const cleanData = data.replace(/\x1b\[[0-9;]*m/g, "");
+
         streamToClient(cleanData, true); // Mark as workflow log
       },
       onStderr: (data) => {
@@ -116,6 +120,7 @@ export const executeAnalysis = async (
 
     // Wait for the command to complete
     const result = await command.wait();
+
 
     streamToClient("", true);
     streamToClient("=".repeat(50), true);

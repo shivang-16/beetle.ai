@@ -86,3 +86,39 @@ export interface ITreeNode {
   sha?: string;
   size?: number;
 }
+
+type LogType = "INFO" | "TOOL_CALL" | "LLM_RESPONSE" | "DEFAULT";
+
+export type LogType = "INFO" | "TOOL_CALL" | "LLM_RESPONSE" | "GENERIC";
+
+export interface TextSegment {
+  kind: "text";
+  content: string;
+}
+
+export interface GitHubIssueSegment {
+  kind: "githubIssue";
+  content: string;
+}
+
+export interface PatchSegment {
+  kind: "patch";
+  content: string;
+}
+
+export type LLMResponseSegment =
+  | TextSegment
+  | GitHubIssueSegment
+  | PatchSegment;
+
+export interface LogItem {
+  type: LogType;
+  messages: string[];
+  segments?: LLMResponseSegment[]; // only used for LLM_RESPONSE
+}
+
+/** Parser state */
+export interface ParserState {
+  isCapturingLLM: boolean;
+  currentLLMResponse: string[];
+}

@@ -329,6 +329,7 @@ body {
 /* Custom scrollbar for output */
 .output-scrollbar::-webkit-scrollbar {
   width: 3px;
+  height: 3px;
 }
 
 .output-scrollbar::-webkit-scrollbar-track {
