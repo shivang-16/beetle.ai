@@ -43,20 +43,19 @@ export const executeAnalysis = async (
 
     // Function to categorize and stream data to client
     const streamToClient = (data: string, isWorkflowLog = false) => {
-      console.log("[CLIENT STREAMING]", data); // Log to server console
-      
+      console.log("[CLIENT STREAMING]", data);
+
       if (isWorkflowLog) {
-        // Phase 2: Workflow is running - filter for tool_calls and LLM responses
-        if (data.includes("TOOL_CALL") || data.includes("LLM_RESPONSE")) {
-          phase2Logs.push(data);
-          res.write(data + "\n"); // Stream filtered logs to client
-        }
+        // Phase 2: Stream ALL workflow logs so the frontend parser receives
+        // full LLM blocks and markers like [LLM RESPONSE START],
+        // [GITHUB_ISSUE_START], and [PATCH_START].
+        phase2Logs.push(data);
+        res.write(data + "\n");
       } else {
         // Phase 1: Before workflow starts - send all logs
         phase1Logs.push(data);
-        res.write(data + "\n"); // Stream all logs to client
+        res.write(data + "\n");
       }
-
     };
 
     // Phase 1: Initial setup and configuration logs
@@ -89,7 +88,7 @@ export const executeAnalysis = async (
 
     // Now the Python script just needs to use the repo URL as-is
 
-    const analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" "${model}"`;
+    const analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" --model "${model}" --api-key "AIzaSyDr5TkrvYM3CXrqShrmJG5aPjkAfqs2xJg"`;
     const maskedCommand = authResult.usedToken
       ? analysisCommand.replace(repoUrlForAnalysis, "[TOKEN_HIDDEN]")
       : analysisCommand;
