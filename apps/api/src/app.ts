@@ -10,6 +10,7 @@ import { clerkMiddleware } from "@clerk/express";
 import GithubRoutes from "./routes/github.routes.js";
 import UserRoutes from "./routes/user.routes.js";
 import AnalysisRoutes from "./routes/analysis.routes.js";
+import TeamRoutes from "./routes/team.routes.js";
 
 export function createApp(): Application {
   const app = express();
@@ -63,6 +64,7 @@ export function createApp(): Application {
   app.use("/api/github", GithubRoutes);
   app.use("/api/user", UserRoutes);
   app.use("/api/analysis", AnalysisRoutes);
+  app.use("/api/team", TeamRoutes);
 
   // 404 handler
   app.use((req: Request, res: Response) => {
