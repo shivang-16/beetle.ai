@@ -41,3 +41,14 @@ export const generateInstallationToken = async (installationId: number): Promise
     throw new Error(`Failed to generate GitHub installation token: ${error}`);
   }
 };
+
+// Get repository visibility (public/private/internal). If token is provided, use it; otherwise unauthenticated.
+export const getRepoVisibility = async (
+  owner: string,
+  repo: string,
+  token?: string
+): Promise<{ private: boolean; visibility?: 'public' | 'private' | 'internal' }> => {
+  const octokit = token ? new Octokit({ auth: token }) : new Octokit();
+  const { data } = await octokit.repos.get({ owner, repo });
+  return { private: data.private, visibility: data.visibility as any };
+};

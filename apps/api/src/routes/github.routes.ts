@@ -6,8 +6,8 @@ import { getAllUserInstallations } from "../queries/github.queries.js";
 const router: Router = express.Router();
 
 // Public routes (no auth required)
-router.get("/tree", getRepoTree);
-router.post("/info", getRepoInfo);
+router.get("/tree", checkAuth, getRepoTree);
+router.post("/info", checkAuth, getRepoInfo);
 
 // Protected routes (auth required)
 router.post("/issue", checkAuth, createIssue);
