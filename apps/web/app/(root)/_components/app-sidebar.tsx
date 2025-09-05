@@ -1,7 +1,7 @@
 "use client";
 
 import { UserButton } from "@clerk/nextjs";
-import { ScanTextIcon, StarsIcon } from "lucide-react";
+import { ScanTextIcon, StarsIcon, BotIcon } from "lucide-react";
 import Link from "next/link";
 import React from "react";
 import CodetectorLogo from "@/components/shared/codetector-logo";
@@ -32,6 +32,11 @@ const items = [
     title: "Analysis",
     url: "/analysis",
     icon: ScanTextIcon,
+  },
+  {
+    title: "Agents",
+    url: "/agents",
+    icon: BotIcon,
   },
 ];
 
