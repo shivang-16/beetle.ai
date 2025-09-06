@@ -5,10 +5,19 @@ import { generateInstallationToken } from "../lib/githubApp.js";
 import { getUserGitHubInstallation, getOrganizationInstallationForRepo, getAllUserInstallations, checkIssueCreationPermission, checkPullRequestPermission } from "../queries/github.queries.js";
 import { Octokit } from "@octokit/rest";
 import { authenticateGithubRepo } from "../utils/authenticateGithubUrl.js";
+import { Github_Repository } from "../models/github_repostries.model.js";
 
 export const getRepoTree = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { repoUrl } = req.query as { repoUrl: string };
+    const { github_repositoryId } = req.query as { github_repositoryId: string };
+
+    const github_repository = await Github_Repository.findById(github_repositoryId);
+    if (!github_repository) {
+      return next(new CustomError("Github repository not found", 404));
+    }
+
+    const repoUrl = `https://github.com/${github_repository.fullName}`;
+
     const userId = req.user?._id;
 
     if (!repoUrl) {
@@ -77,7 +86,14 @@ export const getRepoInfo = async (
   next: NextFunction
 ) => {
   try {
-    const { repoUrl } = req.body;
+    const { github_repositoryId } = req.body;
+
+    const github_repository = await Github_Repository.findById(github_repositoryId);
+    if (!github_repository) {
+      return next(new CustomError("Github repository not found", 404));
+    }
+
+    const repoUrl = `https://github.com/${github_repository.fullName}`;
     const userId = req.user?._id;
 
     if (!repoUrl) {
@@ -149,7 +165,14 @@ export const createIssue = async (
   next: NextFunction
 ) => {
   try {
-    const { repoUrl, title, body, labels, assignees } = req.body;
+    const { github_repositoryId, title, body, labels, assignees } = req.body;
+
+    const github_repository = await Github_Repository.findById(github_repositoryId);
+    if (!github_repository) {
+      return next(new CustomError("Github repository not found", 404));
+    }
+
+    const repoUrl = `https://github.com/${github_repository.fullName}`;
 
     // Parse GitHub URL to extract owner and repo
     const githubUrlMatch = repoUrl.match(
@@ -301,7 +324,7 @@ export const createPullRequest = async (
 ) => {
   try {
     const { 
-      repoUrl, 
+      github_repositoryId, 
       filePath, 
       before, 
       after, 
@@ -312,9 +335,16 @@ export const createPullRequest = async (
     } = req.body;
 
     // Validate required fields
-    if (!repoUrl || !filePath || !before || !after || !title) {
+    if (!github_repositoryId || !filePath || !before || !after || !title) {
       throw new CustomError("repoUrl, filePath, before, after, and title are required", 400);
     }
+
+    const github_repository = await Github_Repository.findById(github_repositoryId);
+    if (!github_repository) {
+      return next(new CustomError("Github repository not found", 404));
+    }
+
+    const repoUrl = `https://github.com/${github_repository.fullName}`;
 
     // Parse GitHub URL to extract owner and repo
     const githubUrlMatch = repoUrl.match(
