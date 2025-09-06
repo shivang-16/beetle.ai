@@ -122,3 +122,13 @@ export interface ParserState {
   isCapturingLLM: boolean;
   currentLLMResponse: string[];
 }
+
+type ParsedPatch = {
+  file?: string;
+  line_range?: string;
+  issue?: string;
+  language?: string;
+  before?: string;
+  after?: string;
+  explanation?: string;
+};

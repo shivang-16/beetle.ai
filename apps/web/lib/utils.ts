@@ -3,6 +3,7 @@ import {
   LLMResponseSegment,
   LogItem,
   LogType,
+  ParsedPatch,
   ParserState,
   TreeProps,
 } from "@/types/types";
@@ -256,4 +257,44 @@ export function extractTitleAndDescription(input: string) {
     .trim();
 
   return { title, description };
+}
+
+export function parsePatchString(input: string): ParsedPatch {
+  const result: ParsedPatch = {};
+
+  // File
+  const fileMatch = input.match(/\*\*File:\*\*\s*`([^`]+)`/);
+  if (fileMatch) result.file = fileMatch[1];
+
+  // Line Range
+  const lineRangeMatch = input.match(/\*\*Line_Range:\*\*\s*([^\n]+)/);
+  if (lineRangeMatch && lineRangeMatch[1])
+    result.line_range = lineRangeMatch[1].trim();
+
+  // Issue
+  const issueMatch = input.match(
+    /\*\*Issue:\*\*\s*([\s\S]*?)(?=\*\*Language:|\n###)/
+  );
+  if (issueMatch && issueMatch[1]) result.issue = issueMatch[1].trim();
+
+  // Language
+  const langMatch = input.match(/\*\*Language:\*\*\s*([^\n]+)/);
+  if (langMatch && langMatch[1]) result.language = langMatch[1].trim();
+
+  // Before code (preserve full block)
+  const beforeMatch = input.match(/### Before[^\n]*\n([\s\S]*?)\n### After/);
+  if (beforeMatch && beforeMatch[1]) result.before = beforeMatch[1].trim();
+
+  // After code (preserve full block)
+  const afterMatch = input.match(
+    /### After[^\n]*\n([\s\S]*?)\n### Explanation/
+  );
+  if (afterMatch && afterMatch[1]) result.after = afterMatch[1].trim();
+
+  // Explanation
+  const explanationMatch = input.match(/### Explanation\s*([\s\S]*)/);
+  if (explanationMatch && explanationMatch[1])
+    result.explanation = explanationMatch[1].trim();
+
+  return result;
 }

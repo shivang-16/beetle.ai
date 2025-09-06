@@ -11,18 +11,24 @@ import {
 } from "@/components/ui/card";
 import { _config } from "@/lib/_config";
 import {
+  cn,
   createParserState,
   extractTitleAndDescription,
   parseLines,
+  parsePatchString,
 } from "@/lib/utils";
 import { LLMResponseSegment, LogItem, ParserState } from "@/types/types";
 import { RefreshCcwDotIcon } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import Markdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import {
+  vscDarkPlus,
+  vs,
+} from "react-syntax-highlighter/dist/esm/styles/prism";
 import { toast } from "sonner";
 import dynamic from "next/dynamic";
+import { useTheme } from "next-themes";
 
 const GithubIssueDialog = dynamic(() => import("./GithubIssueDialog"));
 
@@ -33,6 +39,8 @@ const RenderLogs = ({ repoName }: { repoName: string }) => {
   const logsEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController>(null);
   const parserStateRef = useRef<ParserState>(createParserState());
+
+  const { resolvedTheme } = useTheme();
 
   const analyzeRepo = async () => {
     try {
@@ -132,7 +140,7 @@ const RenderLogs = ({ repoName }: { repoName: string }) => {
     return segments.map((seg, i) => {
       if (seg.kind === "text") {
         return (
-          <div key={i} className="w-full text-sm mb-2">
+          <div key={i} className="w-full text-sm mb-2 whitespace-pre-wrap">
             <Markdown
               components={{
                 code(props) {
@@ -147,7 +155,9 @@ const RenderLogs = ({ repoName }: { repoName: string }) => {
                       {String(children).replace(/\n$/, "")}
                     </SyntaxHighlighter>
                   ) : (
-                    <code {...rest} className={className}>
+                    <code
+                      {...rest}
+                      className={cn("w-full whitespace-pre-wrap", className)}>
                       {children}
                     </code>
                   );
@@ -163,7 +173,7 @@ const RenderLogs = ({ repoName }: { repoName: string }) => {
         const githubIssue = extractTitleAndDescription(seg.content);
 
         return (
-          <Card key={i} className="mt-5 mb-3">
+          <Card key={i} className="my-5 w-full">
             <CardHeader>
               <div className="font-semibold text-sm text-muted-foreground mb-5">
                 📌{" "}
@@ -192,45 +202,105 @@ const RenderLogs = ({ repoName }: { repoName: string }) => {
       }
 
       if (seg.kind === "patch") {
+        const patch = parsePatchString(seg.content);
+
         return (
-          <div
-            key={i}
-            className="w-full border border-green-400 rounded p-2 mb-2">
-            <div className="font-semibold text-sm mb-1">
-              💻 Patch Suggestion
-            </div>
-            {/* <div className="whitespace-pre text-xs bg-gray-900 text-green-200 p-2 rounded overflow-x-auto">
-              {seg.content}
-            </div> */}
-            <Markdown
-              components={{
-                code(props) {
-                  // eslint-disable-next-line react/prop-types
-                  const { children, className, ...rest } = props;
-                  const match = /language-(\w+)/.exec(className || "");
-                  return match ? (
-                    <SyntaxHighlighter
-                      PreTag="div"
-                      language={match[1]}
-                      style={vscDarkPlus}
-                      customStyle={{
-                        backgroundColor: "rgba(255, 0, 0, 0.1)",
-                      }}>
-                      {String(children).replace(/\n$/, "")}
-                    </SyntaxHighlighter>
-                  ) : (
-                    <code {...rest} className={className}>
-                      {children}
-                    </code>
-                  );
-                },
-              }}>
-              {seg.content}
-            </Markdown>
-            <Button variant={"secondary"} className="my-3">
-              Copy Patch
-            </Button>
-          </div>
+          <Card key={i} className="w-full my-5">
+            <CardHeader>
+              <div className="font-semibold text-sm mb-5">
+                💻{" "}
+                <span className="underline underline-offset-2">
+                  Patch Suggestion
+                </span>
+              </div>
+              <CardTitle className="flex items-center gap-1.5 text-muted-foreground">
+                <span className="border rounded-md px-3 py-1">Read</span>{" "}
+                {patch.file}
+              </CardTitle>
+            </CardHeader>
+
+            <CardContent className="space-y-5">
+              <div>
+                <span>Issue</span>
+
+                <Markdown
+                  components={{
+                    code(props) {
+                      // eslint-disable-next-line react/prop-types
+                      const { children, className, ...rest } = props;
+                      const match = /language-(\w+)/.exec(className || "");
+                      return match ? (
+                        <SyntaxHighlighter
+                          PreTag="div"
+                          language={match[1]}
+                          style={resolvedTheme === "dark" ? vscDarkPlus : vs}
+                          customStyle={{
+                            backgroundColor:
+                              resolvedTheme === "dark"
+                                ? "rgba(255, 0, 0, 0.15)"
+                                : "rgba(255,0,0,0.05)",
+                            borderRadius: 4,
+                            padding: 16,
+                            fontSize: 14,
+                          }}
+                          showLineNumbers
+                          startingLineNumber={Number(
+                            patch.line_range?.split("-")[0]
+                          )}>
+                          {String(children).replace(/\n$/, "")}
+                        </SyntaxHighlighter>
+                      ) : (
+                        <code {...rest} className={className}>
+                          {children}
+                        </code>
+                      );
+                    },
+                  }}>
+                  {patch.before}
+                </Markdown>
+              </div>
+
+              <div>
+                <span>Fix</span>
+
+                <Markdown
+                  components={{
+                    code(props) {
+                      // eslint-disable-next-line react/prop-types
+                      const { children, className, ...rest } = props;
+                      const match = /language-(\w+)/.exec(className || "");
+                      return match ? (
+                        <SyntaxHighlighter
+                          PreTag="div"
+                          language={match[1]}
+                          style={resolvedTheme === "dark" ? vscDarkPlus : vs}
+                          customStyle={{
+                            backgroundColor:
+                              resolvedTheme === "dark"
+                                ? "rgba(123, 241, 168,0.2)"
+                                : "rgba(123, 241, 168,0.2)",
+                            borderRadius: 4,
+                            padding: 16,
+                            fontSize: 14,
+                          }}
+                          showLineNumbers
+                          startingLineNumber={Number(
+                            patch.line_range?.split("-")[0]
+                          )}>
+                          {String(children).replace(/\n$/, "")}
+                        </SyntaxHighlighter>
+                      ) : (
+                        <code {...rest} className={className}>
+                          {children}
+                        </code>
+                      );
+                    },
+                  }}>
+                  {patch.after}
+                </Markdown>
+              </div>
+            </CardContent>
+          </Card>
         );
       }
       return null;
@@ -251,7 +321,9 @@ const RenderLogs = ({ repoName }: { repoName: string }) => {
         key={index}
         className={`w-full p-3 my-2 rounded whitespace-pre-wrap text-muted-foreground`}>
         {log.type === "LLM_RESPONSE" && log.segments ? (
-          renderLLMSegments(log.segments)
+          <div className="w-full break-words text-xs m-0">
+            {renderLLMSegments(log.segments)}
+          </div>
         ) : (
           <div className="w-full break-words text-xs m-0">
             {log.messages.join("\n")}
