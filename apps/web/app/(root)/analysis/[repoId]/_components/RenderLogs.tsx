@@ -16,6 +16,9 @@ import {
   extractTitleAndDescription,
   parseLines,
   parsePatchString,
+  parseFullLogText,
+  bufferJSONToUint8Array,
+  gunzipUint8ArrayToText,
 } from "@/lib/utils";
 import { LLMResponseSegment, LogItem, ParserState } from "@/types/types";
 import { RefreshCcwDotIcon } from "lucide-react";
@@ -113,6 +116,59 @@ const RenderLogs = ({ repoName }: { repoName: string }) => {
           `An unexpected error occurred while analyzing the repo ${repoName}.`
         );
       }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadFromDb = async () => {
+    try {
+      setIsLoading(true);
+      setLogs([]);
+
+      // For demo: prompt for analysis id; in real UI, pass it via props/query
+      const analysisId = prompt("Enter analysis id (_id or analysisId):");
+      if (!analysisId) {
+        setIsLoading(false);
+        return;
+      }
+
+      console.log("🔄 Loading analysis from db: ", analysisId);
+
+      const res = await fetch(`${_config.API_BASE_URL}/api/analysis/${encodeURIComponent(analysisId)}`, {
+        method: "GET",
+        credentials: "include",
+      });
+
+      // if (!res.ok) {
+      //   toast.error(`Failed to fetch analysis: ${res.status}`);
+      //   setIsLoading(false);
+      //   return;
+      // }
+
+      // console.log("🔄 Loading analysis from db: ", res);
+      
+
+      const json = await res.json();
+      console.log("🔄 Loading analysis from db: ", json);
+      let logsText: string = "";
+      const bufJson = json?.data?.logsCompressed;
+      const binary = bufferJSONToUint8Array(bufJson);
+      console.log("🔄 Loading binary from db: ", binary);
+      if (binary) {
+        const decoded = await gunzipUint8ArrayToText(binary);
+        if (decoded) {
+          logsText = decoded;
+        }
+      }
+      if (!logsText) logsText = json?.data?.logsText || "";
+
+      const result = parseFullLogText(logsText);
+      console.log("🔄 Loading result from db: ", result);
+      setLogs(result.logs.map((l) => ({ ...l, messages: [...l.messages] })));
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Failed to load analysis";
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -338,6 +394,10 @@ const RenderLogs = ({ repoName }: { repoName: string }) => {
       <div className="px-4 py-3 flex justify-end-safe gap-3">
         <Button onClick={analyzeRepo} className="cursor-pointer">
           Fetch Logs
+        </Button>
+
+        <Button variant={"outline"} onClick={loadFromDb} className="cursor-pointer">
+          Load From DB
         </Button>
 
         <Button

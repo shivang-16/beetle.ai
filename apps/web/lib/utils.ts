@@ -243,6 +243,96 @@ export function parseLines(
   return { logs, state };
 }
 
+// Parse a complete logs string (e.g., fetched from DB) using the same logic
+// as streaming, by splitting into lines and reusing parseLines incrementally.
+export function parseFullLogText(
+  fullText: string
+): { logs: LogItem[]; state: ParserState } {
+  const lines = fullText.split("\n");
+  let logs: LogItem[] = [];
+  let state: ParserState = createParserState();
+  // process in chunks to mimic streaming semantics
+  const chunkSize = 200;
+  for (let i = 0; i < lines.length; i += chunkSize) {
+    const chunk = lines.slice(i, i + chunkSize);
+    const result = parseLines(chunk, logs, state);
+    logs = result.logs;
+    state = result.state;
+  }
+  return { logs, state };
+}
+
+// Decode base64 gzip string to original text
+export async function decodeGzipBase64ToText(base64: string): Promise<string> {
+  if (!base64) return "";
+  // Browser-safe: use built-in streams to gunzip via CompressionStream is not available.
+  // We'll rely on a tiny gunzip if needed later; for now prefer server-side logsText.
+  // Fallback: try using Web APIs where supported (not standard across all browsers).
+  try {
+    const binary = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    // If DecompressionStream('gzip') is available, use it
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    if (typeof DecompressionStream !== 'undefined') {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      const ds = new DecompressionStream('gzip');
+      const stream = new Response(binary).body!.pipeThrough(ds);
+      const buf = await new Response(stream).arrayBuffer();
+      return new TextDecoder().decode(buf);
+    }
+  } catch {
+    // ignore
+  }
+  // If not supported, return empty so caller can fallback to logsText
+  return "";
+}
+
+// Convert Node Buffer JSON (from Mongoose lean() -> JSON.stringify(Buffer)) to Uint8Array
+// Accepts either { type: 'Buffer', data: number[] } or just number[]
+export function bufferJSONToUint8Array(
+  bufferLike: { type?: string; data?: number[] } | number[] | string | undefined
+): Uint8Array | null {
+  console.log("🔄 Buffer JSON to Uint8Array1: ", bufferLike);
+  if (!bufferLike) return null;
+  if (typeof bufferLike === 'string') {
+    try {
+      const arr = Uint8Array.from(atob(bufferLike), (c) => c.charCodeAt(0));
+      console.log("🔄 Buffer JSON to Uint8Array(base64): ", arr);
+      return arr;
+    } catch {
+      console.log("🔄 Buffer JSON to Uint8Array(base64) failed");
+      return null;
+    }
+  }
+  if (Array.isArray(bufferLike)) {
+    console.log("🔄 Buffer JSON to Uint8Array2: ", bufferLike);
+    return new Uint8Array(bufferLike);}
+  if (typeof bufferLike === 'object' && Array.isArray(bufferLike.data)) {
+    console.log("🔄 Buffer JSON to Uint8Array3: ", bufferLike.data);
+    return new Uint8Array(bufferLike.data);
+  }
+  console.log("🔄 Buffer JSON to Uint8Array4: ", null);
+  return null;
+}
+
+// Gunzip Uint8Array to string using Web DecompressionStream when available
+export async function gunzipUint8ArrayToText(binary: Uint8Array): Promise<string> {
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  console.log("🔄 Gunzip Uint8Array to text: ", binary);
+  if (typeof DecompressionStream !== 'undefined') {
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    const ds = new DecompressionStream('gzip');
+    const stream = new Response(binary).body!.pipeThrough(ds);
+    const buf = await new Response(stream).arrayBuffer();
+    console.log("🔄 Gunzip Uint8Array to text: ", buf);
+    return new TextDecoder().decode(buf);
+  }
+  return "";
+}
+
 export function extractTitleAndDescription(input: string) {
   const lines = input.split("\n");
 
