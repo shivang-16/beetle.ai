@@ -1,9 +1,8 @@
 // webhooks/github.webhooks.ts
 import { Webhooks } from '@octokit/webhooks';
-import { getInstallationOctokit } from '../lib/githubApp.js';
-import { Github_Installation } from '../models/github_installations.model.js';
+
 import { env } from '../config/env.js';
-import { create_github_installation, delete_github_installation } from '../queries/github.queries.js';
+import { commentOnIssueOpened, create_github_installation, delete_github_installation } from '../queries/github.queries.js';
   // Set up GitHub webhooks
   export const webhooks = new Webhooks({ secret: env.GITHUB_WEBHOOK_SECRET! });
   
@@ -51,20 +50,7 @@ import { create_github_installation, delete_github_installation } from '../queri
         installedAt: new Date()
       })
       
-      // Get authenticated Octokit instance for this installation
-      const octokit = getInstallationOctokit(payload.installation.id);
-      
-      // Try to create a welcome issue (if they have a .github repo)
-      try {
-        await octokit.rest.issues.create({
-          owner: accountLogin,
-          repo: '.github',
-          title: '🚀 Welcome to CodeTector AI!',
-          body: `Thank you for installing CodeTector AI! We'll help you find and fix code issues automatically.\n\nYour installation ID is: ${payload.installation.id}`
-        });
-      } catch (error) {
-        console.log('Could not create welcome issue (this is normal if .github repo does not exist)');
-      }
+      console.log('Installation created');
     } catch (error) {
       console.error('Error handling installation.created:', error);
     }
@@ -109,6 +95,12 @@ import { create_github_installation, delete_github_installation } from '../queri
     } catch (error) {
       console.error('Error handling push event:', error);
     }
+  });
+
+  // Handle issues opened events
+  webhooks.on('issues.opened', async ({ payload }) => {
+    console.log('issues.opened', payload);
+    await commentOnIssueOpened(payload);
   });
   
   // Log all webhook events
