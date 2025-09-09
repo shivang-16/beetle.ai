@@ -124,24 +124,8 @@ const AppSidebar = () => {
       </SidebarContent>
 
       <SidebarFooter>
-        <SidebarMenu
-          className={cn(
-            "items-center justify-between",
-            open ? "flex-row" : "flex-col"
-          )}>
-            <SidebarMenuItem className="items-center justify-center flex">
-            <SidebarMenuButton asChild>
-              <UserButton appearance={{
-                baseTheme: resolvedTheme === "dark" ? dark : undefined,
-                elements: {
-                  userButtonAvatarBox: "w-5 h-5",
-                  userButtonTrigger: "p-0",
-                },
-              }}/>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-      
-          <SidebarMenuItem className="items-center justify-center flex">
+        <SidebarMenu className={cn("items-center justify-between flex-col")}>
+          <SidebarMenuItem className="items-center justify-start flex w-full">
             <SidebarMenuButton asChild>
               <OrganizationSwitcher
                 hidePersonal
@@ -157,12 +141,32 @@ const AppSidebar = () => {
               />
             </SidebarMenuButton>
           </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <ThemeToggle darkIconClassName="text-foreground fill-foreground" />
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          
+
+          <div
+            className={cn(
+              "flex items-center justify-between w-full",
+              open ? "flex-row-reverse" : "flex-col-reverse"
+            )}>
+            <SidebarMenuItem className="items-center justify-center flex">
+              <SidebarMenuButton asChild>
+                <UserButton
+                  appearance={{
+                    baseTheme: resolvedTheme === "dark" ? dark : undefined,
+                    elements: {
+                      userButtonAvatarBox: "w-5 h-5",
+                      userButtonTrigger: "p-0",
+                    },
+                  }}
+                />
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <ThemeToggle darkIconClassName="text-foreground fill-foreground" />
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </div>
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
