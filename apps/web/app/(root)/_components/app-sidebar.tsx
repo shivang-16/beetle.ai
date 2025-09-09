@@ -1,6 +1,6 @@
 "use client";
 
-import { UserButton } from "@clerk/nextjs";
+import { UserButton, OrganizationSwitcher } from "@clerk/nextjs";
 import { ScanTextIcon, StarsIcon, BotIcon } from "lucide-react";
 import Link from "next/link";
 import React from "react";
@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
+import { dark } from "@clerk/themes";
 
 const items = [
   {
@@ -44,6 +46,7 @@ const AppSidebar = () => {
   const { open } = useSidebar();
 
   const pathname = usePathname();
+  const { resolvedTheme } = useTheme();
 
   return (
     // <aside className="fixed inset-y-0 z-10 flex flex-col h-svh border-r bg-sidebar w-[3rem]">
@@ -121,21 +124,49 @@ const AppSidebar = () => {
       </SidebarContent>
 
       <SidebarFooter>
-        <SidebarMenu
-          className={cn(
-            "items-center justify-between",
-            open ? "flex-row" : "flex-col"
-          )}>
-          <SidebarMenuItem>
+        <SidebarMenu className={cn("items-center justify-between flex-col")}>
+          <SidebarMenuItem className="items-center justify-start flex w-full">
             <SidebarMenuButton asChild>
-              <ThemeToggle darkIconClassName="text-foreground fill-foreground" />
+              <OrganizationSwitcher
+                hidePersonal
+                appearance={{
+                  baseTheme: resolvedTheme === "dark" ? dark : undefined,
+                  elements: {
+                    organizationSwitcherTrigger: cn(
+                      "cursor-pointer",
+                      open ? "p-1" : "p-0 w-7 h-7 overflow-hidden"
+                    ),
+                  },
+                }}
+              />
             </SidebarMenuButton>
           </SidebarMenuItem>
-          <SidebarMenuItem className="items-center justify-center flex">
-            <SidebarMenuButton asChild>
-              <UserButton />
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+
+          <div
+            className={cn(
+              "flex items-center justify-between w-full",
+              open ? "flex-row-reverse" : "flex-col-reverse"
+            )}>
+            <SidebarMenuItem className="items-center justify-center flex">
+              <SidebarMenuButton asChild>
+                <UserButton
+                  appearance={{
+                    baseTheme: resolvedTheme === "dark" ? dark : undefined,
+                    elements: {
+                      userButtonAvatarBox: "w-5 h-5",
+                      userButtonTrigger: "p-0",
+                    },
+                  }}
+                />
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <ThemeToggle darkIconClassName="text-foreground fill-foreground" />
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </div>
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>

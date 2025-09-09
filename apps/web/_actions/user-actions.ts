@@ -13,3 +13,14 @@ export const getUser = async () => {
   const userData = await user.json();
   return await userData.user;
 };
+
+export const getMyTeams = async () => {
+  const { token } = await getAuthToken();
+  const teams = await fetch(`${_config.API_BASE_URL}/api/team/mine`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  const teamsData = await teams.json();
+  return await teamsData.data;
+};

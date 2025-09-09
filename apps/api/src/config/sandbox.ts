@@ -3,7 +3,7 @@ import { env } from '../config/env.js';
 
 const DEFAULT_OPTIONS: SandboxOpts = {
   apiKey: env.E2B_API_KEY!,
-  timeoutMs: 60 * 60 * 1000,          // 5 minutes default
+  timeoutMs: 60 * 60 * 1000,          // 60 minutes default
 };
 
 

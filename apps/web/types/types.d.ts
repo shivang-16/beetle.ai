@@ -87,9 +87,12 @@ export interface ITreeNode {
   size?: number;
 }
 
-type LogType = "INFO" | "TOOL_CALL" | "LLM_RESPONSE" | "DEFAULT";
-
-export type LogType = "INFO" | "TOOL_CALL" | "LLM_RESPONSE" | "GENERIC";
+export type LogType =
+  | "INFO"
+  | "TOOL_CALL"
+  | "LLM_RESPONSE"
+  | "INITIALISATION"
+  | "DEFAULT";
 
 export interface TextSegment {
   kind: "text";
@@ -106,10 +109,21 @@ export interface PatchSegment {
   content: string;
 }
 
+export interface WarningSegment {
+  kind: "warning";
+  content: string;
+}
+export interface FileStatusSegment {
+  kind: "file_status";
+  content: string;
+}
+
 export type LLMResponseSegment =
   | TextSegment
   | GitHubIssueSegment
-  | PatchSegment;
+  | PatchSegment
+  | WarningSegment
+  | FileStatusSegment;
 
 export interface LogItem {
   type: LogType;
@@ -122,3 +136,25 @@ export interface ParserState {
   isCapturingLLM: boolean;
   currentLLMResponse: string[];
 }
+
+export type ParsedPatch = {
+  file?: string;
+  line_range?: string;
+  issue?: string;
+  language?: string;
+  before?: string;
+  after?: string;
+  explanation?: string;
+};
+
+export type ParsedWarning = {
+  file?: string;
+  line?: string;
+  type?: string;
+  language?: string;
+  warning?: string;
+  currentCode?: string;
+  suggestion?: string;
+  exampleFix?: string;
+  whyThisMatters?: string;
+};

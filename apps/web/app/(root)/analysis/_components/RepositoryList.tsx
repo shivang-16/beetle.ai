@@ -4,16 +4,19 @@ import { GithubRepository } from "@/types/types";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { getUser } from "@/_actions/user-actions";
 
-const RepositoryList = async ({ query }: { query: string }) => {
+type RepoScope = "user" | "team";
+
+const RepositoryList = async ({ query, scope, teamId }: { query: string; scope: RepoScope; teamId?: string }) => {
   let data: GithubRepository[] | undefined;
 
   try {
-    const res = await getRepository(query);
-    // Combine all repositories from all objects and reverse the order
-    const allRepos = Object.values(res?.data || {}).flat();
-    data = allRepos.reverse();
+   
+
+    console.log(scope, teamId,"scope, teamId");
+
+    const res = await getRepository(query, scope, teamId);
+    data = (res?.data || []).reverse();
   } catch (error) {
     console.log(error);
   }
@@ -24,7 +27,7 @@ const RepositoryList = async ({ query }: { query: string }) => {
         data.map((repo) => (
           <React.Fragment key={repo._id}>
             <li className="py-5">
-              <Link href={`/analysis/${encodeURIComponent(repo.fullName)}`}>
+              <Link href={`/analysis/${encodeURIComponent(repo._id)}`}>
                 <div className="flex items-center gap-3">
                   <span>{repo.fullName}</span>
                   <Badge

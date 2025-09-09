@@ -2,6 +2,8 @@ import express, { Router } from "express";
 import {
   executeAnalysis,
   getAnalysisStatus,
+  getRepositoryAnalysis,
+  getRepositoryAnalysisLogs,
 } from "../controllers/analysis.controller.js";
 import { checkAuth } from "../middlewares/checkAuth.js";
 
@@ -13,5 +15,7 @@ router.get("/status", getAnalysisStatus);
 // Protected analysis endpoint
 router.use(checkAuth);
 router.post("/execute", executeAnalysis);
+router.get("/:id/logs", getRepositoryAnalysisLogs);
+router.get("/:github_repositoryId", getRepositoryAnalysis);
 
 export default router;
