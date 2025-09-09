@@ -1,7 +1,7 @@
 // apps/api/src/models/team.model.ts
 import mongoose, { Document, Schema } from 'mongoose';
 
-export type TeamRole = 'owner' | 'admin' | 'member';
+export type TeamRole = 'admin' | 'member';
 
 export interface ITeamMember {
   userId: string;
@@ -10,6 +10,7 @@ export interface ITeamMember {
 }
 
 export interface ITeam extends Document {
+  _id: string;
   name: string;
   description?: string;
   slug?: string;
@@ -25,7 +26,7 @@ const TeamMemberSchema = new Schema<ITeamMember>(
     userId: { type: String, required: true, index: true },
     role: {
       type: String,
-      enum: ['owner', 'admin', 'member'],
+      enum: ['admin', 'member'],
       required: true,
       default: 'member',
     },
@@ -36,6 +37,7 @@ const TeamMemberSchema = new Schema<ITeamMember>(
 
 const TeamSchema = new Schema<ITeam>(
   {
+    _id: { type: String, required: true },
     name: { type: String, required: true, trim: true },
     description: { type: String, trim: true },
     slug: {
@@ -62,6 +64,6 @@ const TeamSchema = new Schema<ITeam>(
 );
 
 // Helpful compound index to quickly find teams by member
-TeamSchema.index({ 'members.userId': 1 });
+TeamSchema.index({ 'members.userId': 1, slug: 1 });
 
 export default mongoose.models.Team || mongoose.model<ITeam>('Team', TeamSchema);

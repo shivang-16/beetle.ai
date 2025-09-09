@@ -7,10 +7,17 @@ import { Button } from "@/components/ui/button";
 import SyncRepositoriesButton from "./_components/SyncRepositoriesButton";
 import { Plus } from "lucide-react";
 import { getAuthToken } from "@/_actions/auth-token";
+import TeamSwitcher from "./_components/TeamSwitcher";
 
-const Page = async (props: { searchParams?: Promise<{ query?: string }> }) => {
+type RepoScope = "user" | "team";
+
+const Page = async (props: { searchParams?: Promise<{ query?: string, scope?: RepoScope, teamId?: string }> }) => {
   const searchParams = await props.searchParams;
   const query = searchParams?.query || "";
+  const scope = (searchParams?.scope as RepoScope) || "team";
+  const teamId = searchParams?.teamId;
+
+  console.log(searchParams,"searchParams");
 
   const {token} = await getAuthToken();
   console.log("token", token);
@@ -22,6 +29,7 @@ const Page = async (props: { searchParams?: Promise<{ query?: string }> }) => {
           <h2 className="text-2xl font-medium">Repositories</h2>
 
           <div className="flex-1 flex justify-end gap-3">
+            <TeamSwitcher />
             <SearchRepositories />
 
             <SyncRepositoriesButton />
@@ -41,7 +49,7 @@ const Page = async (props: { searchParams?: Promise<{ query?: string }> }) => {
 
         <div className="h-[calc(100%-3rem)] overflow-y-auto output-scrollbar">
           <Suspense key={query} fallback={<RepositoryListSkeleton />}>
-            <RepositoryList query={query} />
+            <RepositoryList query={query} scope={scope} teamId={teamId} />
           </Suspense>
         </div>
       </div>

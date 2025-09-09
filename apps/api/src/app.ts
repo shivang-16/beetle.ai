@@ -40,7 +40,6 @@ export function createApp(): Application {
   // We need express.json() for non-webhook routes, but webhooks need raw body
   app.use((req, res, next) => {
     if (req.path === "/api/webhooks") {
-      console.log("Webhook received", req.body);
       next();
     } else {
       express.json()(req, res, next);

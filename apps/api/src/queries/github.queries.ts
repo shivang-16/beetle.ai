@@ -3,6 +3,7 @@ import { Github_Installation } from "../models/github_installations.model.js";
 import { CustomError } from "../middlewares/error.js";
 import User from "../models/user.model.js";
 import { Github_Repository } from "../models/github_repostries.model.js";
+import { getInstallationOctokit } from "../lib/githubApp.js";
 
 export const create_github_installation = async (payload: CreateInstallationInput) => {
     try {
@@ -97,6 +98,72 @@ export const delete_github_installation = async (installationId: number) => {
     throw new CustomError("Failed to delete GitHub installation", 500);
   }
 };
+
+  // Helper: log issue details for tracked repositories
+export const commentOnIssueOpened = async (payload: any) => {
+    try {
+      const repoId = payload.repository?.id;
+      if (!repoId) {
+        console.log('[issues.opened] Missing repository id in payload');
+        return;
+      }
+
+      const repoDoc = await Github_Repository.findOne({ repositoryId: repoId }).lean();
+      if (!repoDoc) {
+        console.log(`[issues.opened] Repository not found in DB. repoId=${repoId}`);
+        return;
+      }
+
+      if (!repoDoc.trackGithubIssues) {
+        console.log(`[issues.opened] Tracking disabled for repoId=${repoId} (${repoDoc.fullName})`);
+        return;
+      }
+
+      const issue = payload.issue;
+      const details = {
+        repoId,
+        fullName: payload.repository?.full_name,
+        installationId: payload.installation?.id,
+        issueNumber: issue?.number,
+        title: issue?.title,
+        author: issue?.user?.login,
+        url: issue?.html_url,
+        createdAt: issue?.created_at,
+        bodySnippet: (issue?.body || '').slice(0, 200)
+      };
+
+      console.log('[GitHub][issues.opened]', details);
+
+      // Post CTA comment to the issue
+      if (details.installationId && details.issueNumber && details.fullName) {
+        try {
+          const [owner, repo] = details.fullName.split('/');
+          const octokit = getInstallationOctokit(details.installationId);
+
+          const linkTarget = `http://localhost:3000/analysis/${encodeURIComponent(details.fullName)}?issue=${details.issueNumber}&autoStart=1`;
+          const body = [
+            '🚀 Analyze and fix this issue with **[codetector-ai](https://github.com/apps/codetector-ai)**.',
+            '',
+            `[Start now →](${linkTarget})`
+          ].join('\n');
+
+          await octokit.issues.createComment({
+            owner,
+            repo,
+            issue_number: details.issueNumber,
+            body
+          });
+
+          console.log('[GitHub][issues.opened] Posted CTA comment');
+        } catch (postErr) {
+          console.error('[GitHub][issues.opened] Failed to post CTA comment', postErr);
+        }
+      }
+    } catch (err) {
+      console.error('Error logging issues.opened:', err);
+    }
+  }
+
 
 // Get user's GitHub installation for token generation
 export const getUserGitHubInstallation = async (userId: string) => {

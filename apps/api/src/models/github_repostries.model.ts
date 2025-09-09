@@ -11,6 +11,8 @@ export interface IGithub_Repository extends Document {
     analysisRequired?: boolean;     // whether analysis is mandatory before merge
     raiseIssues?: boolean;          // create GitHub issues automatically
     autoFixBugs?: boolean;          // attempt automatic PRs for simple fixes
+    trackGithubIssues?: boolean;    // track GitHub issues
+    trackGithubPullRequests?: boolean; // track GitHub pull requests
     customSettings?: Record<string, unknown>; // arbitrary JSON for further customization
 }       
 
@@ -67,9 +69,18 @@ const RepositorySchema = new Schema<IGithub_Repository>({
 
     raiseIssues: {
         type: Boolean,
-        default: true
+        default: false
     },
     autoFixBugs: {
+        type: Boolean,
+        default: false
+    },
+
+    trackGithubIssues: {
+        type: Boolean,
+        default: false
+    },
+    trackGithubPullRequests: {
         type: Boolean,
         default: false
     },
