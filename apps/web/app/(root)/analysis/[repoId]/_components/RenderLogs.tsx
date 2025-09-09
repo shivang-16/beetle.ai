@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { RenderLLMSegments } from "./RenderLLMSegments";
 import { MergedLogs } from "./RenderToolCall";
 
-const RenderLogs = ({ repoId }: { repoId: string }) => {
+const RenderLogs = ({ repoId, analysisId }: { repoId: string, analysisId?: string }) => {
   const [logs, setLogs] = useState<LogItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -97,62 +97,65 @@ const RenderLogs = ({ repoId }: { repoId: string }) => {
     }
   };
 
-  const loadFromDb = async () => {
-    try {
-      setIsLoading(true);
-      setLogs([]);
 
-      // For demo: prompt for analysis id; in real UI, pass it via props/query
-      const analysisId = prompt("Enter analysis id (_id or analysisId):");
-      if (!analysisId) {
+  useEffect(() => {
+    const loadFromDb = async () => {
+      try {
+        setIsLoading(true);
+        setLogs([]);
+  
+  
+        if (!analysisId) {
+          setIsLoading(false);
+          return;
+        }
+  
+        console.log("🔄 Loading analysis from db: ", analysisId);
+  
+        const res = await fetch(
+          `${_config.API_BASE_URL}/api/analysis/${encodeURIComponent(analysisId)}/logs`,
+          {
+            method: "GET",
+            credentials: "include",
+          }
+        );
+  
+        // if (!res.ok) {
+        //   toast.error(`Failed to fetch analysis: ${res.status}`);
+        //   setIsLoading(false);
+        //   return;
+        // }
+  
+        // console.log("🔄 Loading analysis from db: ", res);
+  
+        const json = await res.json();
+        console.log("🔄 Loading analysis from db: ", json);
+        let logsText: string = "";
+        const bufJson = json?.data?.logsCompressed;
+        const binary = bufferJSONToUint8Array(bufJson);
+        console.log("🔄 Loading binary from db: ", binary);
+        if (binary) {
+          const decoded = await gunzipUint8ArrayToText(binary);
+          if (decoded) {
+            logsText = decoded;
+          }
+        }
+        if (!logsText) logsText = json?.data?.logsText || "";
+  
+        const result = parseFullLogText(logsText);
+        console.log("🔄 Loading result from db: ", result);
+        setLogs(result.logs.map((l) => ({ ...l, messages: [...l.messages] })));
+      } catch (e) {
+        const message =
+          e instanceof Error ? e.message : "Failed to load analysis";
+        toast.error(message);
+      } finally {
         setIsLoading(false);
-        return;
       }
-
-      console.log("🔄 Loading analysis from db: ", analysisId);
-
-      const res = await fetch(
-        `${_config.API_BASE_URL}/api/analysis/${encodeURIComponent(analysisId)}`,
-        {
-          method: "GET",
-          credentials: "include",
-        }
-      );
-
-      // if (!res.ok) {
-      //   toast.error(`Failed to fetch analysis: ${res.status}`);
-      //   setIsLoading(false);
-      //   return;
-      // }
-
-      // console.log("🔄 Loading analysis from db: ", res);
-
-      const json = await res.json();
-      console.log("🔄 Loading analysis from db: ", json);
-      let logsText: string = "";
-      const bufJson = json?.data?.logsCompressed;
-      const binary = bufferJSONToUint8Array(bufJson);
-      console.log("🔄 Loading binary from db: ", binary);
-      if (binary) {
-        const decoded = await gunzipUint8ArrayToText(binary);
-        if (decoded) {
-          logsText = decoded;
-        }
-      }
-      if (!logsText) logsText = json?.data?.logsText || "";
-
-      const result = parseFullLogText(logsText);
-      console.log("🔄 Loading result from db: ", result);
-      setLogs(result.logs.map((l) => ({ ...l, messages: [...l.messages] })));
-    } catch (e) {
-      const message =
-        e instanceof Error ? e.message : "Failed to load analysis";
-      toast.error(message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+    };
+  
+    loadFromDb();
+  }, [analysisId]);
   // console.log("State Logs ====> ", logs);
 
   const handleCancelLogs = () => {
@@ -178,12 +181,12 @@ const RenderLogs = ({ repoId }: { repoId: string }) => {
           Fetch Logs
         </Button>
 
-        <Button
+        {/* <Button
           variant={"outline"}
           onClick={loadFromDb}
           className="cursor-pointer">
           Load From DB
-        </Button>
+        </Button> */}
 
         <Button
           variant={"outline"}
