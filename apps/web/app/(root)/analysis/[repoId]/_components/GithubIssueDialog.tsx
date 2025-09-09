@@ -17,16 +17,20 @@ import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 const GithubIssueDialog = ({
   description,
   title,
+  trigger,
 }: {
   title: string;
   description: string;
+  trigger?: React.ReactNode;
 }) => {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button size={"sm"} variant={"secondary"}>
-          Read More
-        </Button>
+        {trigger ?? (
+          <Button size={"sm"} variant={"secondary"}>
+            Read More
+          </Button>
+        )}
       </DialogTrigger>
 
       <DialogContent className="sm:max-w-2xl max-h-full overflow-y-auto">
@@ -39,7 +43,6 @@ const GithubIssueDialog = ({
           <Markdown
             components={{
               code(props) {
-                // eslint-disable-next-line react/prop-types
                 const { children, className, ...rest } = props;
                 const match = /language-(\w+)/.exec(className || "");
                 return match ? (
