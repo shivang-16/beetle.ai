@@ -4,6 +4,7 @@ import {
   LogItem,
   LogType,
   ParsedPatch,
+  ParsedWarning,
   ParserState,
   TreeProps,
 } from "@/types/types";
@@ -115,6 +116,61 @@ export const buildTreeStructure = (data: TreeProps[]): ITreeNode[] => {
   return roots;
 };
 
+export function safeParseJSON(str: string) {
+  try {
+    let normalized = str.trim();
+
+    // Replace Python booleans & nulls
+    normalized = normalized
+      .replace(/\bTrue\b/g, "true")
+      .replace(/\bFalse\b/g, "false")
+      .replace(/\bNone\b/g, "null");
+
+    // Regex: match "key": "value"
+    normalized = normalized.replace(
+      /"(.*?)"\s*:\s*"([\s\S]*?)"/g,
+      (match, key, value) => {
+        // Heuristic: only escape if value looks like code
+        const looksLikeCode =
+          /import|export|function|class|const|let|var|\(|\)|{|}|;/.test(value);
+
+        if (looksLikeCode && value.includes('"')) {
+          const fixedValue = value.replace(/"/g, '\\"');
+          return `"${key}": "${fixedValue}"`;
+        }
+
+        return match; // leave normal text untouched
+      }
+    );
+
+    // If it already looks like JSON (double-quoted keys), try parsing directly
+    if (/\"[a-zA-Z0-9_]+\"\s*:/.test(normalized)) {
+      return JSON.parse(normalized);
+    }
+
+    // Convert Python dict-style keys:  'key': → "key":
+    normalized = normalized.replace(/'([^']+)':/g, (_, key) => `"${key}":`);
+
+    // Convert Python single-quoted string values → JSON double-quoted
+    normalized = normalized.replace(/'([^']*)'/g, (_, val) => `"${val}"`);
+    console.log({ normalized });
+
+    return JSON.parse(normalized);
+  } catch (error) {
+    console.log(error);
+
+    return null;
+  }
+}
+
+function cleanInitialisationLine(line: string): string {
+  // remove prefix: "2025-09-08 06:58:50 - codetector - INITIALISATION -"
+  return line.replace(
+    /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} - codetector - INITIALISATION -\s*/,
+    ""
+  );
+}
+
 export function createParserState(): ParserState {
   return {
     isCapturingLLM: false,
@@ -131,6 +187,12 @@ function buildLLMSegments(lines: string[]): LLMResponseSegment[] {
 
   let capturingPatch = false;
   let patchBuffer: string[] = [];
+
+  let capturingWarning = false;
+  let warningBuffer: string[] = [];
+
+  let capturingFileStatus = false;
+  let fileStatusBuffer: string[] = [];
 
   const flushText = () => {
     if (buffer.length > 0) {
@@ -172,10 +234,51 @@ function buildLLMSegments(lines: string[]): LLMResponseSegment[] {
       continue;
     }
 
+    if (
+      line.includes("[WARNING_START]") ||
+      line.includes("[WARNING_START\n]")
+    ) {
+      flushText();
+      capturingWarning = true;
+      warningBuffer = [];
+      continue;
+    }
+
+    if (line.includes("[WARNING_END]") || line.includes("[WARNING_END\n]")) {
+      capturingWarning = false;
+      segments.push({ kind: "warning", content: warningBuffer.join("\n") });
+      warningBuffer = [];
+      continue;
+    }
+
+    if (line.includes("[FILE_STATUS]") || line.includes("[FILE_STATUS\n]")) {
+      flushText();
+      capturingFileStatus = true;
+      fileStatusBuffer = [];
+      continue;
+    }
+
+    if (
+      line.includes("[FILE_STATUS_END]") ||
+      line.includes("[FILE_STATUS_END\n]")
+    ) {
+      capturingFileStatus = false;
+      segments.push({
+        kind: "file_status",
+        content: fileStatusBuffer.join("\n"),
+      });
+      fileStatusBuffer = [];
+      continue;
+    }
+
     if (capturingIssue) {
       issueBuffer.push(line);
     } else if (capturingPatch) {
       patchBuffer.push(line);
+    } else if (capturingWarning) {
+      warningBuffer.push(line);
+    } else if (capturingFileStatus) {
+      fileStatusBuffer.push(line);
     } else {
       buffer.push(line);
     }
@@ -230,8 +333,22 @@ export function parseLines(
     let type: LogType = "DEFAULT";
     if (/\bINFO\b/.test(line)) type = "INFO";
     else if (/\bTOOL_CALL\b/.test(line)) type = "TOOL_CALL";
+    else if (/\bINITIALISATION\b/.test(line)) type = "INITIALISATION";
 
     const last = logs[logs.length - 1];
+
+    // --- Handle INITIALISATION grouping ---
+    if (type === "INITIALISATION") {
+      const message = cleanInitialisationLine(line);
+
+      if (last && last.type === "INITIALISATION") {
+        last.messages.push(message);
+      } else {
+        logs.push({ type: "INITIALISATION", messages: [message] });
+      }
+      continue;
+    }
+
     if (last && last.type === type) {
       const lastMsg = last.messages[last.messages.length - 1];
       if (line !== lastMsg) last.messages.push(line);
@@ -245,9 +362,10 @@ export function parseLines(
 
 // Parse a complete logs string (e.g., fetched from DB) using the same logic
 // as streaming, by splitting into lines and reusing parseLines incrementally.
-export function parseFullLogText(
-  fullText: string
-): { logs: LogItem[]; state: ParserState } {
+export function parseFullLogText(fullText: string): {
+  logs: LogItem[];
+  state: ParserState;
+} {
   const lines = fullText.split("\n");
   let logs: LogItem[] = [];
   let state: ParserState = createParserState();
@@ -273,10 +391,10 @@ export async function decodeGzipBase64ToText(base64: string): Promise<string> {
     // If DecompressionStream('gzip') is available, use it
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
-    if (typeof DecompressionStream !== 'undefined') {
+    if (typeof DecompressionStream !== "undefined") {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
-      const ds = new DecompressionStream('gzip');
+      const ds = new DecompressionStream("gzip");
       const stream = new Response(binary).body!.pipeThrough(ds);
       const buf = await new Response(stream).arrayBuffer();
       return new TextDecoder().decode(buf);
@@ -295,7 +413,7 @@ export function bufferJSONToUint8Array(
 ): Uint8Array | null {
   console.log("🔄 Buffer JSON to Uint8Array1: ", bufferLike);
   if (!bufferLike) return null;
-  if (typeof bufferLike === 'string') {
+  if (typeof bufferLike === "string") {
     try {
       const arr = Uint8Array.from(atob(bufferLike), (c) => c.charCodeAt(0));
       console.log("🔄 Buffer JSON to Uint8Array(base64): ", arr);
@@ -307,8 +425,9 @@ export function bufferJSONToUint8Array(
   }
   if (Array.isArray(bufferLike)) {
     console.log("🔄 Buffer JSON to Uint8Array2: ", bufferLike);
-    return new Uint8Array(bufferLike);}
-  if (typeof bufferLike === 'object' && Array.isArray(bufferLike.data)) {
+    return new Uint8Array(bufferLike);
+  }
+  if (typeof bufferLike === "object" && Array.isArray(bufferLike.data)) {
     console.log("🔄 Buffer JSON to Uint8Array3: ", bufferLike.data);
     return new Uint8Array(bufferLike.data);
   }
@@ -317,15 +436,17 @@ export function bufferJSONToUint8Array(
 }
 
 // Gunzip Uint8Array to string using Web DecompressionStream when available
-export async function gunzipUint8ArrayToText(binary: Uint8Array): Promise<string> {
+export async function gunzipUint8ArrayToText(
+  binary: Uint8Array
+): Promise<string> {
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
   console.log("🔄 Gunzip Uint8Array to text: ", binary);
-  if (typeof DecompressionStream !== 'undefined') {
+  if (typeof DecompressionStream !== "undefined") {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
-    const ds = new DecompressionStream('gzip');
-    const stream = new Response(binary).body!.pipeThrough(ds);
+    const ds = new DecompressionStream("gzip");
+    const stream = new Response(binary as BodyInit).body!.pipeThrough(ds);
     const buf = await new Response(stream).arrayBuffer();
     console.log("🔄 Gunzip Uint8Array to text: ", buf);
     return new TextDecoder().decode(buf);
@@ -387,4 +508,146 @@ export function parsePatchString(input: string): ParsedPatch {
     result.explanation = explanationMatch[1].trim();
 
   return result;
+}
+
+export function parseWarningString(input: string): ParsedWarning {
+  const result: ParsedWarning = {};
+
+  // File
+  const fileMatch = input.match(/\*\*File:\*\*\s*`([^`]+)`/);
+  if (fileMatch) result.file = fileMatch[1];
+
+  // Line
+  const lineMatch = input.match(/\*\*Line:\*\*\s*([^\n]+)/);
+  if (lineMatch && lineMatch[1]) result.line = lineMatch[1].trim();
+
+  // Type
+  const typeMatch = input.match(/\*\*Type:\*\*\s*([^\n]+)/);
+  if (typeMatch && typeMatch[1]) result.type = typeMatch[1].trim();
+
+  // Language
+  const langMatch = input.match(/\*\*Language:\*\*\s*([^\n]+)/);
+  if (langMatch && langMatch[1]) result.language = langMatch[1].trim();
+
+  // Warning
+  const warningMatch = input.match(
+    /### Warning\s*([\s\S]*?)(?=### Current Code)/
+  );
+  if (warningMatch && warningMatch[1]) result.warning = warningMatch[1].trim();
+
+  // Current Code (keep fenced block)
+  const currentCodeMatch = input.match(
+    /### Current Code\s*([\s\S]*?)\n### Suggestion/
+  );
+  if (currentCodeMatch && currentCodeMatch[1])
+    result.currentCode = currentCodeMatch[1].trim();
+
+  // Suggestion
+  const suggestionMatch = input.match(
+    /### Suggestion\s*([\s\S]*?)(?=### Example Fix)/
+  );
+  if (suggestionMatch && suggestionMatch[1])
+    result.suggestion = suggestionMatch[1].trim();
+
+  // Example Fix (keep fenced block)
+  const exampleFixMatch = input.match(
+    /### Example Fix\s*([\s\S]*?)\n### Why This Matters/
+  );
+  if (exampleFixMatch && exampleFixMatch[1])
+    result.exampleFix = exampleFixMatch[1].trim();
+
+  // Why This Matters
+  const whyMatch = input.match(/### Why This Matters\s*([\s\S]*)/);
+  if (whyMatch && whyMatch[1]) result.whyThisMatters = whyMatch[1].trim();
+
+  return result;
+}
+
+export class ObjectMerger {
+  private pendingOperations: Map<string, LogItem>; // Map to store incomplete operations
+  private completedObjects: LogItem[]; // Array to store completed merged objects
+
+  constructor() {
+    this.pendingOperations = new Map<string, LogItem>();
+    this.completedObjects = [];
+  }
+
+  processObject(obj: LogItem): LogItem | null {
+    if (!obj.type || !obj.messages || obj.messages.length === 0) {
+      return null;
+    }
+
+    // Extract the operation from the first message
+    const message = obj.messages[0];
+    const operationMatch = message?.match(/\[([^\]]+)\]/);
+
+    if (!operationMatch) {
+      return null;
+    }
+
+    const operation = operationMatch[1];
+    if (!operation) {
+      return null;
+    }
+
+    const isResult = operation.endsWith("_RESULT");
+    const baseOperation = isResult
+      ? operation?.replace(/_RESULT$/, "")
+      : operation;
+
+    if (this.pendingOperations.has(baseOperation)) {
+      // We have a pending operation, merge with it
+      const existingObj = this.pendingOperations.get(baseOperation)!;
+      existingObj.messages.push(...obj.messages);
+
+      // If this completes the operation pair, move to completed
+      if (isResult || this.hasResultMessage(existingObj.messages)) {
+        this.pendingOperations.delete(baseOperation);
+        this.completedObjects.push(existingObj);
+        return existingObj;
+      }
+
+      return null; // Still waiting for the pair
+    } else {
+      // New operation, store it as pending
+      const newObj: LogItem = {
+        type: obj.type,
+        messages: [...obj.messages],
+      };
+
+      // If this is a result without a pending operation, complete it immediately
+      if (isResult) {
+        this.completedObjects.push(newObj);
+        return newObj;
+      }
+
+      // Store as pending and wait for result
+      this.pendingOperations.set(baseOperation, newObj);
+      return null;
+    }
+  }
+
+  private hasResultMessage(messages: string[]): boolean {
+    return messages.some((msg) => {
+      const match = msg.match(/\[([^\]]+)\]/);
+      return match && match[1] && match[1].endsWith("_RESULT");
+    });
+  }
+
+  // Get all completed objects
+  getCompletedObjects(): LogItem[] {
+    return [...this.completedObjects];
+  }
+
+  // Get pending operations (useful for debugging)
+  getPendingOperations(): Map<string, LogItem> {
+    return new Map(this.pendingOperations);
+  }
+
+  // Clear completed objects (if you want to process them and clear the buffer)
+  clearCompleted(): LogItem[] {
+    const completed = [...this.completedObjects];
+    this.completedObjects = [];
+    return completed;
+  }
 }

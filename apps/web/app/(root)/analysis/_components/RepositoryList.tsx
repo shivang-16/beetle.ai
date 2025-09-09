@@ -24,7 +24,7 @@ const RepositoryList = async ({ query }: { query: string }) => {
         data.map((repo) => (
           <React.Fragment key={repo._id}>
             <li className="py-5">
-              <Link href={`/analysis/${encodeURIComponent(repo.fullName)}`}>
+              <Link href={`/analysis/${encodeURIComponent(repo._id)}`}>
                 <div className="flex items-center gap-3">
                   <span>{repo.fullName}</span>
                   <Badge

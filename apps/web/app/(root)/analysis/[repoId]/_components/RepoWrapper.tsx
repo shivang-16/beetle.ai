@@ -10,7 +10,7 @@ const RepoWrapper = async ({ repoId }: { repoId: string }) => {
     <div className="h-svh flex">
       <RepoFileTree repoTree={repoTree.data} />
       <div className="flex-1">
-        <RenderLogs repoName={decodeURIComponent(repoId)} />
+        <RenderLogs repoId={decodeURIComponent(repoId)} />
       </div>
     </div>
   );

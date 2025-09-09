@@ -4,14 +4,13 @@ import { getAuthToken } from "@/_actions/auth-token";
 import { _config } from "@/lib/_config";
 import { GithubRepository, RepoInfo } from "@/types/types";
 
-export const getRepoInfo = async (repoName: string) => {
+export const getRepoInfo = async (repoId: string) => {
   try {
     const { token } = await getAuthToken();
-    const repoUrl = `https://github.com/${repoName}.git`;
 
     const res = await fetch(`${_config.API_BASE_URL}/api/github/info`, {
       method: "POST",
-      body: JSON.stringify({ repoUrl }),
+      body: JSON.stringify({ github_repositoryId: repoId }),
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",

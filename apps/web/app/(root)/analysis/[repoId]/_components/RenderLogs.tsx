@@ -1,49 +1,29 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { _config } from "@/lib/_config";
 import {
-  cn,
   createParserState,
-  extractTitleAndDescription,
   parseLines,
-  parsePatchString,
   parseFullLogText,
   bufferJSONToUint8Array,
   gunzipUint8ArrayToText,
 } from "@/lib/utils";
-import { LLMResponseSegment, LogItem, ParserState } from "@/types/types";
+import { LogItem, ParserState } from "@/types/types";
 import { RefreshCcwDotIcon } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
-import Markdown from "react-markdown";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import {
-  vscDarkPlus,
-  vs,
-} from "react-syntax-highlighter/dist/esm/styles/prism";
+
 import { toast } from "sonner";
-import dynamic from "next/dynamic";
-import { useTheme } from "next-themes";
+import { RenderLLMSegments } from "./RenderLLMSegments";
+import { MergedLogs } from "./RenderToolCall";
 
-const GithubIssueDialog = dynamic(() => import("./GithubIssueDialog"));
-
-const RenderLogs = ({ repoName }: { repoName: string }) => {
+const RenderLogs = ({ repoId }: { repoId: string }) => {
   const [logs, setLogs] = useState<LogItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const logsEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController>(null);
   const parserStateRef = useRef<ParserState>(createParserState());
-
-  const { resolvedTheme } = useTheme();
 
   const analyzeRepo = async () => {
     try {
@@ -52,11 +32,9 @@ const RenderLogs = ({ repoName }: { repoName: string }) => {
       setLogs([]);
       setIsLoading(true);
 
-      const repoUrl = `https://github.com/${repoName}.git`;
-
       const res = await fetch(`${_config.API_BASE_URL}/api/analysis/execute`, {
         method: "POST",
-        body: JSON.stringify({ repoUrl }),
+        body: JSON.stringify({ github_repositoryId: repoId }),
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
@@ -112,9 +90,7 @@ const RenderLogs = ({ repoName }: { repoName: string }) => {
       if (error instanceof Error) {
         toast.error(`${error.message}`);
       } else {
-        toast.error(
-          `An unexpected error occurred while analyzing the repo ${repoName}.`
-        );
+        toast.error(`An unexpected error occurred while analyzing this repo.`);
       }
     } finally {
       setIsLoading(false);
@@ -135,10 +111,13 @@ const RenderLogs = ({ repoName }: { repoName: string }) => {
 
       console.log("🔄 Loading analysis from db: ", analysisId);
 
-      const res = await fetch(`${_config.API_BASE_URL}/api/analysis/${encodeURIComponent(analysisId)}`, {
-        method: "GET",
-        credentials: "include",
-      });
+      const res = await fetch(
+        `${_config.API_BASE_URL}/api/analysis/${encodeURIComponent(analysisId)}`,
+        {
+          method: "GET",
+          credentials: "include",
+        }
+      );
 
       // if (!res.ok) {
       //   toast.error(`Failed to fetch analysis: ${res.status}`);
@@ -147,7 +126,6 @@ const RenderLogs = ({ repoName }: { repoName: string }) => {
       // }
 
       // console.log("🔄 Loading analysis from db: ", res);
-      
 
       const json = await res.json();
       console.log("🔄 Loading analysis from db: ", json);
@@ -167,7 +145,8 @@ const RenderLogs = ({ repoName }: { repoName: string }) => {
       console.log("🔄 Loading result from db: ", result);
       setLogs(result.logs.map((l) => ({ ...l, messages: [...l.messages] })));
     } catch (e) {
-      const message = e instanceof Error ? e.message : "Failed to load analysis";
+      const message =
+        e instanceof Error ? e.message : "Failed to load analysis";
       toast.error(message);
     } finally {
       setIsLoading(false);
@@ -192,203 +171,6 @@ const RenderLogs = ({ repoName }: { repoName: string }) => {
     scrollToBottom();
   }, [logs]);
 
-  function renderLLMSegments(segments: LLMResponseSegment[]) {
-    return segments.map((seg, i) => {
-      if (seg.kind === "text") {
-        return (
-          <div key={i} className="w-full text-sm mb-2 whitespace-pre-wrap">
-            <Markdown
-              components={{
-                code(props) {
-                  // eslint-disable-next-line react/prop-types
-                  const { children, className, ...rest } = props;
-                  const match = /language-(\w+)/.exec(className || "");
-                  return match ? (
-                    <SyntaxHighlighter
-                      PreTag="div"
-                      language={match[1]}
-                      style={vscDarkPlus}>
-                      {String(children).replace(/\n$/, "")}
-                    </SyntaxHighlighter>
-                  ) : (
-                    <code
-                      {...rest}
-                      className={cn("w-full whitespace-pre-wrap", className)}>
-                      {children}
-                    </code>
-                  );
-                },
-              }}>
-              {seg.content}
-            </Markdown>
-          </div>
-        );
-      }
-
-      if (seg.kind === "githubIssue") {
-        const githubIssue = extractTitleAndDescription(seg.content);
-
-        return (
-          <Card key={i} className="my-5 w-full">
-            <CardHeader>
-              <div className="font-semibold text-sm text-muted-foreground mb-5">
-                📌{" "}
-                <span className="underline underline-offset-2">
-                  Suggested GitHub Issue
-                </span>
-              </div>
-              <CardTitle>{githubIssue.title}</CardTitle>
-              <CardDescription className="sr-only">
-                {githubIssue.title}
-              </CardDescription>
-
-              <CardContent className="px-0 mt-3 pb-0 text-muted-foreground text-sm">
-                <Markdown>{`${githubIssue.description.substring(0, 500)}...`}</Markdown>
-              </CardContent>
-
-              <CardFooter className="p-0 justify-end-safe pt-2.5">
-                <GithubIssueDialog
-                  title={githubIssue.title}
-                  description={githubIssue.description}
-                />
-              </CardFooter>
-            </CardHeader>
-          </Card>
-        );
-      }
-
-      if (seg.kind === "patch") {
-        const patch = parsePatchString(seg.content);
-
-        return (
-          <Card key={i} className="w-full my-5">
-            <CardHeader>
-              <div className="font-semibold text-sm mb-5">
-                💻{" "}
-                <span className="underline underline-offset-2">
-                  Patch Suggestion
-                </span>
-              </div>
-              <CardTitle className="flex items-center gap-1.5 text-muted-foreground">
-                <span className="border rounded-md px-3 py-1">Read</span>{" "}
-                {patch.file}
-              </CardTitle>
-            </CardHeader>
-
-            <CardContent className="space-y-5">
-              <div>
-                <span>Issue</span>
-
-                <Markdown
-                  components={{
-                    code(props) {
-                      // eslint-disable-next-line react/prop-types
-                      const { children, className, ...rest } = props;
-                      const match = /language-(\w+)/.exec(className || "");
-                      return match ? (
-                        <SyntaxHighlighter
-                          PreTag="div"
-                          language={match[1]}
-                          style={resolvedTheme === "dark" ? vscDarkPlus : vs}
-                          customStyle={{
-                            backgroundColor:
-                              resolvedTheme === "dark"
-                                ? "rgba(255, 0, 0, 0.15)"
-                                : "rgba(255,0,0,0.05)",
-                            borderRadius: 4,
-                            padding: 16,
-                            fontSize: 14,
-                          }}
-                          showLineNumbers
-                          startingLineNumber={Number(
-                            patch.line_range?.split("-")[0]
-                          )}>
-                          {String(children).replace(/\n$/, "")}
-                        </SyntaxHighlighter>
-                      ) : (
-                        <code {...rest} className={className}>
-                          {children}
-                        </code>
-                      );
-                    },
-                  }}>
-                  {patch.before}
-                </Markdown>
-              </div>
-
-              <div>
-                <span>Fix</span>
-
-                <Markdown
-                  components={{
-                    code(props) {
-                      // eslint-disable-next-line react/prop-types
-                      const { children, className, ...rest } = props;
-                      const match = /language-(\w+)/.exec(className || "");
-                      return match ? (
-                        <SyntaxHighlighter
-                          PreTag="div"
-                          language={match[1]}
-                          style={resolvedTheme === "dark" ? vscDarkPlus : vs}
-                          customStyle={{
-                            backgroundColor:
-                              resolvedTheme === "dark"
-                                ? "rgba(123, 241, 168,0.2)"
-                                : "rgba(123, 241, 168,0.2)",
-                            borderRadius: 4,
-                            padding: 16,
-                            fontSize: 14,
-                          }}
-                          showLineNumbers
-                          startingLineNumber={Number(
-                            patch.line_range?.split("-")[0]
-                          )}>
-                          {String(children).replace(/\n$/, "")}
-                        </SyntaxHighlighter>
-                      ) : (
-                        <code {...rest} className={className}>
-                          {children}
-                        </code>
-                      );
-                    },
-                  }}>
-                  {patch.after}
-                </Markdown>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      }
-      return null;
-    });
-  }
-
-  function renderBlock(log: LogItem, index: number) {
-    // const styles: Record<LogType, string> = {
-    //   INFO: "bg-gray-100 text-gray-800 border-l-4 border-gray-500",
-    //   TOOL_CALL: "bg-blue-100 text-blue-800 border-l-4 border-blue-500",
-    //   LLM_RESPONSE: "bg-green-100 text-green-800 border-l-4 border-green-500",
-    //   DEFAULT:
-    //     "bg-yellow-100 text-yellow-800 border-l-4 border-yellow-500 italic",
-    // };
-
-    return (
-      <div
-        key={index}
-        className={`w-full p-3 my-2 rounded whitespace-pre-wrap text-muted-foreground`}>
-        {log.type === "LLM_RESPONSE" && log.segments ? (
-          <div className="w-full break-words text-xs m-0">
-            {renderLLMSegments(log.segments)}
-          </div>
-        ) : (
-          <div className="w-full break-words text-xs m-0">
-            {log.messages.join("\n")}
-          </div>
-        )}
-      </div>
-    );
-  }
-
   return (
     <div className="h-full w-full flex flex-col">
       <div className="px-4 py-3 flex justify-end-safe gap-3">
@@ -396,7 +178,10 @@ const RenderLogs = ({ repoName }: { repoName: string }) => {
           Fetch Logs
         </Button>
 
-        <Button variant={"outline"} onClick={loadFromDb} className="cursor-pointer">
+        <Button
+          variant={"outline"}
+          onClick={loadFromDb}
+          className="cursor-pointer">
           Load From DB
         </Button>
 
@@ -409,8 +194,24 @@ const RenderLogs = ({ repoName }: { repoName: string }) => {
       </div>
       <div className="flex-1 px-4 pb-3 max-h-[calc(100%-60px)] max-w-5xl w-full mx-auto">
         <div className="w-full h-full py-3 overflow-y-auto output-scrollbar">
-          <div className="w-full flex flex-col items-start gap-3.5">
-            {logs.map((log, i) => renderBlock(log, i))}
+          <div className="w-full flex flex-col items-start gap-3.5 text-muted-foreground">
+            {logs.map((log, i) => (
+              <React.Fragment key={i}>
+                {log.type === "LLM_RESPONSE" && log.segments ? (
+                  <div className="w-full p-3 break-words text-xs m-0">
+                    <RenderLLMSegments segments={log.segments} />
+                  </div>
+                ) : log.type === "TOOL_CALL" ? (
+                  <div className="w-full p-3 whitespace-pre-wrap text-xs m-0">
+                    <MergedLogs log={log} />
+                  </div>
+                ) : log.type === "INITIALISATION" ? (
+                  <div className="w-full p-3 whitespace-pre-wrap text-xs m-0">
+                    {log.messages.join("\n")}
+                  </div>
+                ) : null}
+              </React.Fragment>
+            ))}
           </div>
 
           {isLoading && (
@@ -422,7 +223,7 @@ const RenderLogs = ({ repoName }: { repoName: string }) => {
             </div>
           )}
 
-          {/* <div ref={logsEndRef} /> */}
+          <div ref={logsEndRef} />
         </div>
       </div>
     </div>
