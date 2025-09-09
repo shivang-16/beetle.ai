@@ -5,6 +5,7 @@ export interface IAnalysis {
   userId: string;
   repoUrl: string;
   github_repositoryId: string;
+  sandboxId: string;
   model: string;
   prompt: string;
   status: 'completed' | 'interrupted' | 'error';
@@ -25,6 +26,7 @@ const AnalysisSchema = new Schema<IAnalysis>(
     userId: { type: String, required: true, index: true },
     repoUrl: { type: String, required: true },
     github_repositoryId: { type: String, required: true, index: true },
+    sandboxId: { type: String, },
     model: { type: String, required: true },
     prompt: { type: String, required: true },
     status: {

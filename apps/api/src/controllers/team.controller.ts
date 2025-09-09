@@ -2,6 +2,9 @@
 import { NextFunction, Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Team, { ITeam, TeamRole } from '../models/team.model.js';
+import { clerkClient } from '@clerk/express';
+import { Github_Installation } from '../models/github_installations.model.js';
+import { Github_Repository } from '../models/github_repostries.model.js';
 import User, { IUser } from '../models/user.model.js';
 import { CustomError } from '../middlewares/error.js';
 import { logError, logInfo, logTrace, logWarn } from '../utils/logger.js';
@@ -95,6 +98,38 @@ export const getTeam = async (req: Request, res: Response, next: NextFunction) =
   } catch (err) {
     logError(`getTeam error: ${err}`);
     return next(new CustomError('Failed to fetch team', 500));
+  }
+};
+
+export const getOrCreateCurrentOrgTeam = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.org?.id) {
+      return next(new CustomError('Select an organization to continue', 400));
+    }
+
+    let team = await Team.findById(req.org.id);
+    if (team) {
+      return res.status(200).json({ success: true, data: team });
+    }
+
+    // Fetch org details from Clerk to seed the local team
+    const org = await clerkClient.organizations.getOrganization({ organizationId: req.org.id });
+    const slug = org.slug || slugify(org.name || 'organization');
+
+    team = await Team.create({
+      _id: req.org.id,
+      name: org.name,
+      description: '',
+      slug,
+      ownerId: req.user._id,
+      members: [{ userId: req.user._id, role: 'owner', joinedAt: new Date() }],
+      settings: {},
+    });
+
+    return res.status(201).json({ success: true, data: team });
+  } catch (err) {
+    logError(`getOrCreateCurrentOrgTeam error: ${err}`);
+    return next(new CustomError('Failed to ensure organization team', 500));
   }
 };
 
@@ -252,5 +287,35 @@ export const updateMemberRole = async (req: Request, res: Response, next: NextFu
   } catch (err) {
     logError(`updateMemberRole error: ${err}`);
     return next(new CustomError('Failed to update member role', 500));
+  }
+};
+
+export const getTeamRepositories = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { teamId } = req.params as { teamId: string };
+
+    const team = await Team.findById(teamId);
+    if (!team) return next(new CustomError('Team not found', 404));
+
+    const member = ensureMember(team, req.user._id);
+    if (!member) return next(new CustomError('Forbidden: not a team member', 403));
+
+    const memberUserIds = team.members.map((m: { userId: string }) => m.userId);
+
+    const installations = await Github_Installation.find({ userId: { $in: memberUserIds } }).select('_id');
+    const installationIds = installations.map((ins) => ins._id);
+
+    if (installationIds.length === 0) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+
+    const repos = await Github_Repository.find({ github_installationId: { $in: installationIds } })
+      .sort({ fullName: 1 })
+      .lean();
+
+    return res.status(200).json({ success: true, data: repos });
+  } catch (err) {
+    logError(`getTeamRepositories error: ${err}`);
+    return next(new CustomError('Failed to fetch team repositories', 500));
   }
 };

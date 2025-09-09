@@ -12,6 +12,8 @@ import {
   addMember,
   removeMember,
   updateMemberRole,
+  getOrCreateCurrentOrgTeam,
+  getTeamRepositories,
 } from '../controllers/team.controller.js';
 
 
@@ -21,6 +23,7 @@ router.use(checkAuth);
 
 router.post('/', createTeam);
 router.get('/', listMyTeams);
+router.get('/current', getOrCreateCurrentOrgTeam);
 
 router.get('/:teamId', getTeam);
 router.put('/:teamId',  updateTeam);
@@ -30,5 +33,6 @@ router.get('/:teamId/members', getMembers);
 router.post('/:teamId/members', addMember);
 router.delete('/:teamId/members/:memberId', removeMember);
 router.patch('/:teamId/members/:memberId', updateMemberRole);
+router.get('/:teamId/repositories', getTeamRepositories);
 
 export default router;

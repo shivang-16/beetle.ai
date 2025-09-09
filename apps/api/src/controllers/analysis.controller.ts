@@ -5,11 +5,8 @@ import { authenticateGithubRepo } from "../utils/authenticateGithubUrl.js";
 import { randomUUID } from "crypto";
 import { initRedisBuffer, appendToRedisBuffer, finalizeAnalysisAndPersist } from "../utils/analysisStreamStore.js";
 import Analysis from "../models/analysis.model.js";
-import { promisify } from "util";
-import { gunzip } from "zlib";
 import { Github_Repository } from "../models/github_repostries.model.js";
 
-const gunzipAsync = promisify(gunzip);
 
 export const executeAnalysis = async (
   req: Request,
@@ -26,6 +23,7 @@ export const executeAnalysis = async (
   let modelParam: string = "gemini-2.0-flash";
   let promptParam: string = "Analyze this codebase for security vulnerabilities and code quality";
   let githubRepositoryId: string = "";
+  let sandboxId: string = "";
   try {
     console.log("🚀 Starting code analysis...");
 
@@ -182,6 +180,8 @@ export const executeAnalysis = async (
 
     // Close the sandbox
     await sandbox.kill();
+    await sandbox.betaPause() 
+    sandboxId = sandbox.sandboxId;
     await streamToClient("🔒 Sandbox closed", true);
 
     // End the response
@@ -211,6 +211,7 @@ export const executeAnalysis = async (
           userId,
           repoUrl: repoUrlParam,
           github_repositoryId: githubRepositoryId,
+          sandboxId: sandboxId,
           model: modelParam,
           prompt: promptParam,
           status,

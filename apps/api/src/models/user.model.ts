@@ -7,6 +7,7 @@ export interface IUser extends Document {
   username: string;
   avatarUrl: string;
   email: string;
+  organizationId?: string;
   password?: string;
   github_installations: Schema.Types.ObjectId[];
   createdAt: Date;
@@ -41,6 +42,10 @@ const userSchema = new Schema<IUser>(
       type: String,
       trim: true,
       lowercase: true,
+    },
+    organizationId: {
+      type: String,
+      index: true,
     },
     password: {
       type: String,

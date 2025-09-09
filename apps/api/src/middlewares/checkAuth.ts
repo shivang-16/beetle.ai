@@ -9,6 +9,7 @@ declare global {
     interface Request {
       user?: any; 
       isServerRequest?: boolean;
+      org?: { id: string; role?: string; slug?: string };
     }
   }
 }
@@ -16,7 +17,7 @@ declare global {
 export const checkAuth = async (req: Request, res: Response, next: NextFunction) => {
   logTrace("checkAuth middleware execution started");
   try {
-    const { userId } = getAuth(req);
+    const { userId, orgId, orgRole, orgSlug } = getAuth(req);
 
     if (!userId) {
       logError("Authentication failed: No userId found in request.");
@@ -44,6 +45,16 @@ export const checkAuth = async (req: Request, res: Response, next: NextFunction)
     }
  
     req.user = user; // attach full user object for downstream handlers
+
+    // Attach active organization context if present
+    if (orgId) {
+      req.org = { id: orgId, role: orgRole as string | undefined, slug: orgSlug as string | undefined };
+      // Persist organizationId on user if changed
+      if (user.organizationId !== orgId) {
+        await User.updateOne({ _id: user._id }, { $set: { organizationId: orgId } });
+        user.organizationId = orgId;
+      }
+    }
     logInfo(`User authenticated successfully: ${user.email}`);
     next();
   } catch (err) {

@@ -10,6 +10,7 @@ export interface ITeamMember {
 }
 
 export interface ITeam extends Document {
+  _id: string;
   name: string;
   description?: string;
   slug?: string;
@@ -36,6 +37,7 @@ const TeamMemberSchema = new Schema<ITeamMember>(
 
 const TeamSchema = new Schema<ITeam>(
   {
+    _id: { type: String, required: true },
     name: { type: String, required: true, trim: true },
     description: { type: String, trim: true },
     slug: {

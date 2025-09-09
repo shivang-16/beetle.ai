@@ -1,6 +1,6 @@
 "use client";
 
-import { UserButton } from "@clerk/nextjs";
+import { UserButton, OrganizationSwitcher } from "@clerk/nextjs";
 import { ScanTextIcon, StarsIcon, BotIcon } from "lucide-react";
 import Link from "next/link";
 import React from "react";
@@ -36,6 +36,11 @@ const items = [
   {
     title: "Agents",
     url: "/agents",
+    icon: BotIcon,
+  },
+  {
+    title: "Organizations",
+    url: "/organization",
     icon: BotIcon,
   },
 ];
@@ -129,6 +134,11 @@ const AppSidebar = () => {
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
               <ThemeToggle darkIconClassName="text-foreground fill-foreground" />
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem className="items-center justify-center flex">
+            <SidebarMenuButton asChild>
+              <OrganizationSwitcher hidePersonal appearance={{ elements: { organizationSwitcherTrigger: "cursor-pointer" } }} />
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem className="items-center justify-center flex">
