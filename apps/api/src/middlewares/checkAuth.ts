@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { getAuth, clerkClient } from '@clerk/express';
 import User from "../models/user.model.js";
+import Team from "../models/team.model.js";
 import { logError, logInfo, logTrace, logWarn } from "../utils/logger.js";
 import { createUser } from "../queries/user.queries.js";
 
@@ -18,6 +19,7 @@ export const checkAuth = async (req: Request, res: Response, next: NextFunction)
   logTrace("checkAuth middleware execution started");
   try {
     const { userId, orgId, orgRole, orgSlug } = getAuth(req);
+    console.log(userId, orgId, orgRole, orgSlug,"userId, orgId, orgRole, orgSlug");
 
     if (!userId) {
       logError("Authentication failed: No userId found in request.");
@@ -34,7 +36,7 @@ export const checkAuth = async (req: Request, res: Response, next: NextFunction)
         email: clerkUser.primaryEmailAddress?.emailAddress,
         firstName: clerkUser.firstName,
         lastName: clerkUser.lastName,
-        username: clerkUser.username || clerkUser.externalAccounts?.[0]?.username,
+        username: clerkUser.username || clerkUser.externalAccounts?.[0]?.username || clerkUser.id.split("_")[1],
         avatarUrl: clerkUser.imageUrl,
       }
 
@@ -50,9 +52,43 @@ export const checkAuth = async (req: Request, res: Response, next: NextFunction)
     if (orgId) {
       req.org = { id: orgId, role: orgRole as string | undefined, slug: orgSlug as string | undefined };
       // Persist organizationId on user if changed
-      if (user.organizationId !== orgId) {
-        await User.updateOne({ _id: user._id }, { $set: { organizationId: orgId } });
-        user.organizationId = orgId;
+
+
+      // Ensure Team exists and membership is synced
+      let team = await Team.findById(orgId);
+      if (!team) {
+        const org = await clerkClient.organizations.getOrganization({ organizationId: orgId });
+        team = await Team.create({
+          _id: orgId,
+          name: org.name,
+          description: '',
+          slug: org.slug,
+          ownerId: user._id,
+          members: [{ userId: user._id, role: 'admin', joinedAt: new Date() }],
+          settings: {},
+        });
+      }
+
+      const role: 'admin' | 'member' = orgRole?.includes('admin')
+        ? 'admin'
+        : 'member';
+
+      // Add or update team membership
+      const memberIndex = team.members.findIndex((m: any) => m.userId === user._id);
+      if (memberIndex === -1) {
+        team.members.push({ userId: user._id, role, joinedAt: new Date() });
+      } else if (team.members[memberIndex].role !== role) {
+        team.members[memberIndex].role = role;
+      }
+      await team.save();
+
+      // Sync user's teams array
+      const hasTeam = Array.isArray(user.teams) && user.teams.some((t: any) => t._id === orgId);
+      if (!hasTeam) {
+        await User.updateOne(
+          { _id: user._id },
+          { $push: { teams: { _id: orgId, role } } }
+        );
       }
     }
     logInfo(`User authenticated successfully: ${user.email}`);

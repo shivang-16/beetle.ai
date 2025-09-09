@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
+import { dark } from "@clerk/themes";
 
 const items = [
   {
@@ -38,17 +40,13 @@ const items = [
     url: "/agents",
     icon: BotIcon,
   },
-  {
-    title: "Organizations",
-    url: "/organization",
-    icon: BotIcon,
-  },
 ];
 
 const AppSidebar = () => {
   const { open } = useSidebar();
 
   const pathname = usePathname();
+  const { resolvedTheme } = useTheme();
 
   return (
     // <aside className="fixed inset-y-0 z-10 flex flex-col h-svh border-r bg-sidebar w-[3rem]">
@@ -131,21 +129,40 @@ const AppSidebar = () => {
             "items-center justify-between",
             open ? "flex-row" : "flex-col"
           )}>
+            <SidebarMenuItem className="items-center justify-center flex">
+            <SidebarMenuButton asChild>
+              <UserButton appearance={{
+                baseTheme: resolvedTheme === "dark" ? dark : undefined,
+                elements: {
+                  userButtonAvatarBox: "w-5 h-5",
+                  userButtonTrigger: "p-0",
+                },
+              }}/>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+      
+          <SidebarMenuItem className="items-center justify-center flex">
+            <SidebarMenuButton asChild>
+              <OrganizationSwitcher
+                hidePersonal
+                appearance={{
+                  baseTheme: resolvedTheme === "dark" ? dark : undefined,
+                  elements: {
+                    organizationSwitcherTrigger: cn(
+                      "cursor-pointer",
+                      open ? "p-1" : "p-0 w-7 h-7 overflow-hidden"
+                    ),
+                  },
+                }}
+              />
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
               <ThemeToggle darkIconClassName="text-foreground fill-foreground" />
             </SidebarMenuButton>
           </SidebarMenuItem>
-          <SidebarMenuItem className="items-center justify-center flex">
-            <SidebarMenuButton asChild>
-              <OrganizationSwitcher hidePersonal appearance={{ elements: { organizationSwitcherTrigger: "cursor-pointer" } }} />
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem className="items-center justify-center flex">
-            <SidebarMenuButton asChild>
-              <UserButton />
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
