@@ -19,7 +19,7 @@ export const executeAnalysis = async (
   let runExitCode: number | undefined;
   let clientAborted = false;
   let userId!: string;
-  let repoUrlParam: string = "";
+  let repoUrl: string = "";
   let modelParam: string = "gemini-2.0-flash";
   let promptParam: string = "Analyze this codebase for security vulnerabilities and code quality";
   let githubRepositoryId: string = "";
@@ -29,7 +29,7 @@ export const executeAnalysis = async (
 
     // Extract parameters from request body or use defaults
     const {
-      repoUrl,
+      // repoUrl,
       github_repositoryId,
       model = "gemini-2.0-flash",
       prompt = "Analyze this codebase for security vulnerabilities and code quality",
@@ -46,10 +46,10 @@ export const executeAnalysis = async (
 
     // Persist the resolved repo id for finalize
     githubRepositoryId = String(github_repository._id);
-    // const repoUrl = `https://github.com/${github_repository.fullName}`;
+    repoUrl = `https://github.com/${github_repository.fullName}`;
 
     userId = req.user._id;
-    repoUrlParam = repoUrl;
+    // repoUrlParam = repoUrl;
     modelParam = model;
     promptParam = prompt;
 
@@ -201,7 +201,7 @@ export const executeAnalysis = async (
     try { if (sandboxRef) await sandboxRef.kill(); } catch (_) {}
 
     try {
-      if (analysisId && userId && repoUrlParam) {
+      if (analysisId && userId && repoUrl) {
         const status: 'completed' | 'interrupted' | 'error' = clientAborted
           ? 'interrupted'
           : (typeof runExitCode === 'number' && runExitCode === 0 ? 'completed' : 'error');
@@ -209,7 +209,7 @@ export const executeAnalysis = async (
         await finalizeAnalysisAndPersist({
           analysisId,
           userId,
-          repoUrl: repoUrlParam,
+          repoUrl: repoUrl,
           github_repositoryId: githubRepositoryId,
           sandboxId: sandboxId,
           model: modelParam,
