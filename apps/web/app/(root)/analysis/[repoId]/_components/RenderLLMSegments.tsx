@@ -1,12 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import {
   Card,
   CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import Markdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -23,6 +20,7 @@ import {
 } from "@/lib/utils";
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
+import { Button } from "@/components/ui/button";
 
 const GithubIssueDialog = dynamic(() => import("./GithubIssueDialog"));
 
@@ -32,15 +30,29 @@ export function RenderLLMSegments({
   segments: LLMResponseSegment[];
 }) {
   const { resolvedTheme } = useTheme();
+  const [expandedWarnings, setExpandedWarnings] = useState<Set<number>>(new Set());
+
+  const extractFencedContent = (
+    input: string | undefined
+  ): { code: string; lang?: string } => {
+    const trimmed = (input || "").trim();
+    const openMatch = trimmed.match(/^```(\w+)?\n/);
+    if (openMatch) {
+      const lang = openMatch[1] || undefined;
+      const withoutOpen = trimmed.replace(/^```(\w+)?\n/, "");
+      const withoutClose = withoutOpen.replace(/\n```$/, "");
+      return { code: withoutClose, lang };
+    }
+    return { code: trimmed };
+  };
 
   return segments.map((seg, i) => {
     if (seg.kind === "text") {
       return (
-        <div key={i} className="w-full text-sm mb-2 whitespace-pre-wrap">
+        <div key={i} className="w-full text-xs mb-2 whitespace-pre-wrap">
           <Markdown
             components={{
               code(props) {
-                // eslint-disable-next-line react/prop-types
                 const { children, className, ...rest } = props;
                 const match = /language-(\w+)/.exec(className || "");
                 return match ? (
@@ -69,235 +81,266 @@ export function RenderLLMSegments({
       const githubIssue = extractTitleAndDescription(seg.content);
 
       return (
-        <Card key={i} className="my-5 w-full">
-          <CardHeader>
-            <div className="font-semibold text-sm text-muted-foreground mb-5">
-              📌{" "}
-              <span className="underline underline-offset-2">
-                Suggested GitHub Issue
-              </span>
-            </div>
-            <CardTitle>{githubIssue.title}</CardTitle>
-          </CardHeader>
+        <div
+          key={i}
+          className="w-full my-4 rounded-md border bg-card hover:bg-accent/40 transition-colors">
+          <div className="flex items-start gap-3 p-4">
 
-          <CardContent className="mt-3 pb-0 text-muted-foreground text-sm">
-            <Markdown>{`${githubIssue.description.substring(0, 500)}...`}</Markdown>
-          </CardContent>
-
-          <CardFooter className="justify-end-safe pt-2.5">
-            <GithubIssueDialog
-              title={githubIssue.title}
-              description={githubIssue.description}
+            {/* state dot */}
+            <div className="border rounded-full p-1 mt-1 h-4 w-4 border-[#238636] flex items-center justify-center">
+            <span
+              aria-hidden
+              className="inline-block h-1 w-1 rounded-full bg-[#238636]"
             />
-          </CardFooter>
-        </Card>
+            </div>
+          
+
+            {/* main content */}
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <GithubIssueDialog
+                title={githubIssue.title}
+                description={githubIssue.description}
+                trigger={
+                  <button className="text-left font-bold text-md hover:underline text-white truncate">
+                    {githubIssue.title}
+                  </button>
+                }
+              />
+
+              <div className="text-xs text-muted-foreground">
+                <span className="font-medium">#{i + 1}</span>
+                <span className="mx-1">·</span>
+                <span>AI assistant opened just now</span>
+              </div>
+            </div>
+
+            {/* right meta */}
+            <div className="ml-3 shrink-0 cursor-pointer text-white bg-[#238636] px-3 py-2 rounded-lg self-center text-xs flex items-center gap-1">
+              {/* mimic comment count */}
+              <button>Open</button>
+            </div>
+          </div>
+        </div>
       );
     }
 
     if (seg.kind === "patch") {
       const patch = parsePatchString(seg.content);
+      const before = extractFencedContent(patch.before).code.split("\n");
+      const after = extractFencedContent(patch.after).code.split("\n");
+      const file = patch.file || "";
 
       return (
-        <Card key={i} className="w-full my-5">
-          <CardHeader>
-            <div className="font-semibold text-sm mb-5">
-              💻{" "}
-              <span className="underline underline-offset-2">
-                Patch Suggestion
-              </span>
-            </div>
-            <CardTitle className="flex items-center gap-1.5 text-muted-foreground">
-              <span className="border rounded-md px-3 py-1">Read</span>{" "}
-              {patch.file}
-            </CardTitle>
-          </CardHeader>
+        <div key={i} className="w-full my-5 overflow-hidden">
+          <div className="px-4 pt-3 text-xs font-medium text-muted-foreground">Suggested change</div>
 
-          <CardContent className="space-y-5">
-            <div>
-              <span>Issue</span>
-
-              <Markdown
-                components={{
-                  code(props) {
-                    // eslint-disable-next-line react/prop-types
-                    const { children, className, ...rest } = props;
-                    const match = /language-(\w+)/.exec(className || "");
-                    return match ? (
-                      <SyntaxHighlighter
-                        PreTag="div"
-                        language={match[1]}
-                        style={resolvedTheme === "dark" ? vscDarkPlus : vs}
-                        customStyle={{
-                          backgroundColor:
-                            resolvedTheme === "dark"
-                              ? "rgba(255, 0, 0, 0.15)"
-                              : "rgba(255,0,0,0.05)",
-                          borderRadius: 4,
-                          padding: 16,
-                          fontSize: 14,
-                        }}
-                        showLineNumbers
-                        startingLineNumber={Number(
-                          patch.line_range?.split("-")[0]
-                        )}>
-                        {String(children).replace(/\n$/, "")}
-                      </SyntaxHighlighter>
-                    ) : (
-                      <code {...rest} className={className}>
-                        {children}
-                      </code>
-                    );
-                  },
-                }}>
-                {patch.before}
-              </Markdown>
+          <div className="mx-4 my-2 rounded-md border bg-muted/20">
+            <div className="flex items-center gap-2 border-b px-3 py-2 text-xs text-muted-foreground">
+              <span className="rounded-md border bg-background px-2 py-0.5">Read</span>
+              <span className="truncate">{file}</span>
             </div>
 
-            <div>
-              <span>Fix</span>
-
-              <Markdown
-                components={{
-                  code(props) {
-                    // eslint-disable-next-line react/prop-types
-                    const { children, className, ...rest } = props;
-                    const match = /language-(\w+)/.exec(className || "");
-                    return match ? (
-                      <SyntaxHighlighter
-                        PreTag="div"
-                        language={match[1]}
-                        style={resolvedTheme === "dark" ? vscDarkPlus : vs}
-                        customStyle={{
-                          backgroundColor:
-                            resolvedTheme === "dark"
-                              ? "rgba(123, 241, 168,0.2)"
-                              : "rgba(123, 241, 168,0.2)",
-                          borderRadius: 4,
-                          padding: 16,
-                          fontSize: 14,
-                        }}
-                        showLineNumbers
-                        startingLineNumber={Number(
-                          patch.line_range?.split("-")[0]
-                        )}>
-                        {String(children).replace(/\n$/, "")}
-                      </SyntaxHighlighter>
-                    ) : (
-                      <code {...rest} className={className}>
-                        {children}
-                      </code>
-                    );
-                  },
-                }}>
-                {patch.after}
-              </Markdown>
+            <div className="p-0.5">
+              <pre className="font-mono text-xs leading-5">
+                {before.map((line, idx) => (
+                  <div
+                    key={`-b-${idx}`}
+                    className="flex items-start gap-2 rounded-sm border-l-4 border-red-600/70 bg-red-500/10 px-3 py-0.5 text-red-600">
+                    <span className="select-none">-</span>
+                    <span className="whitespace-pre-wrap text-foreground/90">{line || "\u00A0"}</span>
+                  </div>
+                ))}
+                {after.map((line, idx) => (
+                  <div
+                    key={`+a-${idx}`}
+                    className="mt-0.5 flex items-start gap-2 rounded-sm border-l-4 border-emerald-600/70 bg-emerald-500/10 px-3 py-0.5 text-emerald-700 dark:text-emerald-400">
+                    <span className="select-none">+</span>
+                    <span className="whitespace-pre-wrap text-foreground/90">{line || "\u00A0"}</span>
+                  </div>
+                ))}
+              </pre>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 px-4 pb-4">
+            <Button variant="secondary" size="sm" disabled>
+              Add suggestion to batch
+            </Button>
+            <Button size="sm" disabled>
+              Commit suggestion
+            </Button>
+          </div>
+        </div>
       );
     }
 
     if (seg.kind === "warning") {
       const warning = parseWarningString(seg.content);
+      const isExpanded = expandedWarnings.has(i);
+      
+      const toggleWarning = () => {
+        const newExpanded = new Set(expandedWarnings);
+        if (isExpanded) {
+          newExpanded.delete(i);
+        } else {
+          newExpanded.add(i);
+        }
+        setExpandedWarnings(newExpanded);
+      };
 
       return (
-        <Card key={i} className="w-full my-5">
-          <CardHeader>
-            <div className="font-semibold text-sm mb-5">
-              ⚠️ <span className="underline underline-offset-2">Warning</span>
-            </div>
-            <CardTitle className="flex items-center gap-1.5 text-muted-foreground">
-              <span className="border rounded-md px-3 py-1">Read</span>{" "}
-              {warning.file}
-            </CardTitle>
-          </CardHeader>
-
-          <CardContent className="space-y-5">
-            <div>
-              <span>Current Code</span>
-              <Markdown
-                components={{
-                  code(props) {
-                    // eslint-disable-next-line react/prop-types
-                    const { children, className, ...rest } = props;
-                    const match = /language-(\w+)/.exec(className || "");
-                    return match ? (
-                      <SyntaxHighlighter
-                        PreTag="div"
-                        language={match[1]}
-                        style={resolvedTheme === "dark" ? vscDarkPlus : vs}
-                        customStyle={{
-                          backgroundColor:
-                            resolvedTheme === "dark"
-                              ? "rgba(255, 0, 0, 0.15)"
-                              : "rgba(255,0,0,0.05)",
-                          borderRadius: 4,
-                          padding: 16,
-                          fontSize: 14,
-                        }}
-                        showLineNumbers
-                        startingLineNumber={Number(warning.line)}>
-                        {String(children).replace(/\n$/, "")}
-                      </SyntaxHighlighter>
-                    ) : (
-                      <code {...rest} className={className}>
-                        {children}
-                      </code>
-                    );
-                  },
-                }}>
-                {warning.currentCode}
-              </Markdown>
+        <div key={i} className="w-full my-4 rounded-md border bg-card">
+          <button
+            onClick={toggleWarning}
+            className="w-full flex items-center gap-3 p-4 text-left hover:bg-accent/40 transition-colors"
+          >
+            {/* Warning triangle icon */}
+            <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center">
+              <svg
+                className="w-4 h-4 text-amber-500"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                  clipRule="evenodd"
+                />
+              </svg>
             </div>
 
-            <div>
-              <span>Suggested Fix</span>
-
-              <Markdown
-                components={{
-                  code(props) {
-                    // eslint-disable-next-line react/prop-types
-                    const { children, className, ...rest } = props;
-                    const match = /language-(\w+)/.exec(className || "");
-                    return match ? (
-                      <SyntaxHighlighter
-                        PreTag="div"
-                        language={match[1]}
-                        style={resolvedTheme === "dark" ? vscDarkPlus : vs}
-                        customStyle={{
-                          backgroundColor:
-                            resolvedTheme === "dark"
-                              ? "rgba(123, 241, 168,0.2)"
-                              : "rgba(123, 241, 168,0.2)",
-                          borderRadius: 4,
-                          padding: 16,
-                          fontSize: 14,
-                        }}
-                        showLineNumbers
-                        startingLineNumber={Number(warning.line)}>
-                        {String(children).replace(/\n$/, "")}
-                      </SyntaxHighlighter>
-                    ) : (
-                      <code {...rest} className={className}>
-                        {children}
-                      </code>
-                    );
-                  },
-                }}>
-                {warning.exampleFix}
-              </Markdown>
+            {/* Warning content */}
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-sm text-foreground">
+                Warning in {warning.file}
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                Line {warning.line} • {warning.type}
+              </div>
             </div>
-          </CardContent>
 
-          <CardFooter className="flex-col items-start gap-1.5">
-            <div className="text-muted-foreground text-base font-medium">
-              Why this Matters?
+            {/* Arrow icon */}
+            <div className="flex-shrink-0">
+              <svg
+                className={cn(
+                  "w-4 h-4 text-muted-foreground transition-transform",
+                  isExpanded ? "rotate-180" : "rotate-0"
+                )}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
             </div>
-            <p className="text-muted-foreground text-sm font-normal">
-              {warning.whyThisMatters}
-            </p>
-          </CardFooter>
-        </Card>
+          </button>
+
+          {/* Expanded content */}
+          {isExpanded && (
+            <div className="border-t bg-muted/20">
+              <div className="p-4 space-y-4">
+                {/* Warning description */}
+                {warning.warning && (
+                  <div>
+                    <div className="text-sm font-medium text-foreground mb-2">Warning</div>
+                    <div className="text-sm text-muted-foreground">{warning.warning}</div>
+                  </div>
+                )}
+
+                {/* Current Code */}
+                {warning.currentCode && (
+                  <div>
+                    <div className="text-sm font-medium text-foreground mb-2">Current Code</div>
+                    <Markdown
+                      components={{
+                        code(props) {
+                          const { children, className, ...rest } = props;
+                          const match = /language-(\w+)/.exec(className || "");
+                          return match ? (
+                            <SyntaxHighlighter
+                              PreTag="div"
+                              language={match[1]}
+                              style={resolvedTheme === "dark" ? vscDarkPlus : vs}
+                              customStyle={{
+                                backgroundColor:
+                                  resolvedTheme === "dark"
+                                    ? "rgba(255, 0, 0, 0.15)"
+                                    : "rgba(255,0,0,0.05)",
+                                borderRadius: 4,
+                                padding: 16,
+                                fontSize: 14,
+                              }}
+                              showLineNumbers
+                              startingLineNumber={Number(warning.line)}>
+                              {String(children).replace(/\n$/, "")}
+                            </SyntaxHighlighter>
+                          ) : (
+                            <code {...rest} className={className}>
+                              {children}
+                            </code>
+                          );
+                        },
+                      }}>
+                      {warning.currentCode}
+                    </Markdown>
+                  </div>
+                )}
+
+                {/* Suggested Fix */}
+                {warning.exampleFix && (
+                  <div>
+                    <div className="text-sm font-medium text-foreground mb-2">Suggested Fix</div>
+                    <Markdown
+                      components={{
+                        code(props) {
+                          const { children, className, ...rest } = props;
+                          const match = /language-(\w+)/.exec(className || "");
+                          return match ? (
+                            <SyntaxHighlighter
+                              PreTag="div"
+                              language={match[1]}
+                              style={resolvedTheme === "dark" ? vscDarkPlus : vs}
+                              customStyle={{
+                                backgroundColor:
+                                  resolvedTheme === "dark"
+                                    ? "rgba(123, 241, 168,0.2)"
+                                    : "rgba(123, 241, 168,0.2)",
+                                borderRadius: 4,
+                                padding: 16,
+                                fontSize: 14,
+                              }}
+                              showLineNumbers
+                              startingLineNumber={Number(warning.line)}>
+                              {String(children).replace(/\n$/, "")}
+                            </SyntaxHighlighter>
+                          ) : (
+                            <code {...rest} className={className}>
+                              {children}
+                            </code>
+                          );
+                        },
+                      }}>
+                      {warning.exampleFix}
+                    </Markdown>
+                  </div>
+                )}
+
+                {/* Why this matters */}
+                {warning.whyThisMatters && (
+                  <div>
+                    <div className="text-sm font-medium text-foreground mb-2">Why this Matters?</div>
+                    <div className="text-sm text-muted-foreground">{warning.whyThisMatters}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       );
     }
 

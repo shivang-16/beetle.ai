@@ -244,7 +244,51 @@ export const getAnalysisStatus = async (
   }
 };
 
-export const getAnalysis = async (
+export const getRepositoryAnalysis = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { github_repositoryId } = req.params as { github_repositoryId: string };
+    console.log("🔄 Getting analysis: ", github_repositoryId);
+
+    let doc = null as any;
+    try {
+      doc = await Analysis.find({ github_repositoryId: github_repositoryId }).sort({createdAt: -1});
+      console.log("🔄 Doc: ", doc);
+    } catch (_) {
+      // ignore cast errors
+    }
+    
+
+    if (!doc) {
+      return next(new CustomError("Analysis not found", 404));
+    }
+
+
+    return res.status(200).json({
+      success: true,
+      data: doc.map((d: any) => ({
+        _id: d._id,
+        analysisId: d.analysisId,
+        userId: d.userId,
+        repoUrl: d.repoUrl,
+        model: d.model,
+        prompt: d.prompt,
+        status: d.status,
+        exitCode: d.exitCode,
+        createdAt: d.createdAt,
+        updatedAt: d.updatedAt
+      }))
+    });
+  } catch (error: any) {
+    console.error("Error fetching analysis:", error);
+    next(new CustomError(error.message || "Failed to fetch analysis", 500));
+  }
+};
+
+export const getRepositoryAnalysisLogs = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -260,9 +304,7 @@ export const getAnalysis = async (
     } catch (_) {
       // ignore cast errors
     }
-    if (!doc) {
-      doc = await Analysis.findOne({ analysisId: id }).lean();
-    }
+  
 
     if (!doc) {
       return next(new CustomError("Analysis not found", 404));
@@ -279,34 +321,5 @@ export const getAnalysis = async (
   }
 };
 
-export const getRepositoryAnalysis = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { github_repositoryId } = req.params as { github_repositoryId: string };
-
-    let docs = null as any;
-    try {
-      docs = await Analysis.find({github_repositoryId: github_repositoryId}).sort({createdAt: -1}).lean();
-      console.log("🔄 Doc: ", docs);
-    } catch (_) {
-      // ignore cast errors
-    }
-    
-
-    if (!docs) {
-      return next(new CustomError("Analysis not found", 404));
-    }
 
 
-    return res.status(200).json({
-      success: true,
-      data: docs
-    });
-  } catch (error: any) {
-    console.error("Error fetching analysis:", error);
-    next(new CustomError(error.message || "Failed to fetch analysis", 500));
-  }
-};

@@ -14,7 +14,7 @@ type RepoScope = "user" | "team";
 const Page = async (props: { searchParams?: Promise<{ query?: string, scope?: RepoScope, teamId?: string }> }) => {
   const searchParams = await props.searchParams;
   const query = searchParams?.query || "";
-  const scope = (searchParams?.scope as RepoScope) || "team";
+  const scope = (searchParams?.scope as RepoScope) || "user";
   const teamId = searchParams?.teamId;
 
   console.log(searchParams,"searchParams");
