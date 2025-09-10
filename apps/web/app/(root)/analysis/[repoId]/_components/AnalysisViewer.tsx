@@ -72,7 +72,9 @@ const AnalysisViewer = ({ repoId }: { repoId: string }) => {
                   { credentials: "include" }
                 );
                 const json = await res.json();
-                const list: AnalysisItem[] = Array.isArray(json?.data) ? json.data : [];
+                const list: AnalysisItem[] = Array.isArray(json?.data)
+                  ? json.data
+                  : [];
                 setAnalyses(list);
                 if (!selectedId) {
                   const first = list.length > 0 ? list[0] : undefined;
@@ -83,38 +85,42 @@ const AnalysisViewer = ({ repoId }: { repoId: string }) => {
               } finally {
                 setLoading(false);
               }
-            }}
-          >
+            }}>
             Refresh
           </Button>
         </div>
         <div className="flex flex-col gap-2">
           {analyses?.map((a, idx) => (
-            <button
+            <Button
               key={a._id}
-              className={`text-left border rounded p-3 hover:bg-accent transition ${
+              variant={"outline"}
+              className={`flex-col h-auto items-start text-left border rounded p-3 transition cursor-pointer ${
                 selectedId === a._id ? "ring-2 ring-primary" : ""
               }`}
-              onClick={() => setSelectedId(a._id)}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-muted-foreground">#{idx + 1}</span>
+              onClick={() => setSelectedId(a._id)}>
+              <div className="flex items-center justify-between gap-2 w-full">
+                <span className="text-xs text-muted-foreground">
+                  #{idx + 1}
+                </span>
                 <span
                   className={`text-[10px] px-2 py-0.5 rounded border ${statusColor(
                     a.status
-                  )}`}
-                >
+                  )}`}>
                   {a.status}
                 </span>
               </div>
-              <div className="mt-1 text-sm font-medium truncate">{a.repoUrl}</div>
+              <div className="mt-1 text-sm font-medium truncate">
+                {a.repoUrl}
+              </div>
               <div className="text-xs text-muted-foreground mt-0.5">
                 {new Date(a.createdAt).toLocaleString()}
               </div>
-            </button>
+            </Button>
           ))}
           {!loading && analyses.length === 0 && (
-            <div className="text-xs text-muted-foreground">No analyses yet.</div>
+            <div className="text-xs text-muted-foreground">
+              No analyses yet.
+            </div>
           )}
         </div>
       </aside>
@@ -126,5 +132,3 @@ const AnalysisViewer = ({ repoId }: { repoId: string }) => {
 };
 
 export default AnalysisViewer;
-
-

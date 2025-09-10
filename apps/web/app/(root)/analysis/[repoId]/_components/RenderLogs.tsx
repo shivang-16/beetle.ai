@@ -17,7 +17,13 @@ import { toast } from "sonner";
 import { RenderLLMSegments } from "./RenderLLMSegments";
 import { MergedLogs } from "./RenderToolCall";
 
-const RenderLogs = ({ repoId, analysisId }: { repoId: string, analysisId?: string }) => {
+const RenderLogs = ({
+  repoId,
+  analysisId,
+}: {
+  repoId: string;
+  analysisId?: string;
+}) => {
   const [logs, setLogs] = useState<LogItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -97,21 +103,19 @@ const RenderLogs = ({ repoId, analysisId }: { repoId: string, analysisId?: strin
     }
   };
 
-
   useEffect(() => {
     const loadFromDb = async () => {
       try {
         setIsLoading(true);
         setLogs([]);
-  
-  
+
         if (!analysisId) {
           setIsLoading(false);
           return;
         }
-  
+
         console.log("🔄 Loading analysis from db: ", analysisId);
-  
+
         const res = await fetch(
           `${_config.API_BASE_URL}/api/analysis/${encodeURIComponent(analysisId)}/logs`,
           {
@@ -119,15 +123,15 @@ const RenderLogs = ({ repoId, analysisId }: { repoId: string, analysisId?: strin
             credentials: "include",
           }
         );
-  
+
         // if (!res.ok) {
         //   toast.error(`Failed to fetch analysis: ${res.status}`);
         //   setIsLoading(false);
         //   return;
         // }
-  
+
         // console.log("🔄 Loading analysis from db: ", res);
-  
+
         const json = await res.json();
         console.log("🔄 Loading analysis from db: ", json);
         let logsText: string = "";
@@ -141,7 +145,7 @@ const RenderLogs = ({ repoId, analysisId }: { repoId: string, analysisId?: strin
           }
         }
         if (!logsText) logsText = json?.data?.logsText || "";
-  
+
         const result = parseFullLogText(logsText);
         console.log("🔄 Loading result from db: ", result);
         setLogs(result.logs.map((l) => ({ ...l, messages: [...l.messages] })));
@@ -153,7 +157,7 @@ const RenderLogs = ({ repoId, analysisId }: { repoId: string, analysisId?: strin
         setIsLoading(false);
       }
     };
-  
+
     loadFromDb();
   }, [analysisId]);
   // console.log("State Logs ====> ", logs);
@@ -195,7 +199,7 @@ const RenderLogs = ({ repoId, analysisId }: { repoId: string, analysisId?: strin
           Cancel Logs
         </Button>
       </div>
-      <div className="flex-1 px-4 pb-3 max-h-[calc(100%-60px)] max-w-5xl w-full mx-auto">
+      <div className="flex-1 px-4 pb-3 max-h-[calc(100%-60px)] max-w-2xl w-full mx-auto">
         <div className="w-full h-full py-3 overflow-y-auto output-scrollbar">
           <div className="w-full flex flex-col items-start gap-3.5 text-muted-foreground">
             {logs.map((log, i) => (
@@ -226,7 +230,7 @@ const RenderLogs = ({ repoId, analysisId }: { repoId: string, analysisId?: strin
             </div>
           )}
 
-          <div ref={logsEndRef} />
+          {/* <div ref={logsEndRef} /> */}
         </div>
       </div>
     </div>

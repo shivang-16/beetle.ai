@@ -1,90 +1,83 @@
+"use client";
+
 import {
   Accordion,
   AccordionItem,
   AccordionTrigger,
   AccordionContent,
 } from "@/components/ui/accordion";
-import { ObjectMerger } from "@/lib/utils";
 import { LogItem } from "@/types/types";
+import { useEffect, useState } from "react";
+
+type Entry = {
+  param: string;
+  title: string;
+  result: any;
+};
 
 export const MergedLogs = ({ log }: { log: LogItem }) => {
-  const merger = new ObjectMerger();
-  const mergedLogs = merger.processObject(log);
-  console.log(mergedLogs);
+  const [entries, setEntries] = useState<Entry[]>([]);
 
-  //   function extractTrigger(msg: string): string {
-  //     const filePathMatch = msg.match(/'file_path':\s*'([^']+)'/);
-  //     return filePathMatch && filePathMatch[1]
-  //       ? filePathMatch[1]
-  //       : msg.slice(0, 60) + "...";
-  //   }
+  useEffect(() => {
+    if (!log || !log.messages) return;
 
-  //   function extractContent(msg: string): string[] {
-  //     const arrMatch = msg.match(/\[(.*?)\]$/);
-  //     if (arrMatch && arrMatch[1]) {
-  //       return arrMatch[1]
-  //         .split(",")
-  //         .map((s) => s.replace(/['\s]/g, ""))
-  //         .filter(Boolean);
-  //     }
+    log.messages.forEach((message) => {
+      // Extract param inside square brackets
+      const paramMatch = message.match(/\[(.*?)\]/);
+      if (!paramMatch) return;
+      const param = paramMatch[1];
 
-  //     const previewMatch = msg.match(/'content_preview':\s*'([\s\S]*?)',/);
-  //     if (previewMatch && previewMatch[1]) {
-  //       return previewMatch[1].split("\\n");
-  //     }
+      // Extract possible JSON object/array at the end
+      const jsonMatch = message.match(/(\{.*\}|\[.*\])$/);
+      let jsonData: any = null;
+      if (jsonMatch) {
+        try {
+          jsonData = JSON.parse(jsonMatch[1].replace(/'/g, '"'));
+        } catch {
+          jsonData = jsonMatch[1];
+        }
+      }
 
-  //     return [msg];
-  //   }
+      setEntries((prev) => {
+        const updated = [...prev];
 
-  //   const blocks: Block[] = [];
-  //   const msgs = log.messages;
+        if (param.endsWith("_RESULT")) {
+          const base = param.replace("_RESULT", "");
+          const existing = updated.find((e) => e.param === base);
 
-  //   for (let i = 0; i < msgs.length; i++) {
-  //     const msg = msgs[i];
+          if (existing) {
+            existing.result = jsonData ?? message;
+          } else {
+            updated.push({
+              param: base,
+              title: base,
+              result: jsonData ?? message,
+            });
+          }
+        } else {
+          const title = jsonData?.file_path ?? param;
+          updated.push({ param, title, result: null });
+        }
 
-  //     // Match tool inside square brackets: [EXTRACT_IMPORTS]
-  //     const toolMatch = msg.match(/\[(.*?)\]/);
-  //     if (!toolMatch) continue;
-
-  //     const toolName = toolMatch[1];
-  //     if (toolName.endsWith("_RESULT")) continue; // skip result, wait for pair
-
-  //     const resultMsg = msgs[i + 1];
-  //     if (!resultMsg) continue;
-
-  //     const resultMatch = resultMsg.match(/\[(.*?)\]/);
-  //     if (!resultMatch) continue;
-
-  //     if (resultMatch[1] === `${toolName}_RESULT`) {
-  //       blocks.push({
-  //         tool: toolName,
-  //         trigger: extractTrigger(msg),
-  //         content: extractContent(resultMsg),
-  //       });
-  //       i++; // skip the result since it's merged
-  //     }
-  //   }
-
-  //   console.log("✅ Built blocks:", blocks);
+        return updated;
+      });
+    });
+  }, [log]);
 
   return (
-    <Accordion type="single" collapsible>
-      {/* {blocks.map((block, idx) => (
-        <AccordionItem key={idx} value={`item-${idx}`}>
-          <AccordionTrigger>
-            {block.trigger} <span className="ml-2 text-xs">({block.tool})</span>
-          </AccordionTrigger>
-          <AccordionContent>
-            <ul className="pl-4 text-sm">
-              {block.content.map((line, i) => (
-                <li key={i} className="break-words">
-                  {line}
-                </li>
-              ))}
-            </ul>
-          </AccordionContent>
-        </AccordionItem>
-      ))} */}
-    </Accordion>
+    <div className="space-y-2">
+      {entries.map((entry, i) => (
+        <details key={i} className="border rounded">
+          <summary className="cursor-pointer px-2 py-1 font-medium">
+            {entry.title}
+          </summary>
+          <pre className="bg-muted p-2 text-sm overflow-x-auto">
+            {entry.result
+              ? JSON.stringify(entry.result, null, 2)
+              : "Waiting for result..."}
+          </pre>
+        </details>
+      ))}
+    </div>
   );
 };

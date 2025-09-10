@@ -9,6 +9,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { MarkdownRenderer } from "@/components/ui/markdown";
 import React from "react";
 import Markdown from "react-markdown";
 import SyntaxHighlighter from "react-syntax-highlighter";
@@ -40,27 +41,7 @@ const GithubIssueDialog = ({
         </DialogHeader>
 
         <div className="w-full text-muted-foreground">
-          <Markdown
-            components={{
-              code(props) {
-                const { children, className, ...rest } = props;
-                const match = /language-(\w+)/.exec(className || "");
-                return match ? (
-                  <SyntaxHighlighter
-                    PreTag="div"
-                    language={match[1]}
-                    style={vscDarkPlus}>
-                    {String(children).replace(/\n$/, "")}
-                  </SyntaxHighlighter>
-                ) : (
-                  <code {...rest} className={className}>
-                    {children}
-                  </code>
-                );
-              },
-            }}>
-            {description}
-          </Markdown>
+          <MarkdownRenderer content={description} />
         </div>
       </DialogContent>
     </Dialog>
