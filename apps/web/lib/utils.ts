@@ -573,42 +573,63 @@ export class ObjectMerger {
   }
 
   processObject(obj: LogItem): LogItem | null {
+    console.log("Processing object:", JSON.stringify(obj, null, 2));
+
     if (!obj.type || !obj.messages || obj.messages.length === 0) {
+      console.log("Invalid object - missing type or messages");
       return null;
     }
 
     // Extract the operation from the first message
     const message = obj.messages[0];
-    const operationMatch = message?.match(/\[([^\]]+)\]/);
+    console.log("Message:", message);
+
+    const operationMatch = message.match(/\[([^\]]+)\]/);
+    console.log("Operation match:", operationMatch);
 
     if (!operationMatch) {
+      console.log("No operation found in message");
       return null;
     }
 
     const operation = operationMatch[1];
     if (!operation) {
+      console.log("Operation is undefined");
       return null;
     }
 
+    console.log("Operation:", operation);
+
     const isResult = operation.endsWith("_RESULT");
     const baseOperation = isResult
-      ? operation?.replace(/_RESULT$/, "")
+      ? operation.replace(/_RESULT$/, "")
       : operation;
 
+    console.log("Is result:", isResult);
+    console.log("Base operation:", baseOperation);
+    console.log(
+      "Pending operations:",
+      Array.from(this.pendingOperations.keys())
+    );
+
     if (this.pendingOperations.has(baseOperation)) {
+      console.log("Found matching pending operation");
       // We have a pending operation, merge with it
       const existingObj = this.pendingOperations.get(baseOperation)!;
       existingObj.messages.push(...obj.messages);
 
-      // If this completes the operation pair, move to completed
-      if (isResult || this.hasResultMessage(existingObj.messages)) {
+      // If this is a result message, the operation is now complete
+      if (isResult) {
+        console.log("Completing operation");
         this.pendingOperations.delete(baseOperation);
         this.completedObjects.push(existingObj);
         return existingObj;
       }
 
-      return null; // Still waiting for the pair
+      console.log("Still waiting for result");
+      return null; // Still waiting for the result
     } else {
+      console.log("New operation - storing as pending");
       // New operation, store it as pending
       const newObj: LogItem = {
         type: obj.type,
@@ -617,12 +638,19 @@ export class ObjectMerger {
 
       // If this is a result without a pending operation, complete it immediately
       if (isResult) {
+        console.log(
+          "Result without pending operation - completing immediately"
+        );
         this.completedObjects.push(newObj);
         return newObj;
       }
 
       // Store as pending and wait for result
       this.pendingOperations.set(baseOperation, newObj);
+      console.log(
+        "Stored as pending. Pending operations now:",
+        Array.from(this.pendingOperations.keys())
+      );
       return null;
     }
   }

@@ -223,7 +223,7 @@ const RenderLogs = ({ repoId }: { repoId: string }) => {
             </div>
           )}
 
-          <div ref={logsEndRef} />
+          {/* <div ref={logsEndRef} /> */}
         </div>
       </div>
     </div>
