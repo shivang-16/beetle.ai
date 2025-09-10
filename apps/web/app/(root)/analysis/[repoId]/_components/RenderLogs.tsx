@@ -9,20 +9,23 @@ import {
   bufferJSONToUint8Array,
   gunzipUint8ArrayToText,
 } from "@/lib/utils";
-import { LogItem, ParserState } from "@/types/types";
+import { LogItem, ParserState, RepoTree } from "@/types/types";
 import { RefreshCcwDotIcon } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
 import { toast } from "sonner";
 import { RenderLLMSegments } from "./RenderLLMSegments";
 import { MergedLogs } from "./RenderToolCall";
+import RepoFileTree from "./RepoFileTree";
 
 const RenderLogs = ({
   repoId,
   analysisId,
+  repoTree,
 }: {
   repoId: string;
   analysisId?: string;
+  repoTree: RepoTree;
 }) => {
   const [logs, setLogs] = useState<LogItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -179,6 +182,9 @@ const RenderLogs = ({
   }, [logs]);
 
   return (
+    <main className="flex w-full">
+    <RepoFileTree repoTree={repoTree} />
+
     <div className="h-full w-full flex flex-col">
       <div className="px-4 py-3 flex justify-end-safe gap-3">
         <Button onClick={analyzeRepo} className="cursor-pointer">
@@ -234,6 +240,7 @@ const RenderLogs = ({
         </div>
       </div>
     </div>
+    </main>
   );
 };
 

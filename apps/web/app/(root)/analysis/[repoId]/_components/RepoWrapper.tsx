@@ -1,5 +1,4 @@
 import React from "react";
-import RepoFileTree from "./RepoFileTree";
 import { getRepoTree } from "../_actions/getRepoTree";
 import AnalysisViewer from "./AnalysisViewer";
 
@@ -9,9 +8,8 @@ const RepoWrapper = async ({ repoId, teamId }: { repoId: string; teamId?: string
 
   return (
     <div className="h-svh flex">
-      <RepoFileTree repoTree={repoTree.data} />
       <div className="flex-1">
-        <AnalysisViewer repoId={decodeURIComponent(repoId)} />
+        <AnalysisViewer repoId={decodeURIComponent(repoId)} repoTree={repoTree.data} />
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { _config } from "@/lib/_config";
 import { Button } from "@/components/ui/button";
 import RenderLogs from "./RenderLogs";
+import { RepoTree } from "@/types/types";
 
 type AnalysisItem = {
   _id: string;
@@ -29,7 +30,7 @@ const statusColor = (status: AnalysisItem["status"]) => {
   }
 };
 
-const AnalysisViewer = ({ repoId }: { repoId: string }) => {
+const AnalysisViewer = ({ repoId, repoTree }: { repoId: string, repoTree: RepoTree }) => {
   const [analyses, setAnalyses] = useState<AnalysisItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -58,7 +59,7 @@ const AnalysisViewer = ({ repoId }: { repoId: string }) => {
 
   return (
     <div className="h-full w-full flex">
-      <aside className="w-96 border-r h-full overflow-y-auto output-scrollbar p-3">
+      { analyses.length > 0 && <aside className="w-96 border-r h-full overflow-y-auto output-scrollbar p-3">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-base font-medium">Analyses</h3>
           <Button
@@ -110,11 +111,8 @@ const AnalysisViewer = ({ repoId }: { repoId: string }) => {
                 </span>
               </div>
               <div className="mt-1 text-sm font-medium truncate">
-                {a.repoUrl}
-              </div>
-              <div className="text-xs text-muted-foreground mt-0.5">
-                {new Date(a.createdAt).toLocaleString()}
-              </div>
+              {new Date(a.createdAt).toLocaleString()}              </div>
+             
             </Button>
           ))}
           {!loading && analyses.length === 0 && (
@@ -123,10 +121,8 @@ const AnalysisViewer = ({ repoId }: { repoId: string }) => {
             </div>
           )}
         </div>
-      </aside>
-      <main className="flex-1">
-        <RenderLogs repoId={repoId} analysisId={selectedId || undefined} />
-      </main>
+      </aside>}
+        <RenderLogs repoId={repoId} analysisId={selectedId || undefined} repoTree={repoTree} />
     </div>
   );
 };
