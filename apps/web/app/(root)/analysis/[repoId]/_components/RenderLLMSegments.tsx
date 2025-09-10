@@ -1,10 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import Markdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import {
@@ -30,7 +27,9 @@ export function RenderLLMSegments({
   segments: LLMResponseSegment[];
 }) {
   const { resolvedTheme } = useTheme();
-  const [expandedWarnings, setExpandedWarnings] = useState<Set<number>>(new Set());
+  const [expandedWarnings, setExpandedWarnings] = useState<Set<number>>(
+    new Set()
+  );
 
   const extractFencedContent = (
     input: string | undefined
@@ -85,15 +84,13 @@ export function RenderLLMSegments({
           key={i}
           className="w-full my-4 rounded-md border bg-card hover:bg-accent/40 transition-colors">
           <div className="flex items-start gap-3 p-4">
-
             {/* state dot */}
             <div className="border rounded-full p-1 mt-1 h-4 w-4 border-[#238636] flex items-center justify-center">
-            <span
-              aria-hidden
-              className="inline-block h-1 w-1 rounded-full bg-[#238636]"
-            />
+              <span
+                aria-hidden
+                className="inline-block h-1 w-1 rounded-full bg-[#238636]"
+              />
             </div>
-          
 
             {/* main content */}
             <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -101,7 +98,7 @@ export function RenderLLMSegments({
                 title={githubIssue.title}
                 description={githubIssue.description}
                 trigger={
-                  <button className="text-left font-bold text-md hover:underline text-white truncate">
+                  <button className="text-left font-bold text-md hover:underline text-black dark:text-white truncate">
                     {githubIssue.title}
                   </button>
                 }
@@ -132,11 +129,15 @@ export function RenderLLMSegments({
 
       return (
         <div key={i} className="w-full my-5 overflow-hidden">
-          <div className="px-4 pt-3 text-xs font-medium text-muted-foreground">Suggested change</div>
+          <div className="px-4 pt-3 text-xs font-medium text-muted-foreground">
+            Suggested change
+          </div>
 
           <div className="mx-4 my-2 rounded-md border bg-muted/20">
             <div className="flex items-center gap-2 border-b px-3 py-2 text-xs text-muted-foreground">
-              <span className="rounded-md border bg-background px-2 py-0.5">Read</span>
+              <span className="rounded-md border bg-background px-2 py-0.5">
+                Read
+              </span>
               <span className="truncate">{file}</span>
             </div>
 
@@ -147,7 +148,9 @@ export function RenderLLMSegments({
                     key={`-b-${idx}`}
                     className="flex items-start gap-2 rounded-sm border-l-4 border-red-600/70 bg-red-500/10 px-3 py-0.5 text-red-600">
                     <span className="select-none">-</span>
-                    <span className="whitespace-pre-wrap text-foreground/90">{line || "\u00A0"}</span>
+                    <span className="whitespace-pre-wrap text-foreground/90">
+                      {line || "\u00A0"}
+                    </span>
                   </div>
                 ))}
                 {after.map((line, idx) => (
@@ -155,7 +158,9 @@ export function RenderLLMSegments({
                     key={`+a-${idx}`}
                     className="mt-0.5 flex items-start gap-2 rounded-sm border-l-4 border-emerald-600/70 bg-emerald-500/10 px-3 py-0.5 text-emerald-700 dark:text-emerald-400">
                     <span className="select-none">+</span>
-                    <span className="whitespace-pre-wrap text-foreground/90">{line || "\u00A0"}</span>
+                    <span className="whitespace-pre-wrap text-foreground/90">
+                      {line || "\u00A0"}
+                    </span>
                   </div>
                 ))}
               </pre>
@@ -177,7 +182,7 @@ export function RenderLLMSegments({
     if (seg.kind === "warning") {
       const warning = parseWarningString(seg.content);
       const isExpanded = expandedWarnings.has(i);
-      
+
       const toggleWarning = () => {
         const newExpanded = new Set(expandedWarnings);
         if (isExpanded) {
@@ -192,15 +197,13 @@ export function RenderLLMSegments({
         <div key={i} className="w-full my-4 rounded-md border bg-card">
           <button
             onClick={toggleWarning}
-            className="w-full flex items-center gap-3 p-4 text-left hover:bg-accent/40 transition-colors"
-          >
+            className="w-full flex items-center gap-3 p-4 text-left hover:bg-accent/40 transition-colors">
             {/* Warning triangle icon */}
             <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center">
               <svg
                 className="w-4 h-4 text-amber-500"
                 fill="currentColor"
-                viewBox="0 0 20 20"
-              >
+                viewBox="0 0 20 20">
                 <path
                   fillRule="evenodd"
                   d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
@@ -228,8 +231,7 @@ export function RenderLLMSegments({
                 )}
                 fill="none"
                 stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+                viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -247,15 +249,21 @@ export function RenderLLMSegments({
                 {/* Warning description */}
                 {warning.warning && (
                   <div>
-                    <div className="text-sm font-medium text-foreground mb-2">Warning</div>
-                    <div className="text-sm text-muted-foreground">{warning.warning}</div>
+                    <div className="text-sm font-medium text-foreground mb-2">
+                      Warning
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {warning.warning}
+                    </div>
                   </div>
                 )}
 
                 {/* Current Code */}
                 {warning.currentCode && (
                   <div>
-                    <div className="text-sm font-medium text-foreground mb-2">Current Code</div>
+                    <div className="text-sm font-medium text-foreground mb-2">
+                      Current Code
+                    </div>
                     <Markdown
                       components={{
                         code(props) {
@@ -265,7 +273,9 @@ export function RenderLLMSegments({
                             <SyntaxHighlighter
                               PreTag="div"
                               language={match[1]}
-                              style={resolvedTheme === "dark" ? vscDarkPlus : vs}
+                              style={
+                                resolvedTheme === "dark" ? vscDarkPlus : vs
+                              }
                               customStyle={{
                                 backgroundColor:
                                   resolvedTheme === "dark"
@@ -294,7 +304,9 @@ export function RenderLLMSegments({
                 {/* Suggested Fix */}
                 {warning.exampleFix && (
                   <div>
-                    <div className="text-sm font-medium text-foreground mb-2">Suggested Fix</div>
+                    <div className="text-sm font-medium text-foreground mb-2">
+                      Suggested Fix
+                    </div>
                     <Markdown
                       components={{
                         code(props) {
@@ -304,7 +316,9 @@ export function RenderLLMSegments({
                             <SyntaxHighlighter
                               PreTag="div"
                               language={match[1]}
-                              style={resolvedTheme === "dark" ? vscDarkPlus : vs}
+                              style={
+                                resolvedTheme === "dark" ? vscDarkPlus : vs
+                              }
                               customStyle={{
                                 backgroundColor:
                                   resolvedTheme === "dark"
@@ -333,8 +347,12 @@ export function RenderLLMSegments({
                 {/* Why this matters */}
                 {warning.whyThisMatters && (
                   <div>
-                    <div className="text-sm font-medium text-foreground mb-2">Why this Matters?</div>
-                    <div className="text-sm text-muted-foreground">{warning.whyThisMatters}</div>
+                    <div className="text-sm font-medium text-foreground mb-2">
+                      Why this Matters?
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {warning.whyThisMatters}
+                    </div>
                   </div>
                 )}
               </div>
