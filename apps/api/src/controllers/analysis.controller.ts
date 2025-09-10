@@ -256,7 +256,7 @@ export const getRepositoryAnalysis = async (
     let doc = null as any;
     try {
       doc = await Analysis.find({ github_repositoryId: github_repositoryId }).sort({createdAt: -1});
-      console.log("🔄 Doc: ", doc);
+      // console.log("🔄 Doc: ", doc);
     } catch (_) {
       // ignore cast errors
     }
@@ -300,7 +300,7 @@ export const getRepositoryAnalysisLogs = async (
     let doc = null as any;
     try {
       doc = await Analysis.findById(id).lean();
-      console.log("🔄 Doc: ", doc);
+      // console.log("🔄 Doc: ", doc);
     } catch (_) {
       // ignore cast errors
     }

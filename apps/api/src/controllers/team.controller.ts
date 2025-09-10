@@ -62,9 +62,8 @@ export const getTeamRepositories = async (req: Request, res: Response, next: Nex
     const member = ensureMember(team, req.user._id);
     if (!member) return next(new CustomError('Forbidden: not a team member', 403));
 
-    const memberUserIds = team.members.map((m: { userId: string }) => m.userId);
 
-    const installations = await Github_Installation.find({ userId: { $in: memberUserIds } }).select('_id');
+    const installations = await Github_Installation.find({ userId: team.ownerId }).select('_id');
     const installationIds = installations.map((ins) => ins._id);
 
     if (installationIds.length === 0) {

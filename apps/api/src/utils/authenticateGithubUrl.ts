@@ -1,4 +1,4 @@
-import { generateInstallationToken, getRepoVisibility } from "../lib/githubApp.js";
+import { generateInstallationToken } from "../lib/githubApp.js";
 import { getUserGitHubInstallation } from "../queries/github.queries.js";
 
 type AuthenticateGithubUrlResult = {
@@ -30,26 +30,11 @@ export const authenticateGithubRepo = async (repoUrl: string, userId: string): P
         };
     }
     const [, owner, repo] = match;
+    console.log(owner, repo,"owner, repo");
+
 
     try {
-        // Try to determine visibility without auth; if it 404s, assume private
-        let isPrivate = false;
-        try {
-            const visibility = await getRepoVisibility(owner, repo);
-            isPrivate = visibility.private || visibility.visibility === 'private' || visibility.visibility === 'internal';
-        } catch (visErr) {
-            // Could not get repo info unauthenticated (likely private)
-            isPrivate = true;
-        }
-
-        if (!isPrivate) {
-            return {
-                success: true,
-                message: "Public repository detected. No authentication needed.",
-                repoUrl,
-                usedToken: false
-            };
-        }
+     
 
         // Private or internal repository: require user context to mint token
         if (!userId) {
@@ -61,8 +46,8 @@ export const authenticateGithubRepo = async (repoUrl: string, userId: string): P
             };
         }
 
-        console.log("🔑 Generating GitHub installation token for private repository access...");
         const installation = await getUserGitHubInstallation(userId);
+        console.log("🔑 Generating GitHub installation token for private repository access...");
         const githubToken = await generateInstallationToken(installation.installationId);
         console.log("✅ GitHub token generated successfully");
 

@@ -34,7 +34,7 @@ export const checkAuth = async (req: Request, res: Response, next: NextFunction)
       const fieldsForDB = {
         _id: clerkUser.id,
         email: clerkUser.primaryEmailAddress?.emailAddress,
-        firstName: clerkUser.firstName,
+        firstName: clerkUser.firstName || clerkUser.username || clerkUser.primaryEmailAddress?.emailAddress.split("@")[0],
         lastName: clerkUser.lastName,
         username: clerkUser.username || clerkUser.externalAccounts?.[0]?.username || clerkUser.id.split("_")[1],
         avatarUrl: clerkUser.imageUrl,

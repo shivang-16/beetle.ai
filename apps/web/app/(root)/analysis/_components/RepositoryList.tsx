@@ -27,7 +27,7 @@ const RepositoryList = async ({ query, scope, teamId }: { query: string; scope: 
         data.map((repo) => (
           <React.Fragment key={repo._id}>
             <li className="py-5">
-              <Link href={`/analysis/${encodeURIComponent(repo._id)}`}>
+              <Link href={`/analysis/${encodeURIComponent(repo._id)}${teamId ? `?teamId=${teamId}` : ''}`}>
                 <div className="flex items-center gap-3">
                   <span>{repo.fullName}</span>
                   <Badge

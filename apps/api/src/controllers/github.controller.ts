@@ -6,10 +6,11 @@ import { getUserGitHubInstallation, getOrganizationInstallationForRepo, getAllUs
 import { Octokit } from "@octokit/rest";
 import { authenticateGithubRepo } from "../utils/authenticateGithubUrl.js";
 import { Github_Repository } from "../models/github_repostries.model.js";
+import Team from "../models/team.model.js";
 
 export const getRepoTree = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { github_repositoryId } = req.query as { github_repositoryId: string };
+    const { github_repositoryId, teamId } = req.query as { github_repositoryId: string, teamId: string };
 
     const github_repository = await Github_Repository.findById(github_repositoryId);
     if (!github_repository) {
@@ -18,7 +19,14 @@ export const getRepoTree = async (req: Request, res: Response, next: NextFunctio
 
     const repoUrl = `https://github.com/${github_repository.fullName}`;
 
-    const userId = req.user?._id;
+    let userId = req.user?._id;
+    if (teamId) {
+      const team = await Team.findById(teamId);
+      if (!team) {
+        return next(new CustomError("Team not found", 404));
+      }
+      userId = team.ownerId;
+    }
 
     if (!repoUrl) {
       throw new CustomError("Repository URL is required", 400);

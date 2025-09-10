@@ -4,8 +4,8 @@ import { getRepoTree } from "../_actions/getRepoTree";
 import AnalysisViewer from "./AnalysisViewer";
 
 
-const RepoWrapper = async ({ repoId }: { repoId: string }) => {
-  const repoTree = await getRepoTree(decodeURIComponent(repoId));
+const RepoWrapper = async ({ repoId, teamId }: { repoId: string; teamId?: string }) => {
+  const repoTree = await getRepoTree(decodeURIComponent(repoId), teamId);
 
   return (
     <div className="h-svh flex">

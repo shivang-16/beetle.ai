@@ -4,20 +4,23 @@ import { getAuthToken } from "@/_actions/auth-token";
 import { _config } from "@/lib/_config";
 import { RepoTree } from "@/types/types";
 
-export const getRepoTree = async (repoId: string) => {
+export const getRepoTree = async (repoId: string, teamId?: string) => {
   try {
     const { token } = await getAuthToken();
 
-    const res = await fetch(
-      `${_config.API_BASE_URL}/api/github/tree?github_repositoryId=${encodeURIComponent(repoId)}`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    const url = new URL(`${_config.API_BASE_URL}/api/github/tree`);
+    url.searchParams.set('github_repositoryId', repoId);
+    if (teamId) {
+      url.searchParams.set('teamId', teamId);
+    }
+
+    const res = await fetch(url.toString(), {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
 
     const data: { success: boolean; data: RepoTree } = await res.json();
 
