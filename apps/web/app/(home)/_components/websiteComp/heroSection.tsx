@@ -19,12 +19,12 @@ const heroSection = () => {
               }}
             />
             <div className="relative z-10 flex-2 pl-4 flex flex-col justify-between">
-              <h1 className="text-5xl md:text-6xl leading-tight font-inter font-medium text-foreground mb-6">
+              <h1 className="text-5xl md:text-6xl leading-tight font-inter font-medium text-white mb-6">
                 <HeroTitle title="Eliminate Bugs Before They Ship. Automatically." />
               </h1>
 
               <div>
-                <p className="text-xl md:text-2xl leading-tight text-muted-foreground mb-8">
+                <p className="text-xl md:text-2xl leading-tight text-white/80 mb-8">
                   Let your AI agent crawl every PR, run real browser tests, and
                   raise clean, working fixes — so your team ships with
                   confidence.

@@ -34,7 +34,7 @@ const ThemeToggle = ({
       {resolvedTheme === "dark" ? (
         <SunIcon className={cn("size-4 text-amber-400", lightIconClassName)} />
       ) : (
-        <Moon className={cn("size-4 text-foreground", darkIconClassName)} />
+        <Moon className={cn("size-4 text-white", darkIconClassName)} />
       )}
 
       <span className="sr-only">Toggle Theme</span>

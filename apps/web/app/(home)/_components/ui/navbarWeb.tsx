@@ -11,11 +11,11 @@ export default function Navbar() {
   return (
     <header className="fixed mt-3 font-scandia top-0 left-0 right-0 z-50 w-full rounded-full">
       <div className="max-w-[1563px] w-full mx-auto px-6 ">
-        <div className="flex items-center justify-between bg-background/20 backdrop-blur-lg p-4 rounded-full">
+        <div className="flex items-center justify-between bg-[#010010]/20 backdrop-blur-lg p-4 rounded-full">
           {/* Logo */}
           <Link
             href="/"
-            className="flex items-center gap-2 text-2xl font-semibold text-foreground">
+            className="flex items-center gap-2 text-2xl font-semibold text-white">
             <CodetectorLogo />
             Codetector
           </Link>

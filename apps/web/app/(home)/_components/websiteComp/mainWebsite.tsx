@@ -4,7 +4,7 @@ import OverviewSection from "./OverviewSection";
 
 const MainWebsite = () => {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#010010]">
       {/* Navbar - Fixed at top */}
       <NavbarWeb />
       <HeroSection />
