@@ -129,11 +129,11 @@ export function RenderLLMSegments({
 
       return (
         <div key={i} className="w-full my-5 overflow-hidden">
-          <div className="px-4 pt-3 text-xs font-medium text-muted-foreground">
+          <div className="pt-3 text-xs font-medium text-muted-foreground">
             Suggested change
           </div>
 
-          <div className="mx-4 my-2 rounded-md border bg-muted/20">
+          <div className="my-2 rounded-md border bg-muted/20">
             <div className="flex items-center gap-2 border-b px-3 py-2 text-xs text-muted-foreground">
               <span className="rounded-md border bg-background px-2 py-0.5">
                 Read
@@ -167,7 +167,7 @@ export function RenderLLMSegments({
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 px-4 pb-4">
+          <div className="flex items-center justify-end gap-2 pb-4">
             <Button variant="secondary" size="sm" disabled>
               Add suggestion to batch
             </Button>
@@ -197,7 +197,7 @@ export function RenderLLMSegments({
         <div key={i} className="w-full my-4 rounded-md border bg-card">
           <button
             onClick={toggleWarning}
-            className="w-full flex items-center gap-3 p-4 text-left hover:bg-accent/40 transition-colors">
+            className="w-full flex items-center gap-3 p-4 text-left hover:bg-accent/40 transition-colors cursor-pointer">
             {/* Warning triangle icon */}
             <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center">
               <svg
@@ -363,9 +363,15 @@ export function RenderLLMSegments({
     }
 
     if (seg.kind === "file_status") {
+      const file_status = seg.content.split("\n");
+
       return (
-        <Card key={i} className="mt-3 mb-5">
-          <CardContent className="pt-6">{seg.content}</CardContent>
+        <Card key={i} className="mt-3 mb-5 w-max text-muted-foreground">
+          <CardContent className="flex flex-col items-start gap-y-1.5 pb-0 py-3.5 px-2.5">
+            {file_status && file_status.length > 0
+              ? file_status.map((item, i) => <span key={i}>{item}</span>)
+              : null}
+          </CardContent>
         </Card>
       );
     }

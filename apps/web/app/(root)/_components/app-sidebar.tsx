@@ -49,25 +49,6 @@ const AppSidebar = () => {
   const { resolvedTheme } = useTheme();
 
   return (
-    // <aside className="fixed inset-y-0 z-10 flex flex-col h-svh border-r bg-sidebar w-[3rem]">
-    //   <Link href={"/dashboard"} className="p-2">
-    //     <Button className="rounded-full bg-foreground size-8 flex items-center justify-center cursor-pointer hover:bg-foreground">
-    //       <CodetectorLogo className="size-5" />
-    //     </Button>
-    //   </Link>
-
-    //   <div className="flex flex-col gap-2 min-h-0 flex-1 mt-2">
-    //     {items.map((item) => (
-    //       <AppMenuItem key={item.title} item={item} />
-    //     ))}
-    //   </div>
-
-    //   <div className="p-2 flex flex-col items-center gap-2">
-    //     <ThemeToggle />
-    //     <UserButton />
-    //   </div>
-    // </aside>
-
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <SidebarMenu
@@ -125,23 +106,6 @@ const AppSidebar = () => {
 
       <SidebarFooter>
         <SidebarMenu className={cn("items-center justify-between flex-col")}>
-          <SidebarMenuItem className="items-center justify-start flex w-full">
-            <SidebarMenuButton asChild>
-              <OrganizationSwitcher
-                hidePersonal
-                appearance={{
-                  baseTheme: resolvedTheme === "dark" ? dark : undefined,
-                  elements: {
-                    organizationSwitcherTrigger: cn(
-                      "cursor-pointer",
-                      open ? "p-1" : "p-0 w-7 h-7 overflow-hidden"
-                    ),
-                  },
-                }}
-              />
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-
           <div
             className={cn(
               "flex items-center justify-between w-full",
@@ -167,6 +131,23 @@ const AppSidebar = () => {
               </SidebarMenuButton>
             </SidebarMenuItem>
           </div>
+
+          <SidebarMenuItem className="items-center justify-start flex w-full">
+            <SidebarMenuButton asChild>
+              <OrganizationSwitcher
+                hidePersonal
+                appearance={{
+                  baseTheme: resolvedTheme === "dark" ? dark : undefined,
+                  elements: {
+                    organizationSwitcherTrigger: cn(
+                      "cursor-pointer",
+                      open ? "p-1" : "p-0 w-7 h-7 overflow-hidden"
+                    ),
+                  },
+                }}
+              />
+            </SidebarMenuButton>
+          </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
