@@ -1,4 +1,5 @@
 import NavbarWeb from "../ui/navbarWeb";
+import FeaturesSection from "./FeaturesSection";
 import HeroSection from "./heroSection";
 import OverviewSection from "./OverviewSection";
 
@@ -9,8 +10,8 @@ const MainWebsite = () => {
       <NavbarWeb />
       <HeroSection />
       <OverviewSection />
-      {/* <StatsSection />
-      <FeaturesSection /> */}
+      {/* <StatsSection />*/}
+      <FeaturesSection />
     </div>
   );
 };

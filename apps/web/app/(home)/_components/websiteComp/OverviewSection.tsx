@@ -2,9 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
-import { useTheme } from "next-themes";
 import { motion } from "motion/react";
-import { Skeleton } from "@/components/ui/skeleton";
 
 const OverviewSection = () => {
   return (
@@ -16,7 +14,7 @@ const OverviewSection = () => {
           duration: 0.4,
           ease: "easeInOut",
         }}
-        className="max-w-[1200px] aspect-[1280/832] mx-auto p-3 rounded-2xl -mt-10 mask-b-from-55% bg-[#010010]">
+        className="max-w-[1200px] aspect-[1280/832] mx-auto p-3 rounded-2xl -mt-10 mask-b-from-55% border border-input/30">
         <Image
           src={"/analysis-page-dark.png"}
           alt="Codetector Analysis Dashboard"
