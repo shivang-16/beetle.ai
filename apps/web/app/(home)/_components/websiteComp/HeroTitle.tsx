@@ -20,7 +20,8 @@ const HeroTitle = ({ title }: { title: string }) => {
           }}
           className={cn(
             "mr-2.5 inline-block",
-            index === heading.length - 1 ? "text-primary" : ""
+            index === heading.length - 1 ? "text-primary" : "",
+            index === heading.length - 3 && "text-primary"
           )}>
           {word}
         </motion.span>
