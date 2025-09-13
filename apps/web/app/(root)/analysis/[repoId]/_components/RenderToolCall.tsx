@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  Accordion,
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from "@/components/ui/accordion";
+// Accordion components removed as they are not used
 import { LogItem } from "@/types/types";
 import { useEffect, useState } from "react";
 
@@ -24,13 +19,13 @@ export const MergedLogs = ({ log }: { log: LogItem }) => {
     log.messages.forEach((message) => {
       // Extract param inside square brackets
       const paramMatch = message.match(/\[(.*?)\]/);
-      if (!paramMatch) return;
+      if (!paramMatch || !paramMatch[1]) return;
       const param = paramMatch[1];
 
       // Extract possible JSON object/array at the end
       const jsonMatch = message.match(/(\{.*\}|\[.*\])$/);
       let jsonData: any = null;
-      if (jsonMatch) {
+      if (jsonMatch && jsonMatch[1]) {
         try {
           jsonData = JSON.parse(jsonMatch[1].replace(/'/g, '"'));
         } catch {

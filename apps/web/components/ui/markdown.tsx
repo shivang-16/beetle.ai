@@ -63,7 +63,7 @@ const citationSources: CitationSourceConfig[] = [
     pattern: /github\.com\/[^\/]+\/[^\/\s]+/i,
     urlGenerator: (title: string, source: string) => {
       const match = source.match(/(https?:\/\/github\.com\/[^\/]+\/[^\/\s]+)/i);
-      return match ? match[1] : null;
+      return match && match[1] ? match[1] : null;
     },
   },
   {
@@ -775,19 +775,19 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isUserMess
 
         let citationIndex = citationLinks.findIndex((link) => link.link === href);
         if (citationIndex !== -1) {
-          const citationText = citationLinks[citationIndex].text;
+          const citationText = citationLinks[citationIndex]?.text || href;
           return renderCitation(citationIndex, citationText, href, key);
         }
 
         if (isValidUrl(href)) {
           citationLinks.push({ text: typeof text === 'string' ? text : href, link: href });
           citationIndex = citationLinks.length - 1;
-          const citationText = citationLinks[citationIndex].text;
+          const citationText = citationLinks[citationIndex]?.text || href;
           return renderCitation(citationIndex, citationText, href, key);
         } else {
           citationLinks.push({ text: typeof text === 'string' ? text : href, link: href });
           citationIndex = citationLinks.length - 1;
-          const citationText = citationLinks[citationIndex].text;
+          const citationText = citationLinks[citationIndex]?.text || href;
           return renderCitation(citationIndex, citationText, href, key);
         }
       },

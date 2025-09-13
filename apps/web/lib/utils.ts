@@ -584,6 +584,11 @@ export class ObjectMerger {
     const message = obj.messages[0];
     console.log("Message:", message);
 
+    if (!message) {
+      console.log("No message found");
+      return null;
+    }
+
     const operationMatch = message.match(/\[([^\]]+)\]/);
     console.log("Operation match:", operationMatch);
 
