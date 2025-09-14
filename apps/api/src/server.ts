@@ -1,10 +1,9 @@
 // apps/api/src/server.ts
 import { createApp } from './app.js';
 import connectDB from './db/db.js';
-import { env } from './config/env.js';
 import { logInfo } from './utils/logger.js';
 
-const PORT = env.PORT;
+const PORT = process.env.PORT || 3000;
 const app = createApp();
 
 connectDB();
