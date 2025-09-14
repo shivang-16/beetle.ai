@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "buildCommand": "pnpm turbo run build --filter=codetector-api",
+  "outputDirectory": "apps/api/dist",
+  "installCommand": "pnpm install",
+  "framework": null
+}
