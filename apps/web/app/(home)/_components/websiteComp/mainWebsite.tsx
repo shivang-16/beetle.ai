@@ -1,6 +1,8 @@
+import FooterSection from "../ui/footer";
 import NavbarWeb from "../ui/navbarWeb";
 import FeaturesSection from "./FeaturesSection";
 import HeroSection from "./heroSection";
+import IntegratedModels from "./IntegratedModels";
 import OverviewSection from "./OverviewSection";
 
 const MainWebsite = () => {
@@ -10,8 +12,9 @@ const MainWebsite = () => {
       <NavbarWeb />
       <HeroSection />
       <OverviewSection />
-      {/* <StatsSection />*/}
       <FeaturesSection />
+      <IntegratedModels />
+      <FooterSection />
     </main>
   );
 };

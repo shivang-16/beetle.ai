@@ -34,8 +34,21 @@ const loadingStates = [
 
 export default function Features() {
   return (
-    <section className="py-16 md:py-32 dark:bg-transparent">
-      <div className="mx-auto max-w-2xl px-6 lg:max-w-5xl">
+    <section className="px-5 border-b border-[#333333]">
+      <div className="relative mx-auto max-w-[1563px] md:p-14 p-6  border border-t-0 border-b-0 border-[#333333]">
+        {/* Dark White Dotted Grid Background */}
+        <div
+          className="absolute inset-0 z-0"
+          style={{
+            background: "#000000",
+            backgroundImage: `
+              radial-gradient(circle, rgba(255, 255, 255, 0.1) 1.5px, transparent 1.5px)
+            `,
+            backgroundSize: "25px 25px",
+            backgroundPosition: "0 0",
+          }}
+        />
+
         <div className="mx-auto grid gap-4 lg:grid-cols-2">
           <FeatureCard>
             <CardHeader className="pb-3">
@@ -72,7 +85,7 @@ export default function Features() {
             </CardHeader>
 
             <CardContent>
-              <div className=" relative max-sm:mb-6">
+              <div className="relative max-sm:mb-6">
                 <div className="aspect-76/59 h-max overflow-hidden rounded-lg border border-[#333333]/50">
                   <MultiStepLoader
                     loadingStates={loadingStates}
@@ -127,7 +140,7 @@ interface FeatureCardProps {
 const FeatureCard = ({ children, className }: FeatureCardProps) => (
   <Card
     className={cn(
-      "group relative rounded-none shadow-zinc-950/5 bg-[#090909] border-[#333333]/50",
+      "group relative rounded-none shadow-zinc-950/5 bg-black/40 backdrop-blur-3xl border-[#333333]/50",
       className
     )}>
     <CardDecorator />

@@ -125,7 +125,7 @@ export const MultiStepLoader = ({
           exit={{
             opacity: 0,
           }}
-          className="w-full h-full absolute inset-0 z-[100] flex items-center justify-center backdrop-blur-2xl">
+          className="w-full h-full absolute inset-0 flex items-center justify-center backdrop-blur-2xl">
           <div className="h-36 relative">
             <LoaderCore value={currentState} loadingStates={loadingStates} />
           </div>

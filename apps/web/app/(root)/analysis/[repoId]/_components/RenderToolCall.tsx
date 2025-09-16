@@ -1,6 +1,6 @@
 "use client";
 
-import { cn, extractPath } from "@/lib/utils";
+import { cn, detectLanguage, extractPath, parseToolCall } from "@/lib/utils";
 // Accordion components removed as they are not used
 import { LogItem } from "@/types/types";
 import { useTheme } from "next-themes";
@@ -10,94 +10,10 @@ import { vs } from "react-syntax-highlighter/dist/esm/styles/hljs";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { Icon } from "@iconify/react";
 
-function parseLogLine(log: string): { type: string; result: any } | null {
-  try {
-    // Extract type (inside square brackets)
-    const typeMatch = log.match(/\[(.*?)\]/);
-    if (!typeMatch) return null;
-    const type = typeMatch[1] ?? "";
-
-    // Extract payload (after square bracket)
-    const payloadMatch = log.match(/\] (.*)$/s);
-    if (!payloadMatch) return { type, result: null };
-    let jsonLike = payloadMatch[1] ? payloadMatch[1].trim() : "";
-
-    // Handle empty array case directly
-    if (jsonLike === "[]") {
-      return { type, result: [] };
-    }
-
-    // Convert Python-style values
-    jsonLike = jsonLike
-      .replace(/\bTrue\b/g, "true")
-      .replace(/\bFalse\b/g, "false")
-      .replace(/\bNone\b/g, "null");
-
-    // Replace single-quoted strings safely with double quotes
-    jsonLike = jsonLike.replace(/'([^']*)'/g, (_, val) => {
-      return `"${val.replace(/"/g, '\\"')}"`;
-    });
-
-    return {
-      type,
-      result: !jsonLike.includes("Scanning")
-        ? JSON.parse(jsonLike)
-        : payloadMatch[1]?.trim(),
-    };
-  } catch (err) {
-    console.error("Failed to parse log:", err);
-    return null;
-  }
-}
-
-function detectLanguage(
-  filePath: string
-): { language: string; icon: string } | null {
-  const ext = filePath.split(".").pop()?.toLowerCase();
-  if (!ext) return null;
-
-  // Map extension → language + VS Code icon name
-  const map: Record<string, { language: string; icon: string }> = {
-    js: { language: "javascript", icon: "vscode-icons:file-type-js" },
-    jsx: { language: "javascript", icon: "vscode-icons:file-type-reactjs" },
-    ts: { language: "typescript", icon: "vscode-icons:file-type-typescript" },
-    tsx: { language: "typescript", icon: "vscode-icons:file-type-reactts" },
-    py: { language: "python", icon: "vscode-icons:file-type-python" },
-    java: { language: "java", icon: "vscode-icons:file-type-java" },
-    cs: { language: "csharp", icon: "vscode-icons:file-type-csharp" },
-    cpp: { language: "cpp", icon: "vscode-icons:file-type-cpp" },
-    c: { language: "c", icon: "vscode-icons:file-type-c" },
-    rb: { language: "ruby", icon: "vscode-icons:file-type-ruby" },
-    php: { language: "php", icon: "vscode-icons:file-type-php" },
-    go: { language: "go", icon: "vscode-icons:file-type-go" },
-    rs: { language: "rust", icon: "vscode-icons:file-type-rust" },
-    swift: { language: "swift", icon: "vscode-icons:file-type-swift" },
-    kt: { language: "kotlin", icon: "vscode-icons:file-type-kotlin" },
-    m: { language: "objective-c", icon: "vscode-icons:file-type-objectivec" },
-    scala: { language: "scala", icon: "vscode-icons:file-type-scala" },
-    sh: { language: "shell", icon: "vscode-icons:file-type-shell" },
-    sql: { language: "sql", icon: "vscode-icons:file-type-sql" },
-    json: { language: "json", icon: "vscode-icons:file-type-json" },
-    yaml: { language: "yaml", icon: "vscode-icons:file-type-yaml" },
-    yml: { language: "yaml", icon: "vscode-icons:file-type-yaml" },
-    md: { language: "markdown", icon: "vscode-icons:file-type-markdown" },
-    html: { language: "html", icon: "vscode-icons:file-type-html" },
-    css: { language: "css", icon: "vscode-icons:file-type-css" },
-    scss: { language: "scss", icon: "vscode-icons:file-type-scss" },
-    xml: { language: "xml", icon: "vscode-icons:file-type-xml" },
-    Dockerfile: {
-      language: "Dockerfile",
-      icon: "vscode-icons:file-type-docker",
-    },
-  };
-
-  return map[ext] || null;
-}
-
 export const MergedLogs = ({ log }: { log: LogItem }) => {
   const { resolvedTheme } = useTheme();
 
-  const result = parseLogLine(log.messages.join("\n"));
+  const result = parseToolCall(log.messages.join("\n"));
 
   if (result?.type === "READ_FILE") {
     return (
