@@ -9,6 +9,12 @@ import SyntaxHighlighter from "react-syntax-highlighter";
 import { vs } from "react-syntax-highlighter/dist/esm/styles/hljs";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { Icon } from "@iconify/react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 export const MergedLogs = ({ log }: { log: LogItem }) => {
   const { resolvedTheme } = useTheme();
@@ -32,49 +38,55 @@ export const MergedLogs = ({ log }: { log: LogItem }) => {
     const language = detectLanguage(result.result.file_path);
 
     return (
-      <div className="w-full">
-        <div className="w-full border border-input border-b-0 rounded-t-md py-3.5 px-2.5">
-          <span className="border border-input rounded px-2 py-1">
-            Read File Result
-          </span>{" "}
-          {extractPath(result.result.file_path)}
-        </div>
-        <div className="w-full border border-input rounded-b-md py-3.5 px-2.5 bg-card overflow-x-auto output-scrollbar">
-          <Markdown
-            components={{
-              code(props) {
-                const { children, className, ...rest } = props;
-                const match = /language-(\w+)/.exec(className || "");
-                return match ? (
-                  <SyntaxHighlighter
-                    PreTag="div"
-                    language={language?.language ?? match[1]}
-                    style={resolvedTheme === "dark" ? vscDarkPlus : vs}
-                    customStyle={{
-                      backgroundColor:
-                        resolvedTheme === "dark"
-                          ? "rgba(255, 0, 0, 0.15)"
-                          : "rgba(255,0,0,0.05)",
-                      borderRadius: 4,
-                      padding: 16,
-                      fontSize: 14,
-                    }}
-                    showLineNumbers>
-                    {String(children).replace(/\n$/, "")}
-                  </SyntaxHighlighter>
-                ) : (
-                  <code
-                    {...rest}
-                    className={cn("whitespace-pre-wrap w-full", className)}>
-                    {children}
-                  </code>
-                );
-              },
-            }}>
-            {`${result.result.content_preview}`}
-          </Markdown>
-        </div>
-      </div>
+      <Accordion type="single" collapsible className="w-full">
+        <AccordionItem
+          value={result.result.file_path ?? "item-1"}
+          className="border-none">
+          <AccordionTrigger className="w-full border border-input rounded-t-md data-[state=closed]:rounded-b-md py-3.5 px-2.5 hover:no-underline cursor-pointer">
+            <span>
+              <span className="border border-input rounded px-2 py-1">
+                Read File Result
+              </span>{" "}
+              {extractPath(result.result.file_path)}
+            </span>
+          </AccordionTrigger>
+          <AccordionContent className="w-full border border-input rounded-b-md py-3.5 px-2.5 bg-card overflow-x-auto output-scrollbar text-xs text-muted-foreground leading-6">
+            <Markdown
+              components={{
+                code(props) {
+                  const { children, className, ...rest } = props;
+                  const match = /language-(\w+)/.exec(className || "");
+                  return match ? (
+                    <SyntaxHighlighter
+                      PreTag="div"
+                      language={language?.language ?? match[1]}
+                      style={resolvedTheme === "dark" ? vscDarkPlus : vs}
+                      customStyle={{
+                        backgroundColor:
+                          resolvedTheme === "dark"
+                            ? "rgba(255, 0, 0, 0.15)"
+                            : "rgba(255,0,0,0.05)",
+                        borderRadius: 4,
+                        padding: 16,
+                        fontSize: 14,
+                      }}
+                      showLineNumbers>
+                      {String(children).replace(/\n$/, "")}
+                    </SyntaxHighlighter>
+                  ) : (
+                    <code
+                      {...rest}
+                      className={cn("whitespace-pre-wrap w-full", className)}>
+                      {children}
+                    </code>
+                  );
+                },
+              }}>
+              {`${result.result.content_preview}`}
+            </Markdown>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     );
   }
 
@@ -92,29 +104,33 @@ export const MergedLogs = ({ log }: { log: LogItem }) => {
   }
 
   if (result?.type === "EXTRACT_IMPORTS_RESULT") {
-    return (
-      <div className="w-full">
-        <div className="w-full border border-input border-b-0 rounded-t-md py-3.5 px-2.5">
-          <span className="border border-input rounded px-2 py-1">
-            Extract Imports Result
-          </span>
-        </div>
+    const id = String(Math.floor(Math.random() * 100));
 
-        <div className="w-full border border-input rounded-b-md py-3.5 px-2.5 bg-card space-y-2 overflow-x-auto output-scrollbar">
-          {result.result && result.result.length > 0 ? (
-            result.result.map((item: string, i: number) => {
-              const language = detectLanguage(item);
-              return (
-                <div key={i} className="flex items-center gap-1">
-                  <Icon icon={language?.icon || ""} /> {extractPath(item)}
-                </div>
-              );
-            })
-          ) : (
-            <div>No imports found</div>
-          )}
-        </div>
-      </div>
+    return (
+      <Accordion type="single" className="w-full">
+        <AccordionItem value={`item-${id}`} className="border-none">
+          <AccordionTrigger className="w-full border border-input rounded-t-md data-[state=closed]:rounded-b-md py-3.5 px-2.5 hover:no-underline cursor-pointer">
+            <span className="border border-input rounded px-2 py-1">
+              Extract Imports Result
+            </span>
+          </AccordionTrigger>
+
+          <AccordionContent className="w-full border border-input rounded-b-md py-3.5 px-2.5 bg-card space-y-2 overflow-x-auto output-scrollbar text-xs text-muted-foreground leading-6">
+            {result.result && result.result.length > 0 ? (
+              result.result.map((item: string, i: number) => {
+                const language = detectLanguage(item);
+                return (
+                  <div key={i} className="flex items-center gap-1">
+                    <Icon icon={language?.icon || ""} /> {extractPath(item)}
+                  </div>
+                );
+              })
+            ) : (
+              <div>No imports found</div>
+            )}
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     );
   }
 
@@ -132,29 +148,33 @@ export const MergedLogs = ({ log }: { log: LogItem }) => {
   }
 
   if (result?.type === "SELECT_FILES_RESULT") {
-    return (
-      <div className="w-full">
-        <div className="w-full border border-input border-b-0 rounded-t-md py-3.5 px-2.5">
-          <span className="border border-input rounded px-2 py-1">
-            Select Files Result
-          </span>
-        </div>
+    const id = String(Math.floor(Math.random() * 100));
 
-        <div className="w-full border border-input rounded-b-md py-3.5 px-2.5 bg-card space-y-2 overflow-x-auto output-scrollbar">
-          {result.result && result.result.length > 0 ? (
-            result.result.map((item: string, i: number) => {
-              const language = detectLanguage(item);
-              return (
-                <div key={i} className="flex items-center gap-1">
-                  <Icon icon={language?.icon || ""} /> {extractPath(item)}
-                </div>
-              );
-            })
-          ) : (
-            <div>No files found</div>
-          )}
-        </div>
-      </div>
+    return (
+      <Accordion type="single" className="w-full">
+        <AccordionItem value={`item-${id}`}>
+          <AccordionTrigger className="w-full border border-input border-b-0 rounded-t-md py-3.5 px-2.5">
+            <span className="border border-input rounded px-2 py-1">
+              Select Files Result
+            </span>
+          </AccordionTrigger>
+
+          <AccordionContent className="w-full border border-input rounded-b-md py-3.5 px-2.5 bg-card space-y-2 overflow-x-auto output-scrollbar">
+            {result.result && result.result.length > 0 ? (
+              result.result.map((item: string, i: number) => {
+                const language = detectLanguage(item);
+                return (
+                  <div key={i} className="flex items-center gap-1">
+                    <Icon icon={language?.icon || ""} /> {extractPath(item)}
+                  </div>
+                );
+              })
+            ) : (
+              <div>No files found</div>
+            )}
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     );
   }
 
@@ -176,31 +196,35 @@ export const MergedLogs = ({ log }: { log: LogItem }) => {
   }
 
   if (result?.type === "GREP_FILE_CONTENT_RESULT") {
+    const id = String(Math.floor(Math.random() * 100));
+
     return (
-      <div className="w-full">
-        <div className="w-full border border-input border-b-0 rounded-t-md py-3.5 px-2.5">
-          <span className="border border-input rounded px-2 py-1">
-            Grep File Result
-          </span>
-        </div>
+      <Accordion type="single" className="w-full">
+        <AccordionItem value={`item-1`}>
+          <AccordionTrigger className="w-full border border-input border-b-0 rounded-t-md py-3.5 px-2.5">
+            <span className="border border-input rounded px-2 py-1">
+              Grep File Result
+            </span>
+          </AccordionTrigger>
 
-        <div className="w-full border border-input rounded-b-md py-3.5 px-2.5 bg-card space-y-2 overflow-x-auto output-scrollbar">
-          <p>Files searched: {result.result.search_summary.files_searched}</p>
-          <p>
-            Total files with matches:{" "}
-            {result.result.search_summary.total_files_with_matches}
-          </p>
+          <AccordionContent className="w-full border border-input rounded-b-md py-3.5 px-2.5 bg-card space-y-2 overflow-x-auto output-scrollbar">
+            <p>Files searched: {result.result.search_summary.files_searched}</p>
+            <p>
+              Total files with matches:{" "}
+              {result.result.search_summary.total_files_with_matches}
+            </p>
 
-          <ul>
-            {result.result.results_count &&
-            result.result.results_count.length > 0
-              ? result.result.results_count.map((item: any, i: number) => {
-                  return <li key={i}>File Path: {item.file_path}</li>;
-                })
-              : null}
-          </ul>
-        </div>
-      </div>
+            <ul>
+              {result.result.results_count &&
+              result.result.results_count.length > 0
+                ? result.result.results_count.map((item: any, i: number) => {
+                    return <li key={i}>File Path: {item.file_path}</li>;
+                  })
+                : null}
+            </ul>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     );
   }
 
