@@ -10,7 +10,7 @@ const CodetectorLogo = ({ className }: { className?: string }) => {
       x="0px"
       y="0px"
       viewBox="0 0 864 864"
-      className={cn("fill-none stroke-primary stroke-[15] size-8", className)}>
+      className={cn("fill-none stroke-primary stroke-[15] size-6", className)}>
       <g>
         <path
           className="st0"

@@ -23,7 +23,7 @@ export const executeAnalysis = async (
   let clientAborted = false;
   let userId!: string;
   let repoUrl: string = "";
-  let modelParam: string = "gemini-2.0-flash";
+  let modelParam: string = "gemini-2.5-flash";
   let promptParam: string =
     "Analyze this codebase for security vulnerabilities and code quality";
   let githubRepositoryId: string = "";
@@ -35,7 +35,7 @@ export const executeAnalysis = async (
     const {
       // repoUrl,
       github_repositoryId,
-      model = "gemini-2.0-flash",
+      model = "gemini-2.5-flash",
       prompt = "Analyze this codebase for security vulnerabilities and code quality",
     } = req.body;
 
@@ -147,7 +147,7 @@ export const executeAnalysis = async (
 
     // Now the Python script just needs to use the repo URL as-is
 
-    const analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" --model "${model}" --mode=full_repo_analysis --api-key "AIzaSyDr5TkrvYM3CXrqShrmJG5aPjkAfqs2xJg"`;
+    const analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" --model "${model}" --mode=full_repo_analysis --api-key "AIzaSyBQxCwkF42OaoCq2M4EMyuzp7N6MM2zZWE"`;
     const maskedCommand = authResult.usedToken
       ? analysisCommand.replace(repoUrlForAnalysis, "[TOKEN_HIDDEN]")
       : analysisCommand;

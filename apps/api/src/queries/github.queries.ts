@@ -4,6 +4,8 @@ import { CustomError } from "../middlewares/error.js";
 import User from "../models/user.model.js";
 import { Github_Repository } from "../models/github_repostries.model.js";
 import { getInstallationOctokit } from "../lib/githubApp.js";
+import { writeFileSync } from 'fs';
+import { join } from 'path';
 
 export const create_github_installation = async (payload: CreateInstallationInput) => {
     try {
@@ -299,5 +301,216 @@ export const checkPullRequestPermission = (installation: any) => {
   } catch (error) {
     console.error("Error checking pull request permission:", error);
     return false;
+  }
+};
+
+export const PrData = async (payload: any) => {
+  try {
+    const { pull_request, repository, installation, sender } = payload;
+    
+    console.log('=== PULL REQUEST OPENED EVENT ===');
+    console.log('Full payload:', JSON.stringify(payload, null, 2));
+    
+    // Write full payload to file
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `pr-llm-payload-${timestamp}.json`;
+    const filepath = join(process.cwd(), 'logs', filename);
+    
+   
+    // Get Octokit instance for additional API calls
+    const octokit = getInstallationOctokit(installation.id);
+    const [owner, repo] = repository.full_name.split('/');
+    
+    // Fetch additional PR details using Octokit
+    let filesChanged: any[] = [];
+    let commits: any[] = [];
+    let reviews: any[] = [];
+    let diffContent = '';
+    
+    try {
+      // Get files changed in the PR
+      const filesResponse = await octokit.pulls.listFiles({
+        owner,
+        repo,
+        pull_number: pull_request.number
+      });
+      
+      filesChanged = filesResponse.data.map(file => ({
+        filename: file.filename,
+        status: file.status, // added, modified, removed, renamed
+        additions: file.additions,
+        deletions: file.deletions,
+        changes: file.changes,
+        patch: file.patch, // The actual diff content
+        blobUrl: file.blob_url,
+        rawUrl: file.raw_url,
+        contentsUrl: file.contents_url,
+        previousFilename: file.previous_filename // for renamed files
+      }));
+      
+      // Get commits in the PR
+      const commitsResponse = await octokit.pulls.listCommits({
+        owner,
+        repo,
+        pull_number: pull_request.number
+      });
+      
+      commits = commitsResponse.data.map(commit => ({
+        sha: commit.sha,
+        message: commit.commit.message,
+        author: {
+          name: commit.commit.author?.name,
+          email: commit.commit.author?.email,
+          date: commit.commit.author?.date,
+          login: commit.author?.login
+        },
+        committer: {
+          name: commit.commit.committer?.name,
+          email: commit.commit.committer?.email,
+          date: commit.commit.committer?.date,
+          login: commit.committer?.login
+        },
+        url: commit.html_url,
+        stats: {
+          additions: commit.stats?.additions,
+          deletions: commit.stats?.deletions,
+          total: commit.stats?.total
+        }
+      }));
+      
+      // Get PR reviews
+      const reviewsResponse = await octokit.pulls.listReviews({
+        owner,
+        repo,
+        pull_number: pull_request.number
+      });
+      
+      reviews = reviewsResponse.data.map(review => ({
+        id: review.id,
+        user: {
+          login: review.user?.login,
+          id: review.user?.id,
+          avatarUrl: review.user?.avatar_url
+        },
+        body: review.body,
+        state: review.state, // APPROVED, CHANGES_REQUESTED, COMMENTED
+        submittedAt: review.submitted_at,
+        commitId: review.commit_id
+      }));
+      
+      // Get the diff content
+      const diffResponse = await octokit.pulls.get({
+        owner,
+        repo,
+        pull_number: pull_request.number,
+        mediaType: {
+          format: 'diff'
+        }
+      });
+      
+      diffContent = diffResponse.data as unknown as string;
+      
+    } catch (apiError) {
+      console.error('Error fetching additional PR data:', apiError);
+    }
+    
+    // Streamlined response for model analysis
+    const modelAnalysisData = {
+      // Essential PR Information
+      pr: {
+        number: pull_request.number,
+        title: pull_request.title,
+        description: pull_request.body || '',
+        state: pull_request.state,
+        isDraft: pull_request.draft,
+        author: pull_request.user.login,
+        createdAt: pull_request.created_at,
+        updatedAt: pull_request.updated_at
+      },
+      
+      // Minimal Repository Info
+      repository: {
+        name: repository.full_name,
+        url: repository.html_url,
+        defaultBranch: repository.default_branch
+      },
+      
+      // Branch Information (useful for context)
+      branches: {
+        head: {
+          ref: pull_request.head.ref,
+          sha: pull_request.head.sha
+        },
+        base: {
+          ref: pull_request.base.ref,
+          sha: pull_request.base.sha
+        }
+      },
+      
+      // Core Changes Data
+      changes: {
+        summary: {
+          files: pull_request.changed_files,
+          additions: pull_request.additions,
+          deletions: pull_request.deletions,
+          commits: pull_request.commits
+        },
+        files: filesChanged.map((file: any) => ({
+          filename: file.filename,
+          status: file.status,
+          additions: file.additions,
+          deletions: file.deletions,
+          patch: file.patch // The actual diff
+        })),
+        commits: commits.map((commit: any) => ({
+          sha: commit.sha,
+          message: commit.message,
+          author: commit.author.name || commit.author.login,
+          date: commit.author.date
+        })),
+        fullDiff: diffContent.slice(0, 100000) // Increased limit for comprehensive analysis
+      },
+      
+      // PR Comments and Reviews
+      feedback: {
+        reviews: reviews.map((review: any) => ({
+          author: review.user?.login,
+          state: review.state,
+          body: review.body,
+          submittedAt: review.submitted_at
+        })),
+        commentCount: pull_request.comments,
+        reviewCommentCount: pull_request.review_comments
+      },
+      
+      // Labels for context
+      labels: pull_request.labels?.map((label: any) => label.name) || [],
+      
+      // Analysis hints for the model
+      context: {
+        complexity: Math.min(100, (pull_request.changed_files * 3) + Math.floor((pull_request.additions + pull_request.deletions) / 20)),
+        riskLevel: pull_request.changed_files > 15 ? 'high' : pull_request.changed_files > 8 ? 'medium' : 'low',
+        hasTests: (filesChanged as any[]).some(f => f.filename.includes('test') || f.filename.includes('spec')),
+        hasDocChanges: (filesChanged as any[]).some(f => f.filename.includes('README') || f.filename.includes('.md')),
+        hasDependencyChanges: (filesChanged as any[]).some(f => f.filename.includes('package.json') || f.filename.includes('requirements.txt')),
+        primaryLanguages: [...new Set((filesChanged as any[]).map(f => f.filename.split('.').pop()).filter(Boolean))].slice(0, 5)
+      }
+    };
+    
+    console.log('=== STREAMLINED PR DATA FOR MODEL ===');
+    console.log(JSON.stringify(modelAnalysisData, null, 2));
+    
+     const { mkdirSync } = await import('fs');
+      const logsDir = join(process.cwd(), 'logs');
+      mkdirSync(logsDir, { recursive: true });
+      
+      // Write payload to file
+      writeFileSync(filepath, JSON.stringify(modelAnalysisData, null, 2));
+      console.log(`Full payload written to: ${filepath}`);
+    return modelAnalysisData;
+    
+  } catch (error) {
+    console.error('Error handling pull_request.opened:', error);
+    throw error;
   }
 };
