@@ -35,12 +35,14 @@ export const executeAnalysis = async (
     const {
       // repoUrl,
       github_repositoryId,
+      branch,
       model = "gemini-2.5-flash",
       prompt = "Analyze this codebase for security vulnerabilities and code quality",
     } = req.body;
 
     const github_repository =
       await Github_Repository.findById(github_repositoryId);
+
     if (!github_repository) {
       return next(new CustomError("Github repository not found", 404));
     }
@@ -51,6 +53,7 @@ export const executeAnalysis = async (
       );
     }
 
+    const branchForAnalysis = branch || github_repository.defaultBranch;
     // Persist the resolved repo id for finalize
     githubRepositoryId = String(github_repository._id);
     repoUrl = `https://github.com/${github_repository.fullName}`;
@@ -147,7 +150,7 @@ export const executeAnalysis = async (
 
     // Now the Python script just needs to use the repo URL as-is
 
-    const analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" --model "${model}" --mode=full_repo_analysis --api-key "AIzaSyBQxCwkF42OaoCq2M4EMyuzp7N6MM2zZWE"`;
+    const analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" --branch "${branchForAnalysis}" --model "${model}" --mode=full_repo_analysis --api-key ${process.env.GOOGLE_API_KEY}`;
     const maskedCommand = authResult.usedToken
       ? analysisCommand.replace(repoUrlForAnalysis, "[TOKEN_HIDDEN]")
       : analysisCommand;

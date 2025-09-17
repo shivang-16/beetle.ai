@@ -1,6 +1,7 @@
 export interface GithubRepository {
   _id: string;
   github_installationId: string;
+  defaultBranch: string;
   repositoryId: number;
   fullName: string;
   private: boolean;
