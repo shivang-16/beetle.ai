@@ -11,12 +11,13 @@ import {
 } from "@/lib/utils";
 import { LogItem, ParserState, RepoTree } from "@/types/types";
 import { RefreshCcwDotIcon } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { toast } from "sonner";
 import { RenderLLMSegments } from "./RenderLLMSegments";
 import { MergedLogs } from "./RenderToolCall";
 import RepoFileTree from "./RepoFileTree";
+import { refreshAnalysisList } from "../_actions/getAnalysiswithId";
 
 const RenderLogs = ({
   repoId,
@@ -32,7 +33,6 @@ const RenderLogs = ({
   const [logs, setLogs] = useState<LogItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const logsEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController>(null);
   const parserStateRef = useRef<ParserState>(createParserState());
 
@@ -109,6 +109,7 @@ const RenderLogs = ({
         toast.error(`An unexpected error occurred while analyzing this repo.`);
       }
     } finally {
+      await refreshAnalysisList(repoId);
       setIsLoading(false);
     }
   };
@@ -143,11 +144,11 @@ const RenderLogs = ({
         // console.log("🔄 Loading analysis from db: ", res);
 
         const json = await res.json();
-        console.log("🔄 Loading analysis from db: ", json);
+        // console.log("🔄 Loading analysis from db: ", json);
         let logsText: string = "";
         const bufJson = json?.data?.logsCompressed;
         const binary = bufferJSONToUint8Array(bufJson);
-        console.log("🔄 Loading binary from db: ", binary);
+        // console.log("🔄 Loading binary from db: ", binary);
         if (binary) {
           const decoded = await gunzipUint8ArrayToText(binary);
           if (decoded) {
@@ -157,7 +158,7 @@ const RenderLogs = ({
         if (!logsText) logsText = json?.data?.logsText || "";
 
         const result = parseFullLogText(logsText);
-        console.log("🔄 Loading result from db: ", result);
+        // console.log("🔄 Loading result from db: ", result);
         setLogs(result.logs.map((l) => ({ ...l, messages: [...l.messages] })));
       } catch (e) {
         const message =
@@ -179,13 +180,21 @@ const RenderLogs = ({
     setIsLoading(false);
   };
 
-  // Auto-scroll to bottom when new logs arrive
-  const scrollToBottom = () => {
-    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const processedLogs = useMemo(() => {
+    const initLogs = logs.filter((log) => log.type === "INITIALISATION");
+    const otherLogs = logs.filter((log) => log.type !== "INITIALISATION");
 
-  useEffect(() => {
-    scrollToBottom();
+    if (initLogs.length === 0) {
+      return logs;
+    }
+
+    // Combine all initialization messages into one object
+    const combinedInitLog: LogItem = {
+      type: "INITIALISATION",
+      messages: initLogs.flatMap((log) => log.messages),
+    };
+
+    return [combinedInitLog, ...otherLogs];
   }, [logs]);
 
   return (
@@ -207,20 +216,22 @@ const RenderLogs = ({
         </div>
         <div className="flex-1 px-4 pb-3 max-h-[calc(100%-60px)] max-w-2xl w-full mx-auto">
           <div className="w-full h-full py-3 overflow-y-auto output-scrollbar">
-            <div className="w-full flex flex-col items-start gap-3.5 text-muted-foreground">
-              {logs.map((log, i) => (
+            <div className="w-full flex flex-col items-start gap-3.5">
+              {processedLogs.map((log, i) => (
                 <React.Fragment key={i}>
                   {log.type === "LLM_RESPONSE" && log.segments ? (
-                    <div className="w-full p-3 break-words text-xs m-0">
+                    <div className="w-full p-3 break-words text-sm m-0">
                       <RenderLLMSegments segments={log.segments} />
                     </div>
                   ) : log.type === "TOOL_CALL" ? (
-                    <div className="w-full p-3 whitespace-pre-wrap text-xs m-0">
+                    <div className="w-full p-3 whitespace-pre-wrap text-sm m-0">
                       <MergedLogs log={log} />
                     </div>
                   ) : log.type === "INITIALISATION" ? (
-                    <div className="w-full p-3 whitespace-pre-wrap text-xs m-0">
-                      {log.messages.join("\n")}
+                    <div className="w-full p-3 whitespace-pre-wrap dark:text-neutral-200 text-neutral-800 text-sm leading-7 m-0">
+                      <div className="border border-input rounded-md bg-card p-3">
+                        {log.messages.join("\n")}
+                      </div>
                     </div>
                   ) : null}
                 </React.Fragment>
@@ -235,8 +246,6 @@ const RenderLogs = ({
                 </span>
               </div>
             )}
-
-            {/* <div ref={logsEndRef} /> */}
           </div>
         </div>
       </div>

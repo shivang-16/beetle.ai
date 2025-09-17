@@ -411,12 +411,12 @@ export async function decodeGzipBase64ToText(base64: string): Promise<string> {
 export function bufferJSONToUint8Array(
   bufferLike: { type?: string; data?: number[] } | number[] | string | undefined
 ): Uint8Array | null {
-  console.log("🔄 Buffer JSON to Uint8Array1: ", bufferLike);
+  // console.log("🔄 Buffer JSON to Uint8Array1: ", bufferLike);
   if (!bufferLike) return null;
   if (typeof bufferLike === "string") {
     try {
       const arr = Uint8Array.from(atob(bufferLike), (c) => c.charCodeAt(0));
-      console.log("🔄 Buffer JSON to Uint8Array(base64): ", arr);
+      // console.log("🔄 Buffer JSON to Uint8Array(base64): ", arr);
       return arr;
     } catch {
       console.log("🔄 Buffer JSON to Uint8Array(base64) failed");
@@ -424,11 +424,11 @@ export function bufferJSONToUint8Array(
     }
   }
   if (Array.isArray(bufferLike)) {
-    console.log("🔄 Buffer JSON to Uint8Array2: ", bufferLike);
+    // console.log("🔄 Buffer JSON to Uint8Array2: ", bufferLike);
     return new Uint8Array(bufferLike);
   }
   if (typeof bufferLike === "object" && Array.isArray(bufferLike.data)) {
-    console.log("🔄 Buffer JSON to Uint8Array3: ", bufferLike.data);
+    // console.log("🔄 Buffer JSON to Uint8Array3: ", bufferLike.data);
     return new Uint8Array(bufferLike.data);
   }
   console.log("🔄 Buffer JSON to Uint8Array4: ", null);
@@ -441,14 +441,14 @@ export async function gunzipUint8ArrayToText(
 ): Promise<string> {
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
-  console.log("🔄 Gunzip Uint8Array to text: ", binary);
+  // console.log("🔄 Gunzip Uint8Array to text: ", binary);
   if (typeof DecompressionStream !== "undefined") {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     const ds = new DecompressionStream("gzip");
     const stream = new Response(binary as BodyInit).body!.pipeThrough(ds);
     const buf = await new Response(stream).arrayBuffer();
-    console.log("🔄 Gunzip Uint8Array to text: ", buf);
+    // console.log("🔄 Gunzip Uint8Array to text: ", buf);
     return new TextDecoder().decode(buf);
   }
   return "";

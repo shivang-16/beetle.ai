@@ -26,19 +26,21 @@ const RepoFileTree = ({ repoTree }: { repoTree: RepoTree }) => {
   return (
     <TreeProvider
       onSelectionChange={(ids) => console.log("Selected:", ids)}
-      className="max-w-56 border-r overflow-y-auto output-scrollbar">
+      className="max-w-56 overflow-y-auto output-scrollbar">
       <TreeView className="!p-0">
         {repoTree && repoTree.repository && repoTree.repository.repo && (
           <Button
             variant={"secondary"}
-            className="bg-primary/30 cursor-pointer rounded-none w-full">
+            className="bg-transparent cursor-pointer rounded-none w-full">
             <span className="w-full truncate text-left">
               {repoTree?.repository?.repo}
             </span>
           </Button>
         )}
         {treeData && treeData.length > 0 ? (
-          treeData.map((node) => <RenderTreeNode key={node.id} node={node} />)
+          treeData.map((node, i) => (
+            <RenderTreeNode key={`${node.id}-${i}`} node={node} />
+          ))
         ) : (
           <div>No Tree Found</div>
         )}

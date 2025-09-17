@@ -6,21 +6,21 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import SyncRepositoriesButton from "./_components/SyncRepositoriesButton";
 import { Plus } from "lucide-react";
-import { getAuthToken } from "@/_actions/auth-token";
 import TeamSwitcher from "./_components/TeamSwitcher";
 
 type RepoScope = "user" | "team";
 
-const Page = async (props: { searchParams?: Promise<{ query?: string, scope?: RepoScope, teamId?: string }> }) => {
+const Page = async (props: {
+  searchParams?: Promise<{
+    query?: string;
+    scope?: RepoScope;
+    teamId?: string;
+  }>;
+}) => {
   const searchParams = await props.searchParams;
   const query = searchParams?.query || "";
   const scope = (searchParams?.scope as RepoScope) || "user";
   const teamId = searchParams?.teamId;
-
-  console.log(searchParams,"searchParams");
-
-  const {token} = await getAuthToken();
-  console.log("token", token);
 
   return (
     <div className="h-svh max-w-7xl w-full mx-auto py-5 px-4">

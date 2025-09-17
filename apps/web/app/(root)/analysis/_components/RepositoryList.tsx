@@ -6,14 +6,18 @@ import RepositoryItem from "./RepositoryItem";
 
 type RepoScope = "user" | "team";
 
-const RepositoryList = async ({ query, scope, teamId }: { query: string; scope: RepoScope; teamId?: string }) => {
+const RepositoryList = async ({
+  query,
+  scope,
+  teamId,
+}: {
+  query: string;
+  scope: RepoScope;
+  teamId?: string;
+}) => {
   let data: GithubRepository[] | undefined;
 
   try {
-   
-
-    console.log(scope, teamId,"scope, teamId");
-
     const res = await getRepository(query, scope, teamId);
     data = (res?.data || []).reverse();
   } catch (error) {

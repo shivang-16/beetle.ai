@@ -105,10 +105,11 @@ const AppSidebar = () => {
       </SidebarContent>
 
       <SidebarFooter>
-        <SidebarMenu className={cn("items-center justify-between flex-col")}>
+        <SidebarMenu
+          className={cn("items-center justify-between flex-col gap-4")}>
           <div
             className={cn(
-              "flex items-center justify-between w-full",
+              "flex items-center justify-between w-full gap-4",
               open ? "flex-row-reverse" : "flex-col-reverse"
             )}>
             <SidebarMenuItem className="items-center justify-center flex">

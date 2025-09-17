@@ -159,3 +159,16 @@ export type ParsedWarning = {
   exampleFix?: string;
   whyThisMatters?: string;
 };
+
+type AnalysisItem = {
+  _id: string;
+  analysisId: string;
+  userId: string;
+  repoUrl: string;
+  model: string;
+  prompt: string;
+  status: "completed" | "interrupted" | "error";
+  exitCode?: number | null;
+  createdAt: string;
+  updatedAt: string;
+};

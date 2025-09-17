@@ -49,7 +49,9 @@ export function RenderLLMSegments({
   return segments.map((seg, i) => {
     if (seg.kind === "text") {
       return (
-        <div key={i} className="w-full text-xs mb-2 whitespace-pre-wrap">
+        <div
+          key={i}
+          className="w-full dark:text-neutral-200 text-neutral-800 text-sm leading-7 mb-2 whitespace-pre-wrap">
           <Markdown
             components={{
               code(props) {
@@ -369,7 +371,9 @@ export function RenderLLMSegments({
       const file_status = seg.content.split("\n");
 
       return (
-        <Card key={i} className="mt-3 mb-5 w-max text-muted-foreground">
+        <Card
+          key={i}
+          className="mt-3 mb-5 w-max dark:text-neutral-200 text-neutral-800 text-sm leading-7">
           <CardContent className="flex flex-col items-start gap-y-1.5 pb-0 py-3.5 px-2.5">
             {file_status && file_status.length > 0
               ? file_status.map((item, i) => <span key={i}>{item}</span>)
