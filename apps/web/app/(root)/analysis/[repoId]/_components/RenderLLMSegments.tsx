@@ -11,6 +11,7 @@ import {
 import { LLMResponseSegment } from "@/types/types";
 import {
   cn,
+  extractPath,
   extractTitleAndDescription,
   parsePatchString,
   parseWarningString,
@@ -83,7 +84,7 @@ export function RenderLLMSegments({
         <div
           key={i}
           className="w-full my-4 rounded-md border bg-card hover:bg-accent/40 transition-colors">
-          <div className="flex items-start gap-3 p-4">
+          <div className="flex items-center gap-3 p-4">
             {/* state dot */}
             <div className="border rounded-full p-1 mt-1 h-4 w-4 border-[#238636] flex items-center justify-center">
               <span
@@ -98,9 +99,11 @@ export function RenderLLMSegments({
                 title={githubIssue.title}
                 description={githubIssue.description}
                 trigger={
-                  <button className="text-left font-bold text-md hover:underline text-black dark:text-white truncate">
+                  <Button
+                    variant={"link"}
+                    className="text-left font-bold text-md hover:underline text-black dark:text-white truncate justify-start p-0 cursor-pointer">
                     {githubIssue.title}
-                  </button>
+                  </Button>
                 }
               />
 
@@ -112,9 +115,9 @@ export function RenderLLMSegments({
             </div>
 
             {/* right meta */}
-            <div className="ml-3 shrink-0 cursor-pointer text-white bg-[#238636] px-3 py-2 rounded-lg self-center text-xs flex items-center gap-1">
+            <div>
               {/* mimic comment count */}
-              <button>Open</button>
+              <Button className="cursor-pointer">Open</Button>
             </div>
           </div>
         </div>
@@ -129,16 +132,16 @@ export function RenderLLMSegments({
 
       return (
         <div key={i} className="w-full my-5 overflow-hidden">
-          <div className="px-4 pt-3 text-xs font-medium text-muted-foreground">
+          <div className="pt-3 text-xs font-medium text-muted-foreground">
             Suggested change
           </div>
 
-          <div className="mx-4 my-2 rounded-md border bg-muted/20">
+          <div className="my-2 rounded-md border bg-muted/20">
             <div className="flex items-center gap-2 border-b px-3 py-2 text-xs text-muted-foreground">
               <span className="rounded-md border bg-background px-2 py-0.5">
                 Read
               </span>
-              <span className="truncate">{file}</span>
+              <span className="truncate">{extractPath(file)}</span>
             </div>
 
             <div className="p-0.5">
@@ -167,7 +170,7 @@ export function RenderLLMSegments({
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 px-4 pb-4">
+          <div className="flex items-center justify-end gap-2 pb-4">
             <Button variant="secondary" size="sm" disabled>
               Add suggestion to batch
             </Button>
@@ -197,7 +200,7 @@ export function RenderLLMSegments({
         <div key={i} className="w-full my-4 rounded-md border bg-card">
           <button
             onClick={toggleWarning}
-            className="w-full flex items-center gap-3 p-4 text-left hover:bg-accent/40 transition-colors">
+            className="w-full flex items-center gap-3 p-4 text-left hover:bg-accent/40 transition-colors cursor-pointer">
             {/* Warning triangle icon */}
             <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center">
               <svg
@@ -215,7 +218,7 @@ export function RenderLLMSegments({
             {/* Warning content */}
             <div className="flex-1 min-w-0">
               <div className="font-semibold text-sm text-foreground">
-                Warning in {warning.file}
+                Warning in {extractPath(warning.file || "")}
               </div>
               <div className="text-xs text-muted-foreground mt-1">
                 Line {warning.line} • {warning.type}
@@ -363,9 +366,15 @@ export function RenderLLMSegments({
     }
 
     if (seg.kind === "file_status") {
+      const file_status = seg.content.split("\n");
+
       return (
-        <Card key={i} className="mt-3 mb-5">
-          <CardContent className="pt-6">{seg.content}</CardContent>
+        <Card key={i} className="mt-3 mb-5 w-max text-muted-foreground">
+          <CardContent className="flex flex-col items-start gap-y-1.5 pb-0 py-3.5 px-2.5">
+            {file_status && file_status.length > 0
+              ? file_status.map((item, i) => <span key={i}>{item}</span>)
+              : null}
+          </CardContent>
         </Card>
       );
     }

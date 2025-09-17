@@ -11,9 +11,14 @@ import GithubRoutes from "./routes/github.routes.js";
 import UserRoutes from "./routes/user.routes.js";
 import AnalysisRoutes from "./routes/analysis.routes.js";
 import TeamRoutes from "./routes/team.routes.js";
+import { config } from "dotenv";
 
 export function createApp(): Application {
   const app = express();
+
+  config({
+    path: "./.env",
+  });
 
   app.use(
     expressWinston.logger({

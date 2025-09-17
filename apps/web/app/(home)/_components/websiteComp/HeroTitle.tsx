@@ -4,28 +4,49 @@ import React from "react";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
 
-const HeroTitle = ({ title }: { title: string }) => {
-  const heading = title.split(" ");
+const HeroTitle = () => {
+  // Split into 3 lines as shown in the image
+  const lines = [
+    "AI CODE REVIEWER",
+    "THAT THINK LIKE", 
+    "HUMANS"
+  ];
+  
   return (
-    <>
-      {heading.map((word, index) => (
-        <motion.span
-          key={index}
-          initial={{ opacity: 0, filter: "blur(5px)", y: 10 }}
+    <div>
+      {lines.map((line, lineIndex) => (
+        <motion.div
+          key={lineIndex}
+          initial={{ opacity: 0, filter: "blur(5px)", y: 20 }}
           animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
           transition={{
-            delay: index * 0.1,
-            duration: 0.4,
+            delay: lineIndex * 0.2,
+            duration: 0.6,
             ease: "easeInOut",
           }}
-          className={cn(
-            "mr-2.5 inline-block",
-            index === heading.length - 1 ? "text-primary" : ""
-          )}>
-          {word}
-        </motion.span>
+          className="block"
+        >
+          {line.split(" ").map((word, wordIndex) => (
+            <motion.span
+              key={wordIndex}
+              initial={{ opacity: 0, filter: "blur(5px)", y: 10 }}
+              animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
+              transition={{
+                delay: lineIndex * 0.2 + wordIndex * 0.1,
+                duration: 0.4,
+                ease: "easeInOut",
+              }}
+              className={cn(
+                "mr-4 inline-block",
+                lineIndex === 2 ? "text-primary" : "text-white"
+              )}
+            >
+              {word}
+            </motion.span>
+          ))}
+        </motion.div>
       ))}
-    </>
+    </div>
   );
 };
 

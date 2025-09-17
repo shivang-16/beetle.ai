@@ -30,7 +30,13 @@ const statusColor = (status: AnalysisItem["status"]) => {
   }
 };
 
-const AnalysisViewer = ({ repoId, repoTree }: { repoId: string, repoTree: RepoTree }) => {
+const AnalysisViewer = ({
+  repoId,
+  repoTree,
+}: {
+  repoId: string;
+  repoTree: RepoTree;
+}) => {
   const [analyses, setAnalyses] = useState<AnalysisItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -59,70 +65,76 @@ const AnalysisViewer = ({ repoId, repoTree }: { repoId: string, repoTree: RepoTr
 
   return (
     <div className="h-full w-full flex">
-      { analyses.length > 0 && <aside className="w-96 border-r h-full overflow-y-auto output-scrollbar p-3">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-base font-medium">Analyses</h3>
-          <Button
-            size="sm"
-            className="cursor-pointer"
-            onClick={async () => {
-              try {
-                setLoading(true);
-                const res = await fetch(
-                  `${_config.API_BASE_URL}/api/analysis/${encodeURIComponent(repoId)}`,
-                  { credentials: "include" }
-                );
-                const json = await res.json();
-                const list: AnalysisItem[] = Array.isArray(json?.data)
-                  ? json.data
-                  : [];
-                setAnalyses(list);
-                if (!selectedId) {
-                  const first = list.length > 0 ? list[0] : undefined;
-                  if (first) setSelectedId(first._id);
-                }
-              } catch {
-                // noop
-              } finally {
-                setLoading(false);
-              }
-            }}>
-            Refresh
-          </Button>
-        </div>
-        <div className="flex flex-col gap-2">
-          {analyses?.map((a, idx) => (
+      {analyses.length > 0 && (
+        <aside className="w-96 border-r h-full overflow-y-auto output-scrollbar p-3">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-base font-medium">Analyses</h3>
             <Button
-              key={a._id}
-              variant={"outline"}
-              className={`flex-col h-auto items-start text-left border rounded p-3 transition cursor-pointer ${
-                selectedId === a._id ? "ring-2 ring-primary" : ""
-              }`}
-              onClick={() => setSelectedId(a._id)}>
-              <div className="flex items-center justify-between gap-2 w-full">
-                <span className="text-xs text-muted-foreground">
-                  #{idx + 1}
-                </span>
-                <span
-                  className={`text-[10px] px-2 py-0.5 rounded border ${statusColor(
-                    a.status
-                  )}`}>
-                  {a.status}
-                </span>
-              </div>
-              <div className="mt-1 text-sm font-medium truncate">
-              {new Date(a.createdAt).toLocaleString()}              </div>
-             
+              size="sm"
+              className="cursor-pointer"
+              onClick={async () => {
+                try {
+                  setLoading(true);
+                  const res = await fetch(
+                    `${_config.API_BASE_URL}/api/analysis/${encodeURIComponent(repoId)}`,
+                    { credentials: "include" }
+                  );
+                  const json = await res.json();
+                  const list: AnalysisItem[] = Array.isArray(json?.data)
+                    ? json.data
+                    : [];
+                  setAnalyses(list);
+                  if (!selectedId) {
+                    const first = list.length > 0 ? list[0] : undefined;
+                    if (first) setSelectedId(first._id);
+                  }
+                } catch {
+                  // noop
+                } finally {
+                  setLoading(false);
+                }
+              }}>
+              Refresh
             </Button>
-          ))}
-          {!loading && analyses.length === 0 && (
-            <div className="text-xs text-muted-foreground">
-              No analyses yet.
-            </div>
-          )}
-        </div>
-      </aside>}
-        <RenderLogs repoId={repoId} analysisId={selectedId || undefined} repoTree={repoTree} />
+          </div>
+          <div className="flex flex-col gap-2">
+            {analyses?.map((a, idx) => (
+              <Button
+                key={a._id}
+                variant={"outline"}
+                className={`flex-col h-auto items-start text-left border rounded p-3 transition cursor-pointer ${
+                  selectedId === a._id ? "ring-2 ring-primary" : ""
+                }`}
+                onClick={() => setSelectedId(a._id)}>
+                <div className="flex items-center justify-between gap-2 w-full">
+                  <span className="text-xs text-muted-foreground">
+                    #{idx + 1}
+                  </span>
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded border capitalize ${statusColor(
+                      a.status
+                    )}`}>
+                    {a.status}
+                  </span>
+                </div>
+                <div className="mt-1 text-sm font-medium truncate">
+                  {new Date(a.createdAt).toLocaleString()}{" "}
+                </div>
+              </Button>
+            ))}
+            {!loading && analyses.length === 0 && (
+              <div className="text-xs text-muted-foreground">
+                No analyses yet.
+              </div>
+            )}
+          </div>
+        </aside>
+      )}
+      <RenderLogs
+        repoId={repoId}
+        analysisId={selectedId || undefined}
+        repoTree={repoTree}
+      />
     </div>
   );
 };

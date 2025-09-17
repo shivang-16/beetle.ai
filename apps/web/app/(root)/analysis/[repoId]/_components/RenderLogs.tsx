@@ -183,63 +183,56 @@ const RenderLogs = ({
 
   return (
     <main className="flex w-full">
-    <RepoFileTree repoTree={repoTree} />
+      <RepoFileTree repoTree={repoTree} />
 
-    <div className="h-full w-full flex flex-col">
-      <div className="px-4 py-3 flex justify-end-safe gap-3">
-        <Button onClick={analyzeRepo} className="cursor-pointer">
-          Fetch Logs
-        </Button>
+      <div className="h-full w-full flex flex-col">
+        <div className="px-4 py-3 flex justify-end-safe gap-3">
+          <Button onClick={analyzeRepo} className="cursor-pointer">
+            Fetch Logs
+          </Button>
 
-        {/* <Button
-          variant={"outline"}
-          onClick={loadFromDb}
-          className="cursor-pointer">
-          Load From DB
-        </Button> */}
-
-        <Button
-          variant={"outline"}
-          onClick={handleCancelLogs}
-          className="cursor-pointer">
-          Cancel Logs
-        </Button>
-      </div>
-      <div className="flex-1 px-4 pb-3 max-h-[calc(100%-60px)] max-w-2xl w-full mx-auto">
-        <div className="w-full h-full py-3 overflow-y-auto output-scrollbar">
-          <div className="w-full flex flex-col items-start gap-3.5 text-muted-foreground">
-            {logs.map((log, i) => (
-              <React.Fragment key={i}>
-                {log.type === "LLM_RESPONSE" && log.segments ? (
-                  <div className="w-full p-3 break-words text-xs m-0">
-                    <RenderLLMSegments segments={log.segments} />
-                  </div>
-                ) : log.type === "TOOL_CALL" ? (
-                  <div className="w-full p-3 whitespace-pre-wrap text-xs m-0">
-                    <MergedLogs log={log} />
-                  </div>
-                ) : log.type === "INITIALISATION" ? (
-                  <div className="w-full p-3 whitespace-pre-wrap text-xs m-0">
-                    {log.messages.join("\n")}
-                  </div>
-                ) : null}
-              </React.Fragment>
-            ))}
-          </div>
-
-          {isLoading && (
-            <div className="flex items-center gap-2">
-              <RefreshCcwDotIcon className="size-5 animate-spin text-primary" />
-              <span className="italic text-secondary text-sm">
-                Analyzing...
-              </span>
+          <Button
+            variant={"outline"}
+            onClick={handleCancelLogs}
+            className="cursor-pointer">
+            Cancel Logs
+          </Button>
+        </div>
+        <div className="flex-1 px-4 pb-3 max-h-[calc(100%-60px)] max-w-2xl w-full mx-auto">
+          <div className="w-full h-full py-3 overflow-y-auto output-scrollbar">
+            <div className="w-full flex flex-col items-start gap-3.5 text-muted-foreground">
+              {logs.map((log, i) => (
+                <React.Fragment key={i}>
+                  {log.type === "LLM_RESPONSE" && log.segments ? (
+                    <div className="w-full p-3 break-words text-xs m-0">
+                      <RenderLLMSegments segments={log.segments} />
+                    </div>
+                  ) : log.type === "TOOL_CALL" ? (
+                    <div className="w-full p-3 whitespace-pre-wrap text-xs m-0">
+                      <MergedLogs log={log} />
+                    </div>
+                  ) : log.type === "INITIALISATION" ? (
+                    <div className="w-full p-3 whitespace-pre-wrap text-xs m-0">
+                      {log.messages.join("\n")}
+                    </div>
+                  ) : null}
+                </React.Fragment>
+              ))}
             </div>
-          )}
 
-          {/* <div ref={logsEndRef} /> */}
+            {isLoading && (
+              <div className="flex items-center gap-2">
+                <RefreshCcwDotIcon className="size-5 animate-spin text-primary" />
+                <span className="italic text-secondary text-sm">
+                  Analyzing...
+                </span>
+              </div>
+            )}
+
+            {/* <div ref={logsEndRef} /> */}
+          </div>
         </div>
       </div>
-    </div>
     </main>
   );
 };

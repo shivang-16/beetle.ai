@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "apps/api/package.json",
+      "use": "@vercel/node",
+      "config": {
+        "buildCommand": "cd apps/api && npm run build"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "apps/api/dist/server.js"
+    }
+  ]
+}

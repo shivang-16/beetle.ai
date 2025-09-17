@@ -11,9 +11,6 @@ import {
 } from "@/components/ui/dialog";
 import { MarkdownRenderer } from "@/components/ui/markdown";
 import React from "react";
-import Markdown from "react-markdown";
-import SyntaxHighlighter from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 const GithubIssueDialog = ({
   description,

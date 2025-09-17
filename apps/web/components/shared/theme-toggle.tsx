@@ -9,9 +9,11 @@ import { cn } from "@/lib/utils";
 const ThemeToggle = ({
   darkIconClassName = "",
   lightIconClassName = "",
+  className = "",
 }: {
   lightIconClassName?: string;
   darkIconClassName?: string;
+  className?: string;
 }) => {
   const { setTheme, resolvedTheme } = useTheme();
 
@@ -29,7 +31,7 @@ const ThemeToggle = ({
     <Button
       size={"icon"}
       variant={"ghost"}
-      className="cursor-pointer rounded-full"
+      className={cn("cursor-pointer rounded-full", className)}
       onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}>
       {resolvedTheme === "dark" ? (
         <SunIcon className={cn("size-4 text-amber-400", lightIconClassName)} />

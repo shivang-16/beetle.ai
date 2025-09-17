@@ -2,7 +2,7 @@ import React from "react";
 import { getRepository } from "../analysis/_actions/getRepository";
 import { GithubRepository } from "@/types/types";
 
-type RepoGroups = Record<string, GithubRepository[]>;
+export const dynamic = 'force-dynamic';
 
 const models = [
   { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
@@ -11,13 +11,13 @@ const models = [
   { id: "gpt-4o-mini", label: "GPT-4o Mini" },
 ];
 
-async function fetchRepos(): Promise<RepoGroups> {
+async function fetchRepos(): Promise<GithubRepository[]> {
   const res = await getRepository("");
-  return res?.data ?? {};
+  return res?.data ?? [];
 }
 
 const AgentsPage = async () => {
-  const repoGroups = await fetchRepos();
+  const repos = await fetchRepos();
 
   return (
     <div className="h-svh w-full flex items-center justify-center px-4">
@@ -64,14 +64,10 @@ const AgentsPage = async () => {
             {/* Repository selector under the input */}
             <div className="">
               <select className=" bg-transparent outline-none">
-                {Object.entries(repoGroups).map(([installation, repos]) => (
-                  <optgroup key={installation} label={installation}>
-                    {repos.map((repo) => (
-                      <option key={repo._id} value={repo.fullName}>
-                        {repo.fullName}
-                      </option>
-                    ))}
-                  </optgroup>
+                {repos.map((repo) => (
+                  <option key={repo._id} value={repo.fullName}>
+                    {repo.fullName}
+                  </option>
                 ))}
               </select>
             </div>

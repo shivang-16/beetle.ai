@@ -12,7 +12,6 @@ const Page = async ({
   const { repoId } = await params;
   const searchParamsData = await searchParams;
   const teamId = searchParamsData?.teamId;
-  console.log(params,"params");
 
   return (
     <Suspense key={repoId} fallback={<RepoSkeleton />}>

@@ -1,10 +1,10 @@
 // webhooks/github.webhooks.ts
 import { Webhooks } from '@octokit/webhooks';
 
-import { env } from '../config/env.js';
-import { commentOnIssueOpened, create_github_installation, delete_github_installation } from '../queries/github.queries.js';
+
+import { commentOnIssueOpened, create_github_installation, delete_github_installation, PrData } from '../queries/github.queries.js';
   // Set up GitHub webhooks
-  export const webhooks = new Webhooks({ secret: env.GITHUB_WEBHOOK_SECRET! });
+  export const webhooks = new Webhooks({ secret: process.env.GITHUB_WEBHOOK_SECRET! });
   
   // Handle installation created event
   webhooks.on('installation.created', async ({ payload }) => {
@@ -102,6 +102,12 @@ import { commentOnIssueOpened, create_github_installation, delete_github_install
     console.log('issues.opened', payload);
     await commentOnIssueOpened(payload);
   });
+
+  // Handle pull request opened events
+  webhooks.on('pull_request.opened', async ({ payload }) => {
+    const prData = await PrData(payload)
+    
+   });
   
   // Log all webhook events
   webhooks.onAny(({ name, payload }) => {

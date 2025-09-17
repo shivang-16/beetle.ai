@@ -3,10 +3,13 @@ import { createSandbox } from "../config/sandbox.js";
 import { CustomError } from "../middlewares/error.js";
 import { authenticateGithubRepo } from "../utils/authenticateGithubUrl.js";
 import { randomUUID } from "crypto";
-import { initRedisBuffer, appendToRedisBuffer, finalizeAnalysisAndPersist } from "../utils/analysisStreamStore.js";
+import {
+  initRedisBuffer,
+  appendToRedisBuffer,
+  finalizeAnalysisAndPersist,
+} from "../utils/analysisStreamStore.js";
 import Analysis from "../models/analysis.model.js";
 import { Github_Repository } from "../models/github_repostries.model.js";
-
 
 export const executeAnalysis = async (
   req: Request,
@@ -20,8 +23,9 @@ export const executeAnalysis = async (
   let clientAborted = false;
   let userId!: string;
   let repoUrl: string = "";
-  let modelParam: string = "gemini-2.0-flash";
-  let promptParam: string = "Analyze this codebase for security vulnerabilities and code quality";
+  let modelParam: string = "gemini-2.5-flash";
+  let promptParam: string =
+    "Analyze this codebase for security vulnerabilities and code quality";
   let githubRepositoryId: string = "";
   let sandboxId: string = "";
   try {
@@ -31,17 +35,20 @@ export const executeAnalysis = async (
     const {
       // repoUrl,
       github_repositoryId,
-      model = "gemini-2.0-flash",
+      model = "gemini-2.5-flash",
       prompt = "Analyze this codebase for security vulnerabilities and code quality",
     } = req.body;
 
-    const github_repository = await Github_Repository.findById(github_repositoryId);
+    const github_repository =
+      await Github_Repository.findById(github_repositoryId);
     if (!github_repository) {
       return next(new CustomError("Github repository not found", 404));
     }
 
-    if(github_repository.analysisRequired === false) {
-      return next(new CustomError("You haven't enabled analysis for this repository", 400));
+    if (github_repository.analysisRequired === false) {
+      return next(
+        new CustomError("You haven't enabled analysis for this repository", 400)
+      );
     }
 
     // Persist the resolved repo id for finalize
@@ -87,7 +94,11 @@ export const executeAnalysis = async (
     // Function to categorize and stream data to client
     const streamToClient = async (data: string, isWorkflowLog = false) => {
       console.log("[CLIENT STREAMING]", data);
-      try { await appendToRedisBuffer(analysisId, data); } catch (e) { console.error("Redis append error:", e); }
+      try {
+        await appendToRedisBuffer(analysisId, data);
+      } catch (e) {
+        console.error("Redis append error:", e);
+      }
 
       if (isWorkflowLog) {
         // Phase 2: Stream ALL workflow logs so the frontend parser receives
@@ -115,9 +126,13 @@ export const executeAnalysis = async (
     await streamToClient("🔄 Testing real-time streaming...\n");
     for (let i = 1; i <= 3; i++) {
       await new Promise((resolve) => setTimeout(resolve, 500));
-      await streamToClient(`⏳ Stream test ${i}/3 - Real-time output working!\n`);
+      await streamToClient(
+        `⏳ Stream test ${i}/3 - Real-time output working!\n`
+      );
     }
-    await streamToClient("✅ Streaming confirmed working, starting analysis...\n");
+    await streamToClient(
+      "✅ Streaming confirmed working, starting analysis...\n"
+    );
     await streamToClient("");
 
     // Construct the analysis command with GitHub token embedded in repo URL
@@ -132,7 +147,7 @@ export const executeAnalysis = async (
 
     // Now the Python script just needs to use the repo URL as-is
 
-    const analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" --model "${model}" --api-key "AIzaSyDr5TkrvYM3CXrqShrmJG5aPjkAfqs2xJg"`;
+    const analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" --model "${model}" --mode=full_repo_analysis --api-key "AIzaSyBQxCwkF42OaoCq2M4EMyuzp7N6MM2zZWE"`;
     const maskedCommand = authResult.usedToken
       ? analysisCommand.replace(repoUrlForAnalysis, "[TOKEN_HIDDEN]")
       : analysisCommand;
@@ -141,7 +156,9 @@ export const executeAnalysis = async (
 
     // Phase 2: Workflow execution begins
     await streamToClient("🚀 Starting workflow execution...");
-    await streamToClient("📋 Phase 2: Workflow logs (filtered for tool calls and LLM responses)");
+    await streamToClient(
+      "📋 Phase 2: Workflow logs (filtered for tool calls and LLM responses)"
+    );
     await streamToClient("=".repeat(50));
     isWorkflowRunning = true;
 
@@ -165,22 +182,27 @@ export const executeAnalysis = async (
     const result = await command.wait();
     runExitCode = result.exitCode;
 
-
     await streamToClient("", true);
     await streamToClient("=".repeat(50), true);
-    await streamToClient(`✅ Analysis completed with exit code: ${result.exitCode}`, true);
+    await streamToClient(
+      `✅ Analysis completed with exit code: ${result.exitCode}`,
+      true
+    );
 
     if (result.exitCode === 0) {
       await streamToClient("🎉 Analysis finished successfully!", true);
     } else {
-      await streamToClient("⚠️ Analysis completed with warnings or errors", true);
+      await streamToClient(
+        "⚠️ Analysis completed with warnings or errors",
+        true
+      );
     }
 
     await streamToClient("=".repeat(50), true);
 
     // Close the sandbox
     await sandbox.kill();
-    await sandbox.betaPause() 
+    await sandbox.betaPause();
     sandboxId = sandbox.sandboxId;
     await streamToClient("🔒 Sandbox closed", true);
 
@@ -198,13 +220,17 @@ export const executeAnalysis = async (
       res.end();
     }
   } finally {
-    try { if (sandboxRef) await sandboxRef.kill(); } catch (_) {}
+    try {
+      if (sandboxRef) await sandboxRef.kill();
+    } catch (_) {}
 
     try {
       if (analysisId && userId && repoUrl) {
-        const status: 'completed' | 'interrupted' | 'error' = clientAborted
-          ? 'interrupted'
-          : (typeof runExitCode === 'number' && runExitCode === 0 ? 'completed' : 'error');
+        const status: "completed" | "interrupted" | "error" = clientAborted
+          ? "interrupted"
+          : typeof runExitCode === "number" && runExitCode === 0
+            ? "completed"
+            : "error";
 
         await finalizeAnalysisAndPersist({
           analysisId,
@@ -215,11 +241,11 @@ export const executeAnalysis = async (
           model: modelParam,
           prompt: promptParam,
           status,
-          exitCode: typeof runExitCode === 'number' ? runExitCode : null,
+          exitCode: typeof runExitCode === "number" ? runExitCode : null,
         });
       }
     } catch (persistErr) {
-      console.error('Failed to persist analysis:', persistErr);
+      console.error("Failed to persist analysis:", persistErr);
     }
   }
 };
@@ -250,22 +276,24 @@ export const getRepositoryAnalysis = async (
   next: NextFunction
 ) => {
   try {
-    const { github_repositoryId } = req.params as { github_repositoryId: string };
+    const { github_repositoryId } = req.params as {
+      github_repositoryId: string;
+    };
     console.log("🔄 Getting analysis: ", github_repositoryId);
 
     let doc = null as any;
     try {
-      doc = await Analysis.find({ github_repositoryId: github_repositoryId }).sort({createdAt: -1});
+      doc = await Analysis.find({
+        github_repositoryId: github_repositoryId,
+      }).sort({ createdAt: -1 });
       // console.log("🔄 Doc: ", doc);
     } catch (_) {
       // ignore cast errors
     }
-    
 
     if (!doc) {
       return next(new CustomError("Analysis not found", 404));
     }
-
 
     return res.status(200).json({
       success: true,
@@ -279,8 +307,8 @@ export const getRepositoryAnalysis = async (
         status: d.status,
         exitCode: d.exitCode,
         createdAt: d.createdAt,
-        updatedAt: d.updatedAt
-      }))
+        updatedAt: d.updatedAt,
+      })),
     });
   } catch (error: any) {
     console.error("Error fetching analysis:", error);
@@ -304,22 +332,17 @@ export const getRepositoryAnalysisLogs = async (
     } catch (_) {
       // ignore cast errors
     }
-  
 
     if (!doc) {
       return next(new CustomError("Analysis not found", 404));
     }
 
-
     return res.status(200).json({
       success: true,
-      data: doc
+      data: doc,
     });
   } catch (error: any) {
     console.error("Error fetching analysis:", error);
     next(new CustomError(error.message || "Failed to fetch analysis", 500));
   }
 };
-
-
-

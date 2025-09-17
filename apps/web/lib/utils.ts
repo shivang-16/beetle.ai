@@ -563,119 +563,93 @@ export function parseWarningString(input: string): ParsedWarning {
   return result;
 }
 
-export class ObjectMerger {
-  private pendingOperations: Map<string, LogItem>; // Map to store incomplete operations
-  private completedObjects: LogItem[]; // Array to store completed merged objects
+export function parseToolCall(
+  log: string
+): { type: string; result: any } | null {
+  try {
+    // Extract type (inside square brackets)
+    const typeMatch = log.match(/\[(.*?)\]/);
+    if (!typeMatch) return null;
+    const type = typeMatch[1] ?? "";
 
-  constructor() {
-    this.pendingOperations = new Map<string, LogItem>();
-    this.completedObjects = [];
-  }
+    // Extract payload (after square bracket)
+    const payloadMatch = log.match(/\] (.*)$/s);
+    if (!payloadMatch) return { type, result: null };
+    let jsonLike = payloadMatch[1] ? payloadMatch[1].trim() : "";
 
-  processObject(obj: LogItem): LogItem | null {
-    console.log("Processing object:", JSON.stringify(obj, null, 2));
-
-    if (!obj.type || !obj.messages || obj.messages.length === 0) {
-      console.log("Invalid object - missing type or messages");
-      return null;
+    // Handle empty array case directly
+    if (jsonLike === "[]") {
+      return { type, result: [] };
     }
 
-    // Extract the operation from the first message
-    const message = obj.messages[0];
-    console.log("Message:", message);
+    // Convert Python-style values
+    jsonLike = jsonLike
+      .replace(/\bTrue\b/g, "true")
+      .replace(/\bFalse\b/g, "false")
+      .replace(/\bNone\b/g, "null");
 
-    const operationMatch = message.match(/\[([^\]]+)\]/);
-    console.log("Operation match:", operationMatch);
-
-    if (!operationMatch) {
-      console.log("No operation found in message");
-      return null;
-    }
-
-    const operation = operationMatch[1];
-    if (!operation) {
-      console.log("Operation is undefined");
-      return null;
-    }
-
-    console.log("Operation:", operation);
-
-    const isResult = operation.endsWith("_RESULT");
-    const baseOperation = isResult
-      ? operation.replace(/_RESULT$/, "")
-      : operation;
-
-    console.log("Is result:", isResult);
-    console.log("Base operation:", baseOperation);
-    console.log(
-      "Pending operations:",
-      Array.from(this.pendingOperations.keys())
-    );
-
-    if (this.pendingOperations.has(baseOperation)) {
-      console.log("Found matching pending operation");
-      // We have a pending operation, merge with it
-      const existingObj = this.pendingOperations.get(baseOperation)!;
-      existingObj.messages.push(...obj.messages);
-
-      // If this is a result message, the operation is now complete
-      if (isResult) {
-        console.log("Completing operation");
-        this.pendingOperations.delete(baseOperation);
-        this.completedObjects.push(existingObj);
-        return existingObj;
-      }
-
-      console.log("Still waiting for result");
-      return null; // Still waiting for the result
-    } else {
-      console.log("New operation - storing as pending");
-      // New operation, store it as pending
-      const newObj: LogItem = {
-        type: obj.type,
-        messages: [...obj.messages],
-      };
-
-      // If this is a result without a pending operation, complete it immediately
-      if (isResult) {
-        console.log(
-          "Result without pending operation - completing immediately"
-        );
-        this.completedObjects.push(newObj);
-        return newObj;
-      }
-
-      // Store as pending and wait for result
-      this.pendingOperations.set(baseOperation, newObj);
-      console.log(
-        "Stored as pending. Pending operations now:",
-        Array.from(this.pendingOperations.keys())
-      );
-      return null;
-    }
-  }
-
-  private hasResultMessage(messages: string[]): boolean {
-    return messages.some((msg) => {
-      const match = msg.match(/\[([^\]]+)\]/);
-      return match && match[1] && match[1].endsWith("_RESULT");
+    // Replace single-quoted strings safely with double quotes
+    jsonLike = jsonLike.replace(/'([^']*)'/g, (_, val) => {
+      return `"${val.replace(/"/g, '\\"')}"`;
     });
-  }
 
-  // Get all completed objects
-  getCompletedObjects(): LogItem[] {
-    return [...this.completedObjects];
+    return {
+      type,
+      result: !jsonLike.includes("Scanning")
+        ? JSON.parse(jsonLike)
+        : payloadMatch[1]?.trim(),
+    };
+  } catch (err) {
+    console.error("Failed to parse log:", err);
+    return null;
   }
+}
 
-  // Get pending operations (useful for debugging)
-  getPendingOperations(): Map<string, LogItem> {
-    return new Map(this.pendingOperations);
-  }
+export function detectLanguage(
+  filePath: string
+): { language: string; icon: string } | null {
+  const ext = filePath.split(".").pop()?.toLowerCase();
+  if (!ext) return null;
 
-  // Clear completed objects (if you want to process them and clear the buffer)
-  clearCompleted(): LogItem[] {
-    const completed = [...this.completedObjects];
-    this.completedObjects = [];
-    return completed;
-  }
+  // Map extension → language + VS Code icon name
+  const map: Record<string, { language: string; icon: string }> = {
+    js: { language: "javascript", icon: "vscode-icons:file-type-js" },
+    jsx: { language: "javascript", icon: "vscode-icons:file-type-reactjs" },
+    ts: { language: "typescript", icon: "vscode-icons:file-type-typescript" },
+    tsx: { language: "typescript", icon: "vscode-icons:file-type-reactts" },
+    py: { language: "python", icon: "vscode-icons:file-type-python" },
+    java: { language: "java", icon: "vscode-icons:file-type-java" },
+    cs: { language: "csharp", icon: "vscode-icons:file-type-csharp" },
+    cpp: { language: "cpp", icon: "vscode-icons:file-type-cpp" },
+    c: { language: "c", icon: "vscode-icons:file-type-c" },
+    rb: { language: "ruby", icon: "vscode-icons:file-type-ruby" },
+    php: { language: "php", icon: "vscode-icons:file-type-php" },
+    go: { language: "go", icon: "vscode-icons:file-type-go" },
+    rs: { language: "rust", icon: "vscode-icons:file-type-rust" },
+    swift: { language: "swift", icon: "vscode-icons:file-type-swift" },
+    kt: { language: "kotlin", icon: "vscode-icons:file-type-kotlin" },
+    m: { language: "objective-c", icon: "vscode-icons:file-type-objectivec" },
+    scala: { language: "scala", icon: "vscode-icons:file-type-scala" },
+    sh: { language: "shell", icon: "vscode-icons:file-type-shell" },
+    sql: { language: "sql", icon: "vscode-icons:file-type-sql" },
+    json: { language: "json", icon: "vscode-icons:file-type-json" },
+    yaml: { language: "yaml", icon: "vscode-icons:file-type-yaml" },
+    yml: { language: "yaml", icon: "vscode-icons:file-type-yaml" },
+    md: { language: "markdown", icon: "vscode-icons:file-type-markdown" },
+    html: { language: "html", icon: "vscode-icons:file-type-html" },
+    css: { language: "css", icon: "vscode-icons:file-type-css" },
+    scss: { language: "scss", icon: "vscode-icons:file-type-scss" },
+    xml: { language: "xml", icon: "vscode-icons:file-type-xml" },
+    Dockerfile: {
+      language: "Dockerfile",
+      icon: "vscode-icons:file-type-docker",
+    },
+  };
+
+  return map[ext] || null;
+}
+
+export function extractPath(filePath: string) {
+  const match = filePath.match(/repositories\/[^/]+\/(.+)/);
+  return match ? match[1] : null;
 }
