@@ -13,7 +13,7 @@ export async function initRedisBuffer(analysisId: string, ttlSeconds = 60 * 60 *
   const key = getAnalysisRedisKey(analysisId);
   // Initialize with empty string and TTL so abandoned runs are cleaned up
   await redis.set(key, "", "EX", ttlSeconds);
-  console.log(`[Redis][init] key=${key} ttl=${ttlSeconds}s`);
+  // console.log(`[Redis][init] key=${key} ttl=${ttlSeconds}s`);
 }
 
 export async function appendToRedisBuffer(analysisId: string, data: string): Promise<void> {
@@ -22,7 +22,7 @@ export async function appendToRedisBuffer(analysisId: string, data: string): Pro
   const payload = data.endsWith("\n") ? data : data + "\n";
   const appendedLen = Buffer.byteLength(payload);
   await redis.append(key, payload);
-  console.log(`[Redis][append] key=${key} bytes+=${appendedLen}`);
+  // console.log(`[Redis][append] key=${key} bytes+=${appendedLen}`);
 }
 
 type FinalizeStatus = "completed" | "interrupted" | "error";
@@ -47,7 +47,7 @@ export async function finalizeAnalysisAndPersist(params: FinalizeParams): Promis
     const rawBuffer = await redis.getBuffer(key);
     const originalBytes = rawBuffer ? rawBuffer.length : 0;
     const compressed = rawBuffer && originalBytes > 0 ? await gzipAsync(rawBuffer) : Buffer.alloc(0);
-    console.log(`[Redis][finalize:start] key=${key} originalBytes=${originalBytes} compressedBytes=${compressed.length} status=${status} exitCode=${exitCode ?? null}`);
+    // console.log(`[Redis][finalize:start] key=${key} originalBytes=${originalBytes} compressedBytes=${compressed.length} status=${status} exitCode=${exitCode ?? null}`);
 
     await Analysis.create({
       analysisId,
@@ -70,7 +70,7 @@ export async function finalizeAnalysisAndPersist(params: FinalizeParams): Promis
   } finally {
     try {
       const delCount = await redis.del(key);
-      console.log(`[Redis][cleanup] key=${key} deleted=${delCount}`);
+      // console.log(`[Redis][cleanup] key=${key} deleted=${delCount}`);
     } catch (_) {}
   }
 }

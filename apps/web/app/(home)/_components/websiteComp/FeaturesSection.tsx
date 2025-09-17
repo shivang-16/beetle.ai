@@ -49,6 +49,37 @@ export default function Features() {
           }}
         />
 
+        {/* Hero Text Section */}
+        <div className="relative z-10 py-2 pb-48">
+            {/* Main Heading */}
+            <div className="space-y-1 text-white text-4xl sm:text-3xl md:text-4xl lg:text-5xl font-medium leading-tight">
+              <div>
+                We're not building flashy demos. We're
+              </div>
+              <div>
+                engineering agents that think like humans,
+              </div>
+              <div>
+                and work better with them.
+              </div>
+            </div>
+
+            {/* Description Paragraphs */}
+            <div className="space-y-6 text-white/80 text-lg leading-relaxed flex pt-72">
+              <div className="w-[50%]">
+              </div>
+              <div className="text-[1rem] w-[50%]">
+              <p className="mb-5">
+                At <span className="text-primary">CodeDetector</span>, we believe intelligence isn't just about generating answers—it's about understanding context, reasoning through complexity, and acting with intent.
+              </p>
+              <p>
+                True AI should be controllable, predictable in behavior, steerable by design, and fully auditable in every step. It must be context-aware, able to learn from interactions and adapt over time. And it has to be tool-native, seamlessly operating within real environments, not isolated sandboxes.
+              </p>
+              </div>
+           
+            </div>
+        </div>
+
         <div className="mx-auto grid gap-4 lg:grid-cols-2">
           <FeatureCard>
             <CardHeader className="pb-3">

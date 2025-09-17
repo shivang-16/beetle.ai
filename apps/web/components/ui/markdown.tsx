@@ -2,7 +2,6 @@ import 'katex/dist/katex.min.css';
 
 import { Geist_Mono } from 'next/font/google';
 import { highlight } from 'sugar-high';
-import { useTheme } from 'next-themes';
 import Image from 'next/image';
 import Link from 'next/link';
 import Latex from 'react-latex-next';
