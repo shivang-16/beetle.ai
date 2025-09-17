@@ -22,10 +22,12 @@ const RenderLogs = ({
   repoId,
   analysisId,
   repoTree,
+  branch,
 }: {
   repoId: string;
   analysisId?: string;
   repoTree: RepoTree;
+  branch?: string;
 }) => {
   const [logs, setLogs] = useState<LogItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -41,9 +43,14 @@ const RenderLogs = ({
       setLogs([]);
       setIsLoading(true);
 
+      const body = JSON.stringify({
+        github_repositoryId: repoId,
+        branch,
+      });
+
       const res = await fetch(`${_config.API_BASE_URL}/api/analysis/execute`, {
         method: "POST",
-        body: JSON.stringify({ github_repositoryId: repoId }),
+        body,
         credentials: "include",
         headers: {
           "Content-Type": "application/json",

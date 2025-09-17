@@ -1,12 +1,13 @@
 import express, { Router } from "express";
 import { checkAuth } from "../middlewares/checkAuth.js";
-import { getRepoTree, getRepoInfo, createIssue, createPullRequest } from "../controllers/github.controller.js";
+import { getRepoTree, getRepoInfo, createIssue, createPullRequest, getBranches } from "../controllers/github.controller.js";
 import { getAllUserInstallations } from "../queries/github.queries.js";
 
 const router: Router = express.Router();
 
 // Public routes (no auth required)
 router.get("/tree", checkAuth, getRepoTree);
+router.get("/branches", checkAuth, getBranches);
 router.post("/info", checkAuth, getRepoInfo);
 
 // Protected routes (auth required)

@@ -4,6 +4,7 @@ export interface IGithub_Repository extends Document {
     repositoryId: number;
     fullName: string;
     private: boolean;
+    defaultBranch?: string;
     github_installationId: Schema.Types.ObjectId;
     analysisType?: string;          // e.g., "security", "quality", "performance"
     analysisFrequency?: string;     // e.g., "on_push", "daily", "weekly", "custom"
@@ -35,6 +36,11 @@ const RepositorySchema = new Schema<IGithub_Repository>({
     private: {
         type: Boolean,
         required: true
+    },
+    defaultBranch: {
+        type: String,
+        required: false,
+        default: 'main'
     },
     analysisRequired: {
         type: Boolean,

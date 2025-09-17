@@ -33,9 +33,11 @@ const statusColor = (status: AnalysisItem["status"]) => {
 const AnalysisViewer = ({
   repoId,
   repoTree,
+  branch
 }: {
   repoId: string;
   repoTree: RepoTree;
+  branch?: string;
 }) => {
   const [analyses, setAnalyses] = useState<AnalysisItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -134,6 +136,7 @@ const AnalysisViewer = ({
         repoId={repoId}
         analysisId={selectedId || undefined}
         repoTree={repoTree}
+        branch={branch}
       />
     </div>
   );

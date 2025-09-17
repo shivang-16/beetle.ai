@@ -14,7 +14,8 @@ export const githubAccountSchema = z.object({
 export const githubRepositorySchema = z.object({
   id: z.number(),
   full_name: z.string(),
-  private: z.boolean()
+  private: z.boolean(),
+  default_branch: z.string().optional()
 });
 
 // Schema for GitHub installation
@@ -62,7 +63,8 @@ export const createInstallationSchema = z.object({
     z.object({
       id: z.number(),
       fullName: z.string(),
-      private: z.boolean()
+      private: z.boolean(),
+      defaultBranch: z.string().optional()
     })
   ).optional(),
   permissions: z.record(z.string(), z.string()),

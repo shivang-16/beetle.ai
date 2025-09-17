@@ -4,7 +4,7 @@ import { getAuthToken } from "@/_actions/auth-token";
 import { _config } from "@/lib/_config";
 import { RepoTree } from "@/types/types";
 
-export const getRepoTree = async (repoId: string, teamId?: string) => {
+export const getRepoTree = async (repoId: string, teamId?: string, branch?: string) => {
   try {
     const { token } = await getAuthToken();
 
@@ -12,6 +12,9 @@ export const getRepoTree = async (repoId: string, teamId?: string) => {
     url.searchParams.set('github_repositoryId', repoId);
     if (teamId) {
       url.searchParams.set('teamId', teamId);
+    }
+    if (branch) {
+      url.searchParams.set('branch', branch);
     }
 
     const res = await fetch(url.toString(), {
