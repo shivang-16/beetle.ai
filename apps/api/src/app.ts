@@ -12,6 +12,9 @@ import UserRoutes from "./routes/user.routes.js";
 import AnalysisRoutes from "./routes/analysis.routes.js";
 import TeamRoutes from "./routes/team.routes.js";
 import { config } from "dotenv";
+// SECURITY FIX: Add security middleware imports
+import rateLimit from "express-rate-limit";
+import helmet from "helmet";
 
 export function createApp(): Application {
   const app = express();
@@ -33,11 +36,58 @@ export function createApp(): Application {
     })
   );
 
-  // Middleware
+  // SECURITY FIX: Add security middleware
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", "data:", "https:"],
+      },
+    },
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true
+    }
+  }));
+
+  // SECURITY FIX: Rate limiting
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    message: "Too many requests from this IP, please try again later.",
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+  app.use(limiter);
+
+  // SECURITY FIX: Stricter rate limiting for analysis endpoint
+  const analysisLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 10, // limit each IP to 10 analysis requests per hour
+    message: "Too many analysis requests, please try again later.",
+  });
+  // SECURITY FIX: Environment-specific CORS configuration
+  const allowedOrigins = process.env.NODE_ENV === 'production' 
+    ? (process.env.ALLOWED_ORIGINS || '').split(',')
+    : ["http://localhost:3000", "http://localhost:3001"];
+
   app.use(
     cors({
-      origin: "http://localhost:3000", // Specific origin instead of '*'
+      origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        
+        if (allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
       credentials: true,
+      optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
     })
   );
   app.use(clerkMiddleware());
@@ -67,7 +117,7 @@ export function createApp(): Application {
   // API Routes
   app.use("/api/github", GithubRoutes);
   app.use("/api/user", UserRoutes);
-  app.use("/api/analysis", AnalysisRoutes);
+  app.use("/api/analysis", analysisLimiter, AnalysisRoutes); // SECURITY FIX: Apply analysis rate limiter
   app.use("/api/team", TeamRoutes);
 
   // 404 handler

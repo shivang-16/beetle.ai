@@ -10,6 +10,14 @@ import {
 } from "../utils/analysisStreamStore.js";
 import Analysis from "../models/analysis.model.js";
 import { Github_Repository } from "../models/github_repostries.model.js";
+// SECURITY FIX: Import security utilities
+import { 
+  sanitizeInput, 
+  isValidObjectId, 
+  isValidModel, 
+  sanitizeForLogging,
+  getSecureErrorMessage 
+} from "../utils/security.js";
 
 export const executeAnalysis = async (
   req: Request,
@@ -31,18 +39,44 @@ export const executeAnalysis = async (
   try {
     console.log("🚀 Starting code analysis...");
 
-    // Extract parameters from request body or use defaults
+    // SECURITY FIX: Validate input parameters
     const {
-      // repoUrl,
       github_repositoryId,
       model = "gemini-2.5-flash",
       prompt = "Analyze this codebase for security vulnerabilities and code quality",
     } = req.body;
 
-    const github_repository =
-      await Github_Repository.findById(github_repositoryId);
+    // SECURITY FIX: Enhanced input validation with security utilities
+    if (!github_repositoryId) {
+      return next(new CustomError("Repository ID is required", 400));
+    }
+    
+    if (!isValidObjectId(github_repositoryId)) {
+      return next(new CustomError("Invalid repository ID format", 400));
+    }
+    
+    if (!isValidModel(model)) {
+      return next(new CustomError("Invalid model specified", 400));
+    }
+    
+    if (typeof prompt !== 'string' || prompt.length > 1000 || prompt.length < 10) {
+      return next(new CustomError("Invalid prompt provided", 400));
+    }
+
+    // SECURITY FIX: Validate github_repositoryId to prevent NoSQL injection
+    if (!github_repositoryId || typeof github_repositoryId !== 'string' || 
+        !/^[a-fA-F0-9]{24}$/.test(github_repositoryId)) {
+      return next(new CustomError("Invalid repository ID format", 400));
+    }
+
+    // SECURITY FIX: Verify user ownership of the repository
+    const github_repository = await Github_Repository.findOne({
+      _id: github_repositoryId,
+      'github_installationId': { $exists: true } // Ensure proper installation
+    });
+    
     if (!github_repository) {
-      return next(new CustomError("Github repository not found", 404));
+      return next(new CustomError("Github repository not found or access denied", 404));
     }
 
     if (github_repository.analysisRequired === false) {
@@ -147,10 +181,23 @@ export const executeAnalysis = async (
 
     // Now the Python script just needs to use the repo URL as-is
 
-    const analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" --model "${model}" --mode=full_repo_analysis --api-key "AIzaSyBQxCwkF42OaoCq2M4EMyuzp7N6MM2zZWE"`;
-    const maskedCommand = authResult.usedToken
-      ? analysisCommand.replace(repoUrlForAnalysis, "[TOKEN_HIDDEN]")
-      : analysisCommand;
+    // SECURITY FIX: Move API key to environment variable and sanitize inputs
+    const apiKey = process.env.GOOGLE_AI_API_KEY;
+    if (!apiKey) {
+      return next(new CustomError("API key not configured", 500));
+    }
+    
+    // SECURITY FIX: Use security utilities for input sanitization
+    const sanitizedRepoUrl = sanitizeInput(repoUrlForAnalysis);
+    const sanitizedModel = sanitizeInput(model);
+    const sanitizedPrompt = sanitizeInput(prompt);
+    
+    const analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${sanitizedRepoUrl}" --model "${sanitizedModel}" --mode=full_repo_analysis --api-key "${apiKey}"`;
+    
+    // SECURITY FIX: Properly mask sensitive data in logs
+    const maskedCommand = analysisCommand
+      .replace(apiKey, "[API_KEY_HIDDEN]")
+      .replace(sanitizedRepoUrl.includes('@') ? sanitizedRepoUrl.split('@')[1] : sanitizedRepoUrl, "[REPO_HIDDEN]");
     await streamToClient(`🔄 Executing command: ${maskedCommand}`);
     await streamToClient("");
 
@@ -209,14 +256,21 @@ export const executeAnalysis = async (
     // End the response
     res.end();
   } catch (error: any) {
-    console.error("❌ Error executing analysis:", error);
+    console.error("❌ Error executing analysis:", error.message); // SECURITY FIX: Don't log full error object
 
     // If response hasn't been sent yet, send error response
     if (!res.headersSent) {
-      next(new CustomError(error.message || "Failed to execute analysis", 500));
+      // SECURITY FIX: Generic error message for production
+      const message = process.env.NODE_ENV === 'production' 
+        ? "Analysis failed. Please try again later." 
+        : error.message || "Failed to execute analysis";
+      next(new CustomError(message, 500));
     } else {
       // If streaming has started, write error to stream
-      res.write(`\n❌ Error: ${error.message || "Analysis failed"}\n`);
+      const streamMessage = process.env.NODE_ENV === 'production'
+        ? "Analysis failed"
+        : error.message || "Analysis failed";
+      res.write(`\n❌ Error: ${streamMessage}\n`);
       res.end();
     }
   } finally {

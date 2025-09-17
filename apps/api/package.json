@@ -8,7 +8,10 @@
     "dev": "tsc --watch & nodemon dist/server.js",
     "build": "tsc",
     "start": "node dist/server.js",
-    "lint": "eslint . --ext .ts"
+    "lint": "eslint . --ext .ts",
+    "security:audit": "npm audit --audit-level=moderate",
+    "security:check": "node scripts/security-check.js",
+    "test:security": "npm run security:audit && npm run security:check"
   },
   "keywords": [],
   "author": "",
@@ -24,7 +27,9 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.0",
     "express": "^5.1.0",
+    "express-rate-limit": "^7.0.0",
     "express-winston": "^4.2.0",
+    "helmet": "^8.0.0",
     "ioredis": "^5.6.1",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.16.4",
@@ -39,6 +44,10 @@
     "@types/node": "^22.16.5",
     "nodemon": "^3.1.10",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "eslint": "^8.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint-plugin-security": "^1.7.1"
   }
 }

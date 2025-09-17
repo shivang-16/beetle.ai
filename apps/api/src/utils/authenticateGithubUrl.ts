@@ -9,31 +9,61 @@ type AuthenticateGithubUrlResult = {
 };
 
 export const authenticateGithubRepo = async (repoUrl: string, userId: string): Promise<AuthenticateGithubUrlResult> => {
-    // If it's not a GitHub HTTPS URL, return as-is
-    if (!repoUrl || !repoUrl.startsWith("https://github.com/")) {
+    // SECURITY FIX: Enhanced input validation
+    if (!repoUrl || typeof repoUrl !== 'string') {
         return {
-            success: true,
-            message: "Non-GitHub or unsupported URL. Leaving as-is.",
+            success: false,
+            message: "Invalid repository URL provided",
+            repoUrl: "",
+            usedToken: false
+        };
+    }
+
+    // SECURITY FIX: Strict GitHub URL validation
+    if (!repoUrl.startsWith("https://github.com/")) {
+        return {
+            success: false,
+            message: "Only GitHub HTTPS URLs are supported",
             repoUrl,
             usedToken: false
         };
     }
 
-    // Extract owner and repo from URL
-    const match = decodeURIComponent(repoUrl).match(/github\.com\/([^\/]+)\/([^\/]+?)(?:\.git)?$/);
+    // SECURITY FIX: Enhanced URL pattern matching with stricter validation
+    const match = repoUrl.match(/^https:\/\/github\.com\/([a-zA-Z0-9._-]+)\/([a-zA-Z0-9._-]+?)(?:\.git)?(?:\/.*)?$/);
     if (!match) {
         return {
             success: false,
-            message: "Invalid GitHub repository URL",
+            message: "Invalid GitHub repository URL format",
             repoUrl,
             usedToken: false
         };
     }
     const [, owner, repo] = match;
-    console.log(owner, repo,"owner, repo");
+    
+    // SECURITY FIX: Validate owner and repo names
+    if (!owner || !repo || owner.length > 39 || repo.length > 100) {
+        return {
+            success: false,
+            message: "Invalid repository owner or name",
+            repoUrl,
+            usedToken: false
+        };
+    }
 
+    // SECURITY FIX: Sanitize console output to prevent log injection
+    console.log(`Processing repo: ${owner}/${repo}`);
 
     try {
+        // SECURITY FIX: Validate userId before processing
+        if (!userId || typeof userId !== 'string') {
+            return {
+                success: false,
+                message: "Valid user authentication required for repository access",
+                repoUrl,
+                usedToken: false
+            };
+        }
      
 
         // Private or internal repository: require user context to mint token
