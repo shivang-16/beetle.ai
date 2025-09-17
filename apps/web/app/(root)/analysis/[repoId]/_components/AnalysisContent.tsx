@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { AnalysisItem } from "@/types/types";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import React, { useEffect } from "react";
 import { refreshAnalysisList } from "../_actions/getAnalysiswithId";
 
 const statusColor = (status: AnalysisItem["status"]) => {
@@ -32,9 +32,16 @@ const AnalysisContent = ({
 
   const router = useRouter();
 
+  const searchParams = useSearchParams();
+  const branch = searchParams.get("branch");
+  const teamId = searchParams.get("teamId");
+  console.log({ teamId, branch });
+
   useEffect(() => {
     if (analysisList && analysisList.length > 0) {
-      router.replace(`/analysis/${repoId}/${analysisList[0]?._id}`);
+      router.replace(
+        `/analysis/${repoId}/${analysisList[0]?._id}?teamId=${teamId}&branch=${branch}`
+      );
     }
   }, []);
 

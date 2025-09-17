@@ -1,9 +1,8 @@
 import React from "react";
 import { getRepository } from "../_actions/getRepository";
 import { GithubRepository } from "@/types/types";
-import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
+import RepositoryItem from "./RepositoryItem";
 
 type RepoScope = "user" | "team";
 
@@ -31,17 +30,7 @@ const RepositoryList = async ({
         data.map((repo) => (
           <React.Fragment key={repo._id}>
             <li className="py-5">
-              <Link
-                href={`/analysis/${encodeURIComponent(repo._id)}${teamId ? `?teamId=${teamId}` : ""}`}>
-                <div className="flex items-center gap-3">
-                  <span>{repo.fullName}</span>
-                  <Badge
-                    variant={"outline"}
-                    className="border-primary text-primary text-sm rounded-full">
-                    {repo.private ? "Private" : "Public"}
-                  </Badge>
-                </div>
-              </Link>
+              <RepositoryItem repo={repo} teamId={teamId} />
             </li>
             <Separator />
           </React.Fragment>

@@ -9,9 +9,11 @@ import { useParams } from "next/navigation";
 const AnalysisViewer = ({
   repoId,
   repoTree,
+  branch
 }: {
   repoId: string;
   repoTree: RepoTree;
+  branch?: string;
 }) => {
   const { analysisId } = useParams<{ repoId: string; analysisId?: string }>();
 
@@ -21,6 +23,7 @@ const AnalysisViewer = ({
         repoId={repoId}
         analysisId={analysisId || undefined}
         repoTree={repoTree}
+        branch={branch}
       />
     </div>
   );

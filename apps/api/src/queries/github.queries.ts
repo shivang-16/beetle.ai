@@ -58,15 +58,45 @@ export const create_github_installation = async (payload: CreateInstallationInpu
      
              await installation.save();
      
-      
-             await Github_Repository.insertMany(
-                 input.repositories?.map((repo) => ({
-                     github_installationId: installation._id,
-                     repositoryId: repo.id,
-                     fullName: repo.fullName,
-                     private: repo.private
-                 })) || []
-             );
+             // Fetch default branch information for each repository
+             if (input.repositories && input.repositories.length > 0) {
+                 const octokit = await getInstallationOctokit(input.installationId);
+                 
+                 const repositoriesWithDefaultBranch = await Promise.all(
+                     input.repositories.map(async (repo) => {
+                         try {
+                             // Parse owner and repo name from fullName (e.g., "owner/repo")
+                             const [owner, repoName] = repo.fullName.split('/');
+                             
+                             // Fetch repository details to get default branch
+                             const repoDetails = await octokit.repos.get({
+                                 owner,
+                                 repo: repoName
+                             });
+                             
+                             return {
+                                 github_installationId: installation._id,
+                                 repositoryId: repo.id,
+                                 fullName: repo.fullName,
+                                 private: repo.private,
+                                 defaultBranch: repoDetails.data.default_branch
+                             };
+                         } catch (error) {
+                             console.error(`Failed to fetch default branch for ${repo.fullName}:`, error);
+                             // Fallback to 'main' if we can't fetch the default branch
+                             return {
+                                 github_installationId: installation._id,
+                                 repositoryId: repo.id,
+                                 fullName: repo.fullName,
+                                 private: repo.private,
+                                 defaultBranch: 'main'
+                             };
+                         }
+                     })
+                 );
+                 
+                 await Github_Repository.insertMany(repositoriesWithDefaultBranch);
+             }
 
              console.log("User updated")
              return installation;

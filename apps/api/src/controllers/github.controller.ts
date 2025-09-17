@@ -10,7 +10,7 @@ import Team from "../models/team.model.js";
 
 export const getRepoTree = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { github_repositoryId, teamId } = req.query as { github_repositoryId: string, teamId: string };
+    const { github_repositoryId, teamId, branch } = req.query as { github_repositoryId: string, teamId: string, branch?: string };
 
     const github_repository = await Github_Repository.findById(github_repositoryId);
     if (!github_repository) {
@@ -55,8 +55,9 @@ export const getRepoTree = async (req: Request, res: Response, next: NextFunctio
 
     const octokit = new Octokit(githubToken ? { auth: githubToken } : {});
 
-    // ✅ The rest of your repo tree logic stays the same...
-    const { data: ref } = await octokit.git.getRef({ owner, repo, ref: "heads/main" });
+    // ✅ Use the branch parameter or default to 'main'
+    const selectedBranch = branch || 'main';
+    const { data: ref } = await octokit.git.getRef({ owner, repo, ref: `heads/${selectedBranch}` });
     const commitSha = ref.object.sha;
 
     const { data: commit } = await octokit.git.getCommit({ owner, repo, commit_sha: commitSha });
@@ -322,6 +323,85 @@ export const createIssue = async (
         new CustomError(error.message || "Failed to create issue", 500)
       );
     }
+  }
+};
+
+export const getBranches = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { github_repositoryId, teamId } = req.query as { github_repositoryId: string, teamId: string };
+
+    const github_repository = await Github_Repository.findById(github_repositoryId);
+    if (!github_repository) {
+      return next(new CustomError("Github repository not found", 404));
+    }
+
+    const repoUrl = `https://github.com/${github_repository.fullName}`;
+
+    let userId = req.user?._id;
+    if (teamId) {
+      const team = await Team.findById(teamId);
+      if (!team) {
+        return next(new CustomError("Team not found", 404));
+      }
+      userId = team.ownerId;
+    }
+
+    if (!repoUrl) {
+      throw new CustomError("Repository URL is required", 400);
+    }
+
+    // ✅ Authenticate repo first
+    const authResult = await authenticateGithubRepo(repoUrl, userId);
+
+    if (!authResult.success) {
+      throw new CustomError(authResult.message, 401);
+    }
+
+    const { repoUrl: authenticatedRepoUrl, usedToken } = authResult;
+
+    // Extract owner/repo again (safe after auth)
+    const match = decodeURIComponent(repoUrl).match(/github\.com\/([^\/]+)\/([^\/]+?)(?:\.git)?$/);
+    if (!match) {
+      throw new CustomError("Invalid GitHub repository URL", 400);
+    }
+    const [, owner, repo] = match;
+
+    // If we generated a token, Octokit should use it
+    const githubToken = usedToken 
+      ? authenticatedRepoUrl.match(/x-access-token:([^@]+)@/)?.[1]
+      : process.env.GITHUB_TOKEN;
+
+    const octokit = new Octokit(githubToken ? { auth: githubToken } : {});
+
+    // Get all branches
+    const { data: branches } = await octokit.repos.listBranches({
+      owner,
+      repo,
+      per_page: 100, // Get up to 100 branches
+    });
+
+    // Format the branches data
+    const branchesData = branches.map(branch => ({
+      name: branch.name,
+      commit: {
+        sha: branch.commit.sha,
+        url: branch.commit.url,
+      },
+      protected: branch.protected,
+    }));
+
+    res.json({
+      success: true,
+      data: branchesData
+    });
+
+  } catch (error: any) {
+    console.error("❌ Error getting repository branches:", error);
+    next(new CustomError(error.message || "Failed to get repository branches", error.status || 500));
   }
 };
 
