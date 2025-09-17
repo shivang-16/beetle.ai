@@ -11,16 +11,18 @@ import Team from "../models/team.model.js";
 export const getRepoTree = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { github_repositoryId, teamId, branch } = req.query as { github_repositoryId: string, teamId: string, branch?: string };
+ 
+    console.log("branch", branch);
 
     const github_repository = await Github_Repository.findById(github_repositoryId);
     if (!github_repository) {
       return next(new CustomError("Github repository not found", 404));
     }
-
+    
     const repoUrl = `https://github.com/${github_repository.fullName}`;
 
     let userId = req.user?._id;
-    if (teamId) {
+    if (teamId && teamId !== 'null') {
       const team = await Team.findById(teamId);
       if (!team) {
         return next(new CustomError("Team not found", 404));
@@ -56,7 +58,8 @@ export const getRepoTree = async (req: Request, res: Response, next: NextFunctio
     const octokit = new Octokit(githubToken ? { auth: githubToken } : {});
 
     // ✅ Use the branch parameter or default to 'main'
-    const selectedBranch = branch || 'main';
+    const selectedBranch = branch || github_repository.defaultBranch || 'main';
+    console.log("selectedBranch", selectedBranch);
     const { data: ref } = await octokit.git.getRef({ owner, repo, ref: `heads/${selectedBranch}` });
     const commitSha = ref.object.sha;
 
@@ -333,6 +336,9 @@ export const getBranches = async (
 ) => {
   try {
     const { github_repositoryId, teamId } = req.query as { github_repositoryId: string, teamId: string };
+
+    console.log("github_repositoryId", github_repositoryId);
+    console.log("teamId", teamId);
 
     const github_repository = await Github_Repository.findById(github_repositoryId);
     if (!github_repository) {

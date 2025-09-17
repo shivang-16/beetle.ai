@@ -144,11 +144,11 @@ const RenderLogs = ({
         // console.log("🔄 Loading analysis from db: ", res);
 
         const json = await res.json();
-        console.log("🔄 Loading analysis from db: ", json);
+        // console.log("🔄 Loading analysis from db: ", json);
         let logsText: string = "";
         const bufJson = json?.data?.logsCompressed;
         const binary = bufferJSONToUint8Array(bufJson);
-        console.log("🔄 Loading binary from db: ", binary);
+        // console.log("🔄 Loading binary from db: ", binary);
         if (binary) {
           const decoded = await gunzipUint8ArrayToText(binary);
           if (decoded) {
@@ -158,7 +158,7 @@ const RenderLogs = ({
         if (!logsText) logsText = json?.data?.logsText || "";
 
         const result = parseFullLogText(logsText);
-        console.log("🔄 Loading result from db: ", result);
+        // console.log("🔄 Loading result from db: ", result);
         setLogs(result.logs.map((l) => ({ ...l, messages: [...l.messages] })));
       } catch (e) {
         const message =
