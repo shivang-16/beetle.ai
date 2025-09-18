@@ -16,7 +16,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
-export const MergedLogs = ({ log }: { log: LogItem }) => {
+export const RenderToolCall = ({ log }: { log: LogItem }) => {
   const { resolvedTheme } = useTheme();
 
   const result = parseToolCall(log.messages.join("\n"));
@@ -107,7 +107,7 @@ export const MergedLogs = ({ log }: { log: LogItem }) => {
     const id = String(Math.floor(Math.random() * 100));
 
     return (
-      <Accordion type="single" className="w-full">
+      <Accordion type="single" collapsible className="w-full">
         <AccordionItem value={`item-${id}`} className="border-none">
           <AccordionTrigger className="w-full border border-input rounded-t-md data-[state=closed]:rounded-b-md py-3.5 px-2.5 hover:no-underline cursor-pointer">
             <span className="border border-input rounded px-2 py-1">
@@ -151,9 +151,9 @@ export const MergedLogs = ({ log }: { log: LogItem }) => {
     const id = String(Math.floor(Math.random() * 100));
 
     return (
-      <Accordion type="single" className="w-full">
-        <AccordionItem value={`item-${id}`}>
-          <AccordionTrigger className="w-full border border-input border-b-0 rounded-t-md py-3.5 px-2.5">
+      <Accordion type="single" collapsible className="w-full">
+        <AccordionItem value={`item-${id}`} className="border-none">
+          <AccordionTrigger className="w-full border border-input rounded-t-md data-[state=closed]:rounded-b-md py-3.5 px-2.5">
             <span className="border border-input rounded px-2 py-1">
               Select Files Result
             </span>
@@ -199,9 +199,9 @@ export const MergedLogs = ({ log }: { log: LogItem }) => {
     const id = String(Math.floor(Math.random() * 100));
 
     return (
-      <Accordion type="single" className="w-full">
-        <AccordionItem value={`item-1`}>
-          <AccordionTrigger className="w-full border border-input border-b-0 rounded-t-md py-3.5 px-2.5">
+      <Accordion type="single" collapsible className="w-full">
+        <AccordionItem value={`item-${id}`} className="border-none">
+          <AccordionTrigger className="w-full border border-input rounded-t-md data-[state=closed]:rounded-b-md py-3.5 px-2.5">
             <span className="border border-input rounded px-2 py-1">
               Grep File Result
             </span>

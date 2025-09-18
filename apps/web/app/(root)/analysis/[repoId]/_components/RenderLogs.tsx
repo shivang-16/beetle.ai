@@ -15,9 +15,15 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { toast } from "sonner";
 import { RenderLLMSegments } from "./RenderLLMSegments";
-import { MergedLogs } from "./RenderToolCall";
+import { RenderToolCall } from "./RenderToolCall";
 import RepoFileTree from "./RepoFileTree";
 import { refreshAnalysisList } from "../_actions/getAnalysiswithId";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const RenderLogs = ({
   repoId,
@@ -225,13 +231,23 @@ const RenderLogs = ({
                     </div>
                   ) : log.type === "TOOL_CALL" ? (
                     <div className="w-full p-3 whitespace-pre-wrap text-sm m-0">
-                      <MergedLogs log={log} />
+                      <RenderToolCall log={log} />
                     </div>
                   ) : log.type === "INITIALISATION" ? (
                     <div className="w-full p-3 whitespace-pre-wrap dark:text-neutral-200 text-neutral-800 text-sm leading-7 m-0">
-                      <div className="border border-input rounded-md bg-card p-3">
-                        {log.messages.join("\n")}
-                      </div>
+                      <Accordion
+                        type="single"
+                        collapsible
+                        defaultValue="item-1">
+                        <AccordionItem value="item-1" className="border-none">
+                          <AccordionTrigger className="px-3 border border-input rounded-t-md data-[state=closed]:rounded-b-md cursor-pointer">
+                            Bootstrapping Codetector Sandbox
+                          </AccordionTrigger>
+                          <AccordionContent className="border border-input rounded-b-md bg-card p-3">
+                            <div>{log.messages.join("\n")}</div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      </Accordion>
                     </div>
                   ) : null}
                 </React.Fragment>

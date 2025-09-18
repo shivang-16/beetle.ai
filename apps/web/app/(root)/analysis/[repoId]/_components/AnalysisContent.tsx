@@ -35,18 +35,28 @@ const AnalysisContent = ({
   const searchParams = useSearchParams();
   const branch = searchParams.get("branch");
   const teamId = searchParams.get("teamId");
-  console.log({ teamId, branch });
+  const scope = searchParams.get("scope");
+
+  const params = new URLSearchParams();
+
+  if (teamId) params.append("teamId", teamId);
+  if (branch) params.append("branch", branch);
+  if (scope) params.append("scope", scope);
+
+  const queryString = params.toString();
 
   useEffect(() => {
-    if (analysisList && analysisList.length > 0) {
-      router.replace(
-        `/analysis/${repoId}/${analysisList[0]?._id}?teamId=${teamId}&branch=${branch}`
-      );
-    }
-  }, []);
+    if (!analysisList?.length) return;
+
+    const firstAnalysisId = analysisList[0]?._id;
+
+    const redirectUrl = `/analysis/${repoId}/${firstAnalysisId}${queryString ? `?${queryString}` : ""}`;
+
+    router.replace(redirectUrl);
+  }, [analysisList, queryString, repoId, router]);
 
   return (
-    <aside className="w-96 border-r h-full">
+    <aside className="max-w-80 w-full border-r h-full">
       <div className="flex items-center justify-between p-3">
         <h3 className="text-base font-medium">Analyses</h3>
         <Button
@@ -66,7 +76,8 @@ const AnalysisContent = ({
               analysis_id === a._id ? "border-primary" : "border-input"
             )}
             asChild>
-            <Link href={`/analysis/${repoId}/${a._id}`}>
+            <Link
+              href={`/analysis/${repoId}/${a._id}${queryString ? `?${queryString}` : ""}`}>
               <div className="flex items-center justify-between gap-2 w-full">
                 <span className="text-xs text-muted-foreground">
                   #{idx + 1}

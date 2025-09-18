@@ -575,28 +575,28 @@ export function parseToolCall(
     // Extract payload (after square bracket)
     const payloadMatch = log.match(/\] (.*)$/s);
     if (!payloadMatch) return { type, result: null };
-    let jsonLike = payloadMatch[1] ? payloadMatch[1].trim() : "";
+    let payload = payloadMatch[1] ? payloadMatch[1].trim() : "";
 
     // Handle empty array case directly
-    if (jsonLike === "[]") {
-      return { type, result: [] };
+    if (!payload || payload === "[]") {
+      return { type, result: payload === "[]" ? [] : null };
     }
 
     // Convert Python-style values
-    jsonLike = jsonLike
+    payload = payload
       .replace(/\bTrue\b/g, "true")
       .replace(/\bFalse\b/g, "false")
       .replace(/\bNone\b/g, "null");
 
     // Replace single-quoted strings safely with double quotes
-    jsonLike = jsonLike.replace(/'([^']*)'/g, (_, val) => {
+    payload = payload.replace(/'([^']*)'/g, (_, val) => {
       return `"${val.replace(/"/g, '\\"')}"`;
     });
 
     return {
       type,
-      result: !jsonLike.includes("Scanning")
-        ? JSON.parse(jsonLike)
+      result: !payload.includes("Scanning")
+        ? JSON.parse(payload)
         : payloadMatch[1]?.trim(),
     };
   } catch (err) {

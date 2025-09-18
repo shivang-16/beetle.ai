@@ -150,7 +150,7 @@ export const executeAnalysis = async (
 
     // Now the Python script just needs to use the repo URL as-is
 
-    const analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" --branch "${branchForAnalysis}" --model "${model}" --mode=full_repo_analysis --api-key ${process.env.GOOGLE_API_KEY}`;
+    const analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" --model "${model}" --mode=full_repo_analysis --api-key ${process.env.GOOGLE_API_KEY}`;
     const maskedCommand = authResult.usedToken
       ? analysisCommand.replace(repoUrlForAnalysis, "[TOKEN_HIDDEN]")
       : analysisCommand;
