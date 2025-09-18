@@ -88,7 +88,7 @@ const RepositorySchema = new Schema<IGithub_Repository>({
     },
     trackGithubPullRequests: {
         type: Boolean,
-        default: false
+        default: true
     },
     customSettings: {
         type: Schema.Types.Mixed,
