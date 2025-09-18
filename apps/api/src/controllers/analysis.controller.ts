@@ -10,38 +10,31 @@ import {
 } from "../utils/analysisStreamStore.js";
 import Analysis from "../models/analysis.model.js";
 import { Github_Repository } from "../models/github_repostries.model.js";
+import { executeAnalysis, StreamingCallbacks } from "../services/sandbox/executeAnalysis.js";
 
-export const executeAnalysis = async (
+export const startAnalysis = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
-  // Hoisted context for streaming persistence
-  let analysisId: string = randomUUID();
-  let sandboxRef: any | undefined;
-  let runExitCode: number | undefined;
+   // Hoisted context for streaming persistence
   let clientAborted = false;
   let userId!: string;
   let repoUrl: string = "";
-  let modelParam: string = "gemini-2.5-flash";
-  let promptParam: string =
-    "Analyze this codebase for security vulnerabilities and code quality";
-  let githubRepositoryId: string = "";
-  let sandboxId: string = "";
+  let exitCode: number | null = null;
+
   try {
     console.log("🚀 Starting code analysis...");
 
     // Extract parameters from request body or use defaults
     const {
-      // repoUrl,
       github_repositoryId,
       branch,
       model = "gemini-2.5-flash",
       prompt = "Analyze this codebase for security vulnerabilities and code quality",
     } = req.body;
 
-    const github_repository =
-      await Github_Repository.findById(github_repositoryId);
+    const github_repository = await Github_Repository.findById(github_repositoryId);
 
     if (!github_repository) {
       return next(new CustomError("Github repository not found", 404));
@@ -54,25 +47,8 @@ export const executeAnalysis = async (
     }
 
     const branchForAnalysis = branch || github_repository.defaultBranch;
-    // Persist the resolved repo id for finalize
-    githubRepositoryId = String(github_repository._id);
     repoUrl = `https://github.com/${github_repository.fullName}`;
-
     userId = req.user._id;
-    // repoUrlParam = repoUrl;
-    modelParam = model;
-    promptParam = prompt;
-
-    console.log(`📊 Analysis Configuration:
-        Repository: ${repoUrl}
-        Model: ${model}
-        Prompt: ${prompt}`);
-
-    // Create sandbox instance
-    console.log("🔧 Creating E2B sandbox...");
-    const sandbox = await createSandbox();
-    sandboxRef = sandbox;
-    console.log("✅ Sandbox created successfully");
 
     // Set response headers for streaming
     res.setHeader("Content-Type", "text/plain");
@@ -80,177 +56,78 @@ export const executeAnalysis = async (
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
 
-    // Detect client interruption and init Redis buffer
+    // Detect client interruption
     req.on("aborted", () => {
       clientAborted = true;
     });
     res.on("close", () => {
       if (!res.writableEnded) clientAborted = true;
     });
-    await initRedisBuffer(analysisId);
 
-    // Phase tracking variables
-    let isWorkflowRunning = false;
-    let phase1Logs: string[] = [];
-    let phase2Logs: string[] = [];
-
-    // Function to categorize and stream data to client
-    const streamToClient = async (data: string, isWorkflowLog = false) => {
+    // Function to stream data to client
+    const streamToClient = async (data: string) => {
       console.log("[CLIENT STREAMING]", data);
-      try {
-        await appendToRedisBuffer(analysisId, data);
-      } catch (e) {
-        console.error("Redis append error:", e);
-      }
-
-      if (isWorkflowLog) {
-        // Phase 2: Stream ALL workflow logs so the frontend parser receives
-        // full LLM blocks and markers like [LLM RESPONSE START],
-        // [GITHUB_ISSUE_START], and [PATCH_START].
-        phase2Logs.push(data);
-        res.write(data + "\n");
-      } else {
-        // Phase 1: Before workflow starts - send all logs
-        phase1Logs.push(data);
-        res.write(data + "\n");
-      }
+      res.write(data + "\n");
     };
+  
 
-    // Phase 1: Initial setup and configuration logs
+    // Initial streaming messages
     await streamToClient("🧠 CodeDetector - Intelligent Code Analysis");
     await streamToClient("=".repeat(50));
-    await streamToClient(`📁 Repository: ${repoUrl}\n`);
-    await streamToClient(`🤖 Model: ${model}\n`);
-    await streamToClient(`💭 Prompt: ${prompt}\n`);
+    await streamToClient(`📁 Repository: ${repoUrl}`);
+    await streamToClient(`🤖 Model: ${model}`);
+    await streamToClient(`💭 Prompt: ${prompt}`);
     await streamToClient("=".repeat(50));
-    await streamToClient("");
 
-    // Test immediate streaming first
-    await streamToClient("🔄 Testing real-time streaming...\n");
-    for (let i = 1; i <= 3; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      await streamToClient(
-        `⏳ Stream test ${i}/3 - Real-time output working!\n`
-      );
-    }
-    await streamToClient(
-      "✅ Streaming confirmed working, starting analysis...\n"
-    );
-    await streamToClient("");
-
-    // Construct the analysis command with GitHub token embedded in repo URL
-
-    const authResult = await authenticateGithubRepo(repoUrl, userId);
-    if (!authResult.success) {
-      return next(new CustomError(authResult.message, 500));
-    }
-
-    const repoUrlForAnalysis = authResult.repoUrl;
-    console.log("🔄 Repo URL for analysis: ", repoUrlForAnalysis);
-
-    // Now the Python script just needs to use the repo URL as-is
-
-    const analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" --model "${model}" --mode=full_repo_analysis --api-key ${process.env.GOOGLE_API_KEY}`;
-    const maskedCommand = authResult.usedToken
-      ? analysisCommand.replace(repoUrlForAnalysis, "[TOKEN_HIDDEN]")
-      : analysisCommand;
-    await streamToClient(`🔄 Executing command: ${maskedCommand}`);
-    await streamToClient("");
-
-    // Phase 2: Workflow execution begins
-    await streamToClient("🚀 Starting workflow execution...");
-    await streamToClient(
-      "📋 Phase 2: Workflow logs (filtered for tool calls and LLM responses)"
-    );
-    await streamToClient("=".repeat(50));
-    isWorkflowRunning = true;
-
-    // Start the analysis command in the background with streaming
-    const command = await sandbox.commands.run(analysisCommand, {
-      background: true,
-      onStdout: async (data) => {
-        // Strip ANSI color codes for cleaner client output
-        const cleanData = data.replace(/\x1b\[[0-9;]*m/g, "");
-
-        await streamToClient(cleanData, true); // Mark as workflow log
+    // Define streaming callbacks
+    const callbacks: StreamingCallbacks = {
+      onStdout: async (data: string) => {
+        await streamToClient(data);
       },
-      onStderr: async (data) => {
-        const cleanData = data.replace(/\x1b\[[0-9;]*m/g, "");
-        await streamToClient(`⚠️ ${cleanData}`, true); // Mark as workflow log
+      onStderr: async (data: string) => {
+        await streamToClient(data);
       },
-      timeoutMs: 3600000,
-    });
+      onProgress: async (message: string) => {
+        await streamToClient(message);
+      },
+    };
 
-    // Wait for the command to complete
-    const result = await command.wait();
-    runExitCode = result.exitCode;
-
-    await streamToClient("", true);
-    await streamToClient("=".repeat(50), true);
-    await streamToClient(
-      `✅ Analysis completed with exit code: ${result.exitCode}`,
-      true
+    // Call the refactored service function
+    const result = await executeAnalysis(
+      github_repositoryId,
+      repoUrl,
+      branchForAnalysis,
+      userId,
+      model,
+      prompt,
+      "full_repo_analysis", // analysisType
+      callbacks
     );
 
-    if (result.exitCode === 0) {
-      await streamToClient("🎉 Analysis finished successfully!", true);
+    exitCode = result.exitCode;
+
+    if (result.success) {
+      await streamToClient("🎉 Analysis finished successfully!");
     } else {
-      await streamToClient(
-        "⚠️ Analysis completed with warnings or errors",
-        true
-      );
+      await streamToClient("⚠️ Analysis completed with warnings or errors");
+      if (result.error) {
+        await streamToClient(`Error: ${result.error}`);
+      }
     }
 
-    await streamToClient("=".repeat(50), true);
-
-    // Close the sandbox
-    await sandbox.kill();
-    await sandbox.betaPause();
-    sandboxId = sandbox.sandboxId;
-    await streamToClient("🔒 Sandbox closed", true);
-
-    // End the response
+    await streamToClient("=".repeat(50));
     res.end();
+
   } catch (error: any) {
     console.error("❌ Error executing analysis:", error);
 
-    // If response hasn't been sent yet, send error response
     if (!res.headersSent) {
       next(new CustomError(error.message || "Failed to execute analysis", 500));
     } else {
-      // If streaming has started, write error to stream
       res.write(`\n❌ Error: ${error.message || "Analysis failed"}\n`);
       res.end();
     }
-  } finally {
-    try {
-      if (sandboxRef) await sandboxRef.kill();
-    } catch (_) {}
-
-    try {
-      if (analysisId && userId && repoUrl) {
-        const status: "completed" | "interrupted" | "error" = clientAborted
-          ? "interrupted"
-          : typeof runExitCode === "number" && runExitCode === 0
-            ? "completed"
-            : "error";
-
-        await finalizeAnalysisAndPersist({
-          analysisId,
-          userId,
-          repoUrl: repoUrl,
-          github_repositoryId: githubRepositoryId,
-          sandboxId: sandboxId,
-          model: modelParam,
-          prompt: promptParam,
-          status,
-          exitCode: typeof runExitCode === "number" ? runExitCode : null,
-        });
-      }
-    } catch (persistErr) {
-      console.error("Failed to persist analysis:", persistErr);
-    }
-  }
+  } 
 };
 
 export const getAnalysisStatus = async (

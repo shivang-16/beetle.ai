@@ -6,6 +6,10 @@ import { Github_Repository } from "../models/github_repostries.model.js";
 import { getInstallationOctokit } from "../lib/githubApp.js";
 import { writeFileSync } from 'fs';
 import { join } from 'path';
+import { executeAnalysis, StreamingCallbacks } from "../services/sandbox/executeAnalysis.js";
+import { initRedisBuffer, appendToRedisBuffer } from "../utils/analysisStreamStore.js";
+import Analysis from "../models/analysis.model.js";
+import { randomUUID } from "crypto";
 
 export const create_github_installation = async (payload: CreateInstallationInput) => {
     try {
@@ -337,10 +341,7 @@ export const checkPullRequestPermission = (installation: any) => {
 export const PrData = async (payload: any) => {
   try {
     const { pull_request, repository, installation, sender } = payload;
-    
-    console.log('=== PULL REQUEST OPENED EVENT ===');
-    console.log('Full payload:', JSON.stringify(payload, null, 2));
-    
+   
     // Write full payload to file
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `pr-llm-payload-${timestamp}.json`;
@@ -527,16 +528,74 @@ export const PrData = async (payload: any) => {
       }
     };
     
-    console.log('=== STREAMLINED PR DATA FOR MODEL ===');
-    console.log(JSON.stringify(modelAnalysisData, null, 2));
+
+    // 🚀 Trigger Sandbox Analysis for PR
+    console.log('=== TRIGGERING SANDBOX ANALYSIS FOR PR ===');
     
-     const { mkdirSync } = await import('fs');
-      const logsDir = join(process.cwd(), 'logs');
-      mkdirSync(logsDir, { recursive: true });
-      
-      // Write payload to file
-      writeFileSync(filepath, JSON.stringify(modelAnalysisData, null, 2));
-      console.log(`Full payload written to: ${filepath}`);
+    try {
+
+       const githubInstallation = await Github_Installation.findOne({installationId: installation.id})
+       if(!githubInstallation?.userId) {
+        console.log("Unable to find userid")
+        return
+       } 
+
+      // Check if repository exists in our database and populate installation to get userId
+      const githubRepo = await Github_Repository.findOne({ 
+        fullName: repository.full_name 
+      }).populate('github_installationId');
+
+      if (githubRepo && githubRepo.trackGithubPullRequests) {
+        console.log(`📊 Starting PR analysis for repository: ${repository.full_name}`);
+        
+
+       // Generate unique analysis ID for this PR analysis
+        const repoUrl = `https://github.com/${repository.full_name}`;
+        const branchForAnalysis = pull_request.head.ref;
+        
+        // Create PR-specific analysis prompt
+        const prAnalysisPrompt = `Analyze this Pull Request for security vulnerabilities, code quality issues, and potential bugs.`
+
+        // Define streaming callbacks for PR analysis
+        const callbacks: StreamingCallbacks = {
+          onStdout: async (data: string) => {
+            console.log(`[PR-${pull_request.number}] ${data}`);
+          },
+          onStderr: async (data: string) => {
+            console.error(`[PR-${pull_request.number}] ERROR: ${data}`);
+          },
+          onProgress: async (message: string) => {
+            console.log(`[PR-${pull_request.number}] PROGRESS: ${message}`);
+          },
+        };
+
+        // Start analysis in background (don't await to avoid blocking webhook response)
+        executeAnalysis(
+          githubRepo._id as string,
+          repoUrl,
+          branchForAnalysis,
+          githubInstallation.userId,
+          "gemini-2.5-flash", // model
+          prAnalysisPrompt,
+          "pr_analysis", // analysisType
+          callbacks,
+          modelAnalysisData, 
+        ).then(async (result) => {
+          console.log(`✅ PR analysis completed for ${repository.full_name}#${pull_request.number}:`, result);
+          // Note: Persistence is now handled automatically by executeAnalysis function
+        }).catch((error) => {
+          console.error(`❌ PR analysis failed for ${repository.full_name}#${pull_request.number}:`, error);
+        });
+
+        console.log(`🎯 PR analysis initiated for ${repository.full_name}#${pull_request.number}`);
+      } else {
+        console.log(`⏭️ Skipping analysis for ${repository.full_name} - repository not found or analysis not enabled`);
+      }
+    } catch (analysisError) {
+      console.error('❌ Error triggering PR analysis:', analysisError);
+      // Don't throw here to avoid breaking the webhook response
+    }
+
     return modelAnalysisData;
     
   } catch (error) {
