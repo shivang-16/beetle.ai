@@ -10,6 +10,8 @@ import { executeAnalysis, StreamingCallbacks } from "../services/sandbox/execute
 import { initRedisBuffer, appendToRedisBuffer } from "../utils/analysisStreamStore.js";
 import Analysis from "../models/analysis.model.js";
 import { randomUUID } from "crypto";
+import { createParserState, parseStreamingResponse, finalizeParsing, ParserState } from "../lib/responseParser.js";
+import { PRCommentService, PRCommentContext } from "../services/prCommentService.js";
 
 export const create_github_installation = async (payload: CreateInstallationInput) => {
     try {
@@ -202,9 +204,10 @@ export const commentOnIssueOpened = async (payload: any) => {
 
 
 // Get user's GitHub installation for token generation
-export const getUserGitHubInstallation = async (userId: string) => {
+export const getUserGitHubInstallation = async (userId: string, owner: string) => {
   try {
-    const installation = await Github_Installation.findOne({ userId });
+const installation = await Github_Installation.findOne({ userId, "account.login": owner })
+  .sort({ _id: -1 });
     
     if (!installation) {
       throw new CustomError("No GitHub installation found for this user. Please install the GitHub App first.", 404);
@@ -342,6 +345,7 @@ export const PrData = async (payload: any) => {
   try {
     const { pull_request, repository, installation, sender } = payload;
    
+    console.log(installation, repository)
     // Write full payload to file
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `pr-llm-payload-${timestamp}.json`;
@@ -556,13 +560,50 @@ export const PrData = async (payload: any) => {
         // Create PR-specific analysis prompt
         const prAnalysisPrompt = `Analyze this Pull Request for security vulnerabilities, code quality issues, and potential bugs.`
 
+        // Initialize PR comment service
+        const [owner, repo] = repository.full_name.split('/');
+        const prCommentContext: PRCommentContext = {
+          installationId: installation.id,
+          owner,
+          repo,
+          pullNumber: pull_request.number
+        };
+        const prCommentService = new PRCommentService(prCommentContext);
+        
+        // Initialize parser state for streaming response parsing
+        const parserState = createParserState();
+        
+        // Post initial analysis started comment
+        // await prCommentService.postAnalysisStartedComment();
+
         // Define streaming callbacks for PR analysis
         const callbacks: StreamingCallbacks = {
           onStdout: async (data: string) => {
             console.log(`[PR-${pull_request.number}] ${data}`);
+            
+            // Parse the streaming data for PR comments
+            const { prComments, state } = parseStreamingResponse(data, parserState);
+            
+            // Update parser state
+            Object.assign(parserState, state);
+            
+            // Post any extracted PR comments
+            if (prComments.length > 0) {
+              console.log(`[PR-${pull_request.number}] Found ${prComments.length} PR comments to post`);
+              const postedCount = await prCommentService.postComments(prComments);
+              console.log(`[PR-${pull_request.number}] Posted ${postedCount}/${prComments.length} comments`);
+            }
           },
           onStderr: async (data: string) => {
             console.error(`[PR-${pull_request.number}] ERROR: ${data}`);
+            
+            // Also parse stderr for potential PR comments (in case of mixed output)
+            const { prComments, state } = parseStreamingResponse(data, parserState);
+            Object.assign(parserState, state);
+            
+            if (prComments.length > 0) {
+              await prCommentService.postComments(prComments);
+            }
           },
           onProgress: async (message: string) => {
             console.log(`[PR-${pull_request.number}] PROGRESS: ${message}`);
@@ -575,16 +616,30 @@ export const PrData = async (payload: any) => {
           repoUrl,
           branchForAnalysis,
           githubInstallation.userId,
-          "gemini-2.5-flash", // model
+          "gemini-1.5-flash", // model
           prAnalysisPrompt,
           "pr_analysis", // analysisType
           callbacks,
           modelAnalysisData, 
         ).then(async (result) => {
           console.log(`✅ PR analysis completed for ${repository.full_name}#${pull_request.number}:`, result);
+          
+          // Process any remaining content in parser state
+          const finalComments = finalizeParsing(parserState);
+          if (finalComments.length > 0) {
+            console.log(`[PR-${pull_request.number}] Processing ${finalComments.length} final comments`);
+            await prCommentService.postComments(finalComments);
+          }
+          
+          // Post analysis completion comment
+          // await prCommentService.postAnalysisCompletedComment(result?.sandboxId || undefined);
+          
           // Note: Persistence is now handled automatically by executeAnalysis function
-        }).catch((error) => {
+        }).catch(async (error) => {
           console.error(`❌ PR analysis failed for ${repository.full_name}#${pull_request.number}:`, error);
+          
+          // Post error comment on PR
+          await prCommentService.postAnalysisErrorComment(error.message || 'Unknown error occurred during analysis');
         });
 
         console.log(`🎯 PR analysis initiated for ${repository.full_name}#${pull_request.number}`);

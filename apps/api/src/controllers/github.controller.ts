@@ -92,6 +92,7 @@ export const getRepoTree = async (req: Request, res: Response, next: NextFunctio
     next(new CustomError(error.message || "Failed to get repository tree", error.status || 500));
   }
 };
+
 export const getRepoInfo = async (
   req: Request,
   res: Response,
@@ -216,7 +217,7 @@ export const createIssue = async (
         // First try to get user's personal installation
         let installation;
         try {
-          installation = await getUserGitHubInstallation(userId);
+          installation = await getUserGitHubInstallation(userId, owner);
           console.log("✅ Found personal installation:", installation.installationId);
         } catch (error) {
           console.log("⚠️ No personal GitHub installation found, checking organization installations...");
@@ -465,7 +466,7 @@ export const createPullRequest = async (
         // First try to get user's personal installation
         let installation;
         try {
-          installation = await getUserGitHubInstallation(userId);
+          installation = await getUserGitHubInstallation(userId, owner);
         } catch (error) {
           console.log("⚠️ No personal GitHub installation found, checking organization installations...");
         }

@@ -80,8 +80,15 @@ export const executeAnalysis = async (
     }
 
     await initRedisBuffer(analysisId);
-
-    const analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" --model "${model}" --mode=full_repo_analysis --api-key ${process.env.GOOGLE_API_KEY}`;
+    
+    // Debug: Log the data being passed
+    // console.log("📊 Data parameter being passed to sandbox:", JSON.stringify(data, null, 2));
+    
+    // Properly format the data parameter for shell command
+    const dataParam = data ? JSON.stringify(data) : '{}';
+    console.log("🔧 Formatted data parameter length:", dataParam.length);
+    
+    const analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" --model "${model}" --mode ${analysisType} --api-key ${process.env.GOOGLE_API_KEY} --data '${dataParam.replace(/'/g, "'\"'\"'")}'`;
 
     if (callbacks?.onProgress) {
       await callbacks.onProgress("🚀 Starting workflow execution...");

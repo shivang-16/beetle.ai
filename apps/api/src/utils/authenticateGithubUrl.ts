@@ -46,7 +46,7 @@ export const authenticateGithubRepo = async (repoUrl: string, userId: string): P
             };
         }
 
-        const installation = await getUserGitHubInstallation(userId);
+        const installation = await getUserGitHubInstallation(userId, owner);
         console.log("🔑 Generating GitHub installation token for private repository access...");
         const githubToken = await generateInstallationToken(installation.installationId);
         console.log("✅ GitHub token generated successfully");

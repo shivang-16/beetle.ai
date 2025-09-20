@@ -103,11 +103,14 @@ import { commentOnIssueOpened, create_github_installation, delete_github_install
     await commentOnIssueOpened(payload);
   });
 
-  // Handle pull request opened events
-  webhooks.on('pull_request.opened', async ({ payload }) => {
+  // Handle pull request opened and reopened events
+  const handlePullRequestAnalysis = async ({ payload }: { payload: any }) => {
+    console.log("PR analysis triggered:", payload.action)
     const prData = await PrData(payload)
-    
-   });
+  };
+
+  webhooks.on('pull_request.opened', handlePullRequestAnalysis);
+  webhooks.on('pull_request.reopened', handlePullRequestAnalysis);
   
   // Log all webhook events
   webhooks.onAny(({ name, payload }) => {
