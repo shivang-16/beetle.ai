@@ -29,6 +29,7 @@ type FinalizeStatus = "completed" | "interrupted" | "error";
 
 export interface FinalizeParams {
   analysisId: string;
+  analysis_type: string;
   userId: string;
   repoUrl: string;
   github_repositoryId: string;
@@ -40,7 +41,7 @@ export interface FinalizeParams {
 }
 
 export async function finalizeAnalysisAndPersist(params: FinalizeParams): Promise<void> {
-  const { analysisId, userId, repoUrl, model, prompt, status, exitCode, github_repositoryId, sandboxId } = params;
+  const { analysisId, analysis_type, userId, repoUrl, model, prompt, status, exitCode, github_repositoryId, sandboxId } = params;
   const key = getAnalysisRedisKey(analysisId);
 
   try {
@@ -51,6 +52,7 @@ export async function finalizeAnalysisAndPersist(params: FinalizeParams): Promis
 
     await Analysis.create({
       analysisId,
+      analysis_type,
       userId,
       repoUrl,
       github_repositoryId,

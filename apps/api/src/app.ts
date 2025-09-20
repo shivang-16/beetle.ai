@@ -11,6 +11,7 @@ import GithubRoutes from "./routes/github.routes.js";
 import UserRoutes from "./routes/user.routes.js";
 import AnalysisRoutes from "./routes/analysis.routes.js";
 import TeamRoutes from "./routes/team.routes.js";
+import SandboxRoutes from "./routes/sandbox.routes.js";
 import { config } from "dotenv";
 
 export function createApp(): Application {
@@ -69,6 +70,7 @@ export function createApp(): Application {
   app.use("/api/user", UserRoutes);
   app.use("/api/analysis", AnalysisRoutes);
   app.use("/api/team", TeamRoutes);
+  app.use("/api/sandbox", SandboxRoutes);
 
   // 404 handler
   app.use((req: Request, res: Response) => {

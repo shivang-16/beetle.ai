@@ -30,7 +30,7 @@ export const executeAnalysis = async (
   prompt = "Analyze this codebase for security vulnerabilities and code quality",
   analysisType: string,
   callbacks?: StreamingCallbacks,
-  data?: any // Optional data parameter for PR analysis or other structured data
+  data?: any, // Optional data parameter for PR analysis or other structured data
 ): Promise<AnalysisResult> => {
   // Hoisted context for streaming persistence
   let sandboxRef: any | undefined;
@@ -156,6 +156,7 @@ export const executeAnalysis = async (
           result.exitCode === 0 ? "completed" : "error";
         await finalizeAnalysisAndPersist({
           analysisId,
+          analysis_type: analysisType,
           userId,
           repoUrl,
           github_repositoryId,
@@ -198,6 +199,7 @@ export const executeAnalysis = async (
       try {
         await finalizeAnalysisAndPersist({
           analysisId,
+          analysis_type: analysisType,
           userId,
           repoUrl,
           github_repositoryId,

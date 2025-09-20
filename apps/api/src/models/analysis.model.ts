@@ -2,6 +2,7 @@ import mongoose, { Schema } from 'mongoose';
 
 export interface IAnalysis {
   analysisId: string;
+  analysis_type: string;
   userId: string;
   repoUrl: string;
   github_repositoryId: string;
@@ -23,10 +24,11 @@ export interface IAnalysis {
 const AnalysisSchema = new Schema<IAnalysis>(
   {
     analysisId: { type: String, required: true, unique: true, index: true },
+    analysis_type: { type: String, required: true },
     userId: { type: String, required: true, index: true },
     repoUrl: { type: String, required: true },
     github_repositoryId: { type: String, required: true, index: true },
-    sandboxId: { type: String, },
+    sandboxId: { type: String },
     model: { type: String, required: true },
     prompt: { type: String, required: true },
     status: {

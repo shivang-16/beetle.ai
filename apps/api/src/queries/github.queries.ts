@@ -4,14 +4,11 @@ import { CustomError } from "../middlewares/error.js";
 import User from "../models/user.model.js";
 import { Github_Repository } from "../models/github_repostries.model.js";
 import { getInstallationOctokit } from "../lib/githubApp.js";
-import { writeFileSync } from 'fs';
 import { join } from 'path';
 import { executeAnalysis, StreamingCallbacks } from "../services/sandbox/executeAnalysis.js";
-import { initRedisBuffer, appendToRedisBuffer } from "../utils/analysisStreamStore.js";
-import Analysis from "../models/analysis.model.js";
-import { randomUUID } from "crypto";
 import { createParserState, parseStreamingResponse, finalizeParsing, ParserState } from "../lib/responseParser.js";
 import { PRCommentService, PRCommentContext } from "../services/prCommentService.js";
+import mongoose from "mongoose";
 
 export const create_github_installation = async (payload: CreateInstallationInput) => {
     try {
@@ -531,8 +528,15 @@ export const PrData = async (payload: any) => {
         primaryLanguages: [...new Set((filesChanged as any[]).map(f => f.filename.split('.').pop()).filter(Boolean))].slice(0, 5)
       }
     };
-    
 
+    const pr_data = await mongoose.connection.db?.collection('pull_request_datas').insertOne(modelAnalysisData);
+    console.log(`✅ PR data for PR #${pull_request.number} inserted into MongoDB`);
+
+    const sandbox_token = await mongoose.connection.db?.collection('auth_tokens').findOne({type: "sandbox"})
+    if(!sandbox_token?.auth_token) {
+      console.log("Unable to find sandbox token")
+      return
+    }
     // 🚀 Trigger Sandbox Analysis for PR
     console.log('=== TRIGGERING SANDBOX ANALYSIS FOR PR ===');
     
@@ -620,7 +624,10 @@ export const PrData = async (payload: any) => {
           prAnalysisPrompt,
           "pr_analysis", // analysisType
           callbacks,
-          modelAnalysisData, 
+          {pr_data_id: pr_data?.insertedId?.toString(), 
+            auth_token: sandbox_token.auth_token,
+            base_url: "https://redbird-polished-whippet.ngrok-free.app"
+          },
         ).then(async (result) => {
           console.log(`✅ PR analysis completed for ${repository.full_name}#${pull_request.number}:`, result);
           
