@@ -1,6 +1,6 @@
 // apps/api/src/services/prCommentService.ts
-import { getInstallationOctokit } from '../lib/githubApp.js';
-import { PRComment } from '../lib/responseParser.js';
+import { getInstallationOctokit } from '../../lib/githubApp.js';
+import { PRComment } from '../../utils/responseParser.js';
 
 export interface PRCommentContext {
   installationId: number;

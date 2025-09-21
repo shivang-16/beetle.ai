@@ -6,8 +6,8 @@ import { Github_Repository } from "../models/github_repostries.model.js";
 import { getInstallationOctokit } from "../lib/githubApp.js";
 import { join } from 'path';
 import { executeAnalysis, StreamingCallbacks } from "../services/sandbox/executeAnalysis.js";
-import { createParserState, parseStreamingResponse, finalizeParsing, ParserState } from "../lib/responseParser.js";
-import { PRCommentService, PRCommentContext } from "../services/prCommentService.js";
+import { createParserState, parseStreamingResponse, finalizeParsing, ParserState } from "../utils/responseParser.js";
+import { PRCommentService, PRCommentContext } from "../services/analysis/prCommentService.js";
 import mongoose from "mongoose";
 
 export const create_github_installation = async (payload: CreateInstallationInput) => {
@@ -548,6 +548,11 @@ export const PrData = async (payload: any) => {
         return
        } 
 
+       const user = await User.findById(githubInstallation?.userId)
+       if(!user?.email) {
+        console.log("Unable to find user email")
+       }
+
       // Check if repository exists in our database and populate installation to get userId
       const githubRepo = await Github_Repository.findOne({ 
         fullName: repository.full_name 
@@ -628,6 +633,7 @@ export const PrData = async (payload: any) => {
             auth_token: sandbox_token.auth_token,
             base_url: "https://redbird-polished-whippet.ngrok-free.app"
           },
+          user.email
         ).then(async (result) => {
           console.log(`✅ PR analysis completed for ${repository.full_name}#${pull_request.number}:`, result);
           

@@ -22,6 +22,7 @@ export const startAnalysis = async (
     const {
       github_repositoryId,
       branch,
+      teamId,
       model = "gemini-2.5-flash",
       prompt = "Analyze this codebase for security vulnerabilities and code quality",
     } = req.body;
@@ -84,6 +85,7 @@ export const startAnalysis = async (
       },
     };
 
+    console.log(teamId, "here is the team id")
     // Call the refactored service function
     const result = await executeAnalysis(
       github_repositoryId,
@@ -93,7 +95,10 @@ export const startAnalysis = async (
       model,
       prompt,
       "full_repo_analysis", // analysisType
-      callbacks
+      callbacks,
+      undefined, // data parameter
+      req.user?.email, // userEmail parameter
+      teamId
     );
 
     exitCode = result.exitCode;

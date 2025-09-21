@@ -24,11 +24,13 @@ const RenderLogs = ({
   analysisId,
   repoTree,
   branch,
+  teamId,
 }: {
   repoId: string;
   analysisId?: string;
   repoTree: RepoTree;
-  branch?: string;
+  branch?: string;  
+  teamId?: string;
 }) => {
   const [logs, setLogs] = useState<LogItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -46,6 +48,7 @@ const RenderLogs = ({
       const body = JSON.stringify({
         github_repositoryId: repoId,
         branch,
+        teamId
       });
 
       const res = await fetch(`${_config.API_BASE_URL}/api/analysis/execute`, {

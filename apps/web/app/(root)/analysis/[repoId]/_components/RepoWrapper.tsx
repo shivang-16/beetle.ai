@@ -9,7 +9,7 @@ const RepoWrapper = async ({ repoId, teamId, branch }: { repoId: string; teamId?
   return (
     <div className="h-svh flex">
       <div className="flex-1">
-        <AnalysisViewer repoId={decodeURIComponent(repoId)} repoTree={repoTree.data} branch={branch} />
+        <AnalysisViewer repoId={decodeURIComponent(repoId)} repoTree={repoTree.data} branch={branch} teamId={teamId} />
       </div>
     </div>
   );
