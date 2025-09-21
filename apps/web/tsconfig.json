@@ -6,7 +6,7 @@
         "name": "next"
       }
     ],
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "types": ["node"],
     "paths": {
       "@/*": ["./*"]
