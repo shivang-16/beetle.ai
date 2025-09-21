@@ -33,6 +33,9 @@ services:
     tmpfs:
       - /tmp
       - /app/apps/api/logs
+      - /home/apiuser/.cache
+      - /home/apiuser/.local
+      - /home/apiuser/.pnpm-state
     
     # Additional security options
     cap_drop:
