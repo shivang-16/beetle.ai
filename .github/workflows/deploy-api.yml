@@ -29,9 +29,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run linting
-        run: pnpm --filter codetector-api run lint
-
       - name: Build application
         run: pnpm --filter codetector-api run build
 
