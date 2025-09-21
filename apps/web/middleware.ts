@@ -1,19 +1,19 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+// import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 // import { NextResponse } from "next/server";
 
-const isPublicRoute = createRouteMatcher(["/sign-in(.*)", "/sign-up(.*)", "/"]);
+// const isPublicRoute = createRouteMatcher(["/sign-in(.*)", "/sign-up(.*)", "/"]);
 
-export default clerkMiddleware(async (auth, req) => {
-  if (!isPublicRoute(req)) {
-    await auth.protect();
-  }
+export default function middleware(req: Request) {
+  // if (!isPublicRoute(req)) {
+  //   await auth.protect();
+  // }
 
-  const { isAuthenticated } = await auth();
+  // const { isAuthenticated } = await auth();
 
-  if (isAuthenticated && isPublicRoute(req)) {
-    return Response.redirect(new URL("/dashboard", req.url));
-  }
-});
+  // if (isAuthenticated && isPublicRoute(req)) {
+  //   return Response.redirect(new URL("/dashboard", req.url));
+  // }
+};
 
 export const config = {
   matcher: [
@@ -23,3 +23,4 @@ export const config = {
     "/(api|trpc)(.*)",
   ],
 };
+

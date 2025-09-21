@@ -143,7 +143,7 @@ importers:
   apps/web:
     dependencies:
       '@clerk/nextjs':
-        specifier: ^6.31.4
+        specifier: ^6.32.0
         version: 6.32.0(next@15.5.3)(react-dom@19.1.1)(react@19.1.1)
       '@clerk/themes':
         specifier: ^2.4.18

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { SignInButton, SignUpButton, SignedOut } from "@clerk/nextjs";
+import { SignInButton, SignUpButton, SignedOut, SignedIn } from "@clerk/nextjs";
 import CodetectorLogo from "@/components/shared/codetector-logo";
 import ThemeToggle from "@/components/shared/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,16 @@ export default function Navbar() {
               </Button>
             </SignUpButton> */}
           </SignedOut>
+
+          <SignedIn>
+            <Link href="/dashboard">
+              <Button
+                variant={"ghost"}
+                className="cursor-pointer border bg-white text-black hover:text-white/80">
+                Dashboard <ArrowUpRight />
+              </Button>
+            </Link>
+          </SignedIn>
         </div>
       </div>
     </header>
