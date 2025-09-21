@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   codetector-api:
     # For local development, use build

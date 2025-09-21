@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   codetector-api:
     # Production-specific overrides
@@ -13,15 +11,15 @@ services:
         max-size: "10m"
         max-file: "3"
     
-    # Production resource limits
+    # Production resource limits (adjusted for 2-CPU EC2 instance)
     deploy:
       resources:
         limits:
-          cpus: '4.0'
-          memory: 4G
+          cpus: '1.5'
+          memory: 2G
         reservations:
-          cpus: '1.0'
-          memory: 1G
+          cpus: '0.5'
+          memory: 512M
       
       # Restart policy for production
       restart_policy:
