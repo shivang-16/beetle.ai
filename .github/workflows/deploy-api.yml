@@ -1,0 +1,119 @@
+name: CodeDetector-API-Deployment
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - 'apps/api/**'
+      - '.github/workflows/deploy-api.yml'
+
+jobs:
+  test:
+    name: Test API
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run linting
+        run: pnpm --filter codetector-api run lint
+
+      - name: Build application
+        run: pnpm --filter codetector-api run build
+
+  build:
+    name: Build and Push to Docker Hub
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build docker image
+        run: |
+          cd apps/api
+          docker build -f Dockerfile -t codetector-api:latest ../../
+
+      - name: Push images to Docker Hub
+        run: |
+          docker tag codetector-api:latest ${{ secrets.DOCKER_USERNAME }}/codetector-api:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/codetector-api:latest
+
+  deploy:
+    name: Deploy to Server
+    needs: build
+    runs-on: self-hosted
+    
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Create env file
+        run: |
+          cd apps/api
+          touch .env
+          echo "${{ secrets.PROD_ENV }}" > .env
+          # Ensure DOCKER_USERNAME is available for docker-compose
+          echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> .env
+
+      - name: Stop existing containers
+        run: |
+          cd apps/api
+          docker-compose down || true
+
+      - name: Pull latest images
+        run: |
+          docker pull ${{ secrets.DOCKER_USERNAME }}/codetector-api:latest
+
+      - name: Start containers with production configuration
+        run: |
+          cd apps/api
+          # Use production configuration with security enhancements
+          docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+      - name: Wait for service to be ready
+        run: |
+          cd apps/api
+          echo "Waiting for API to be ready..."
+          timeout 60 bash -c 'until curl -f http://localhost:3001/health; do sleep 2; done'
+
+      - name: Health check
+        run: |
+          echo "Running comprehensive health check..."
+          curl -f http://localhost:3001/health
+          curl -f http://localhost:3001/
+
+      - name: Clean up old images
+        run: docker image prune -f
+
+      - name: Notify deployment success
+        run: |
+          echo "✅ Deployment successful!"
+          echo "🚀 API is running at http://localhost:3001"
+          echo "🏥 Health check: http://localhost:3001/health"
+
+      - name: Notify deployment failure
+        if: failure()
+        run: |
+          echo "❌ Deployment failed!"
+          echo "📋 Container logs:"
+          cd apps/api
+          docker-compose logs --tail=50

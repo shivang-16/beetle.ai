@@ -59,6 +59,16 @@ export function createApp(): Application {
     });
   });
 
+  // Health check endpoint for Docker/ECS
+  app.get("/health", (req: Request, res: Response) => {
+    res.status(200).json({
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      environment: process.env.NODE_ENV || "development",
+    });
+  });
+
   // Apply webhook middleware
   const webhookMiddleware = createNodeMiddleware(webhooks, {
     path: "/api/webhooks",
