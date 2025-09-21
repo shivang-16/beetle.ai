@@ -37,7 +37,7 @@ export function createApp(): Application {
   // Middleware
   app.use(
     cors({
-      origin: "http://localhost:3000", // Specific origin instead of '*'
+      origin: [process.env.FRONTEND_URL || "http://localhost:3000"], // Specific origin instead of '*'
       credentials: true,
     })
   );
