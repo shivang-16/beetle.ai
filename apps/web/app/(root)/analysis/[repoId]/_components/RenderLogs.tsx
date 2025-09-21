@@ -24,6 +24,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { executeAnalysis } from "../_actions/analyzeRepo";
 
 const RenderLogs = ({
   repoId,
@@ -51,21 +52,13 @@ const RenderLogs = ({
       setLogs([]);
       setIsLoading(true);
 
-      const body = JSON.stringify({
+      const body = {
         github_repositoryId: repoId,
         branch,
         teamId
-      });
+      };
 
-      const res = await fetch(`${_config.API_BASE_URL}/api/analysis/execute`, {
-        method: "POST",
-        body,
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        signal,
-      });
+      const res = await executeAnalysis(body);
 
       if (!res.ok) {
         toast.error(`HTTP error! status: ${res.status}`);
