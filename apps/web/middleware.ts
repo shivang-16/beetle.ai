@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getUser } from './_actions/user-actions'
 
 const protectedRoutes = [
   '/dashboard',
@@ -11,49 +10,44 @@ const isProtectedRoute = (pathname: string) => {
   return protectedRoutes.some(route => pathname.startsWith(route))
 }
 
-export default async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
-
-  // Skip middleware for static files and Next.js internals
-  if (
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/api') ||
-    pathname.includes('.')
-  ) {
-    return NextResponse.next()
-  }
-
-  // Check if the route is protected
-  if (isProtectedRoute(pathname)) {
-    try {
-      const user = await getUser()
-      
-      // If user is not authenticated, redirect to home
-      if (!user) {
-        return NextResponse.redirect(new URL('/', request.url))
-      }
-      
-      // User is authenticated, continue to the protected route
-      return NextResponse.next()
-    } catch (error) {
-      // If there's an error getting user (e.g., invalid token), redirect to home
-      return NextResponse.redirect(new URL('/', request.url))
-    }
-  }
-
-  // For non-protected routes, check if user is authenticated and redirect to dashboard
+async function checkUserAuthentication(request: NextRequest) {
   try {
-    const user = await getUser()
+    // Get the auth token from cookies or headers
+    const authToken = request.cookies.get('auth-token')?.value || 
+                     request.headers.get('authorization')?.replace('Bearer ', '')
     
-    // If user is authenticated and trying to access home page, redirect to dashboard
-    if (user && pathname === '/') {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+    if (!authToken) {
+      return null
     }
-  } catch (error) {
-    // If there's an error, just continue to the requested route
-  }
 
-  return NextResponse.next()
+    // Make API call to verify user
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL
+    if (!apiBaseUrl) {
+      console.error('API_BASE_URL not configured')
+      return null
+    }
+
+    const response = await fetch(`${apiBaseUrl}/api/user`, {
+      headers: {
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      return null
+    }
+
+    const userData = await response.json()
+    return userData.user
+  } catch (error) {
+    console.error('Error checking user authentication:', error)
+    return null
+  }
+}
+
+export default async function middleware(request: NextRequest) {
+  
 }
 
 export const config = {
