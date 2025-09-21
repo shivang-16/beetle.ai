@@ -3,10 +3,12 @@ import {
   initRedisBuffer,
   finalizeAnalysisAndPersist,
 } from "../../utils/analysisStreamStore.js";
-import { createSandbox } from "../../config/sandbox.js";
+import { connectSandbox, createSandbox } from "../../config/sandbox.js";
 import { Github_Repository } from "../../models/github_repostries.model.js";
 import { authenticateGithubRepo } from "../../utils/authenticateGithubUrl.js";
 import { randomUUID } from "crypto";
+import Analysis from "../../models/analysis.model.js";
+import mongoose from "mongoose";
 
 export interface StreamingCallbacks {
   onStdout?: (data: string) => Promise<void>;
@@ -39,6 +41,11 @@ export const executeAnalysis = async (
   let analysisId: string = randomUUID();
 
   try {
+
+    const latestAnalysis = await Analysis.findOne({
+      github_repositoryId: new mongoose.Types.ObjectId(github_repositoryId),
+    }).sort({ createdAt: -1 });
+
     // Authenticate GitHub repository
     const authResult = await authenticateGithubRepo(repoUrl, userId);
     if (!authResult.success) {
@@ -70,7 +77,22 @@ export const executeAnalysis = async (
       await callbacks.onProgress("🔧 Creating E2B sandbox...");
     }
 
-    const sandbox = await createSandbox();
+    let sandbox;
+    if(latestAnalysis?.sandboxId) {
+      try {
+        sandbox = await connectSandbox(latestAnalysis.sandboxId);
+      } catch (error: any) {
+        // If sandbox connection fails (e.g., NotFoundError after 30 days), create a new one
+        console.log(`⚠️ Failed to connect to existing sandbox ${latestAnalysis.sandboxId}: ${error.message}`);
+        console.log("🔧 Creating new sandbox...");
+        if (callbacks?.onProgress) {
+          await callbacks.onProgress("⚠️ Existing sandbox unavailable, creating new one...");
+        }
+        sandbox = await createSandbox();
+      }
+    } else {
+      sandbox = await createSandbox();
+    }
     sandboxRef = sandbox;
     sandboxId = sandbox.sandboxId;
     console.log("✅ Sandbox created successfully");
@@ -141,9 +163,9 @@ export const executeAnalysis = async (
       );
     }
 
-    // Close the sandbox
-    await sandbox.kill();
-    // await sandbox.betaPause();
+    // Puase the sandbox
+    await sandbox.betaPause();
+    // console.log(sameSandbox.sandboxId)
 
     if (callbacks?.onProgress) {
       await callbacks.onProgress("🔒 Sandbox closed");

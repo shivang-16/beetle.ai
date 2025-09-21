@@ -13,3 +13,8 @@ export function createSandbox(
   return Sandbox.create(process.env.E2B_SANDBOX_TEMPLATE!, opts);
 }
 
+export function connectSandbox(
+  sandboxId: string,
+): Promise<Sandbox> {
+  return Sandbox.connect(sandboxId, DEFAULT_OPTIONS);
+}
