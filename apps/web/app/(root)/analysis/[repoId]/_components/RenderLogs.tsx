@@ -135,6 +135,9 @@ const RenderLogs = ({
           return;
         }
 
+        const token = await getToken();
+
+
         console.log("🔄 Loading analysis from db: ", analysisId);
 
         const res = await fetch(
@@ -142,6 +145,9 @@ const RenderLogs = ({
           {
             method: "GET",
             credentials: "include",
+            headers: {
+              "Authorization": `Bearer ${token}`  
+            }
           }
         );
 
