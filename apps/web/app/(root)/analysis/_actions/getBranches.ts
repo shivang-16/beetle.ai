@@ -2,6 +2,7 @@
 
 import { getAuthToken } from "@/_actions/auth-token";
 import { _config } from "@/lib/_config";
+import { logger } from "@/lib/logger";
 
 interface Branch {
   name: string;
@@ -33,7 +34,11 @@ export const getBranches = async (
     const data: { success: boolean; data: Branch[]; message?: string } = await response.json();
     return data;
   } catch (error) {
-    console.error("Error fetching branches:", error);
+    logger.error("Error fetching branches", { 
+      repositoryId, 
+      teamId,
+      error: error instanceof Error ? error.message : error 
+    });
 
     if (error instanceof Error) {
       throw new Error(`Failed to fetch branches: ${error.message}`);

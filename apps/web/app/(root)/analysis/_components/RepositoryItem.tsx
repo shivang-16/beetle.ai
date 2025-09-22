@@ -5,6 +5,7 @@ import { GithubRepository } from "@/types/types";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import BranchDropdown from "./BranchDropdown";
+import { logger } from "@/lib/logger";
 
 interface RepositoryItemProps {
   repo: GithubRepository;
@@ -17,7 +18,11 @@ const RepositoryItem: React.FC<RepositoryItemProps> = ({ repo, teamId }) => {
   const handleBranchChange = (branch: string) => {
     setSelectedBranch(branch);
     // Here you could also update the URL or trigger other actions
-    console.log(`Branch changed to: ${branch} for repo: ${repo.fullName}`);
+    logger.debug("Branch changed", { 
+      branch, 
+      repoFullName: repo.fullName,
+      repoId: repo._id 
+    });
   };
 
   return (

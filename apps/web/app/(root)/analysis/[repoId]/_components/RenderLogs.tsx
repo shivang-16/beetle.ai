@@ -24,7 +24,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { executeAnalysis } from "../_actions/analyzeRepo";
+import { executeAnalysisStream } from "@/lib/api/analysis";
+import { useAuth } from "@clerk/nextjs";
 
 const RenderLogs = ({
   repoId,
@@ -41,6 +42,7 @@ const RenderLogs = ({
 }) => {
   const [logs, setLogs] = useState<LogItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const { getToken } = useAuth();
 
   const abortControllerRef = useRef<AbortController>(null);
   const parserStateRef = useRef<ParserState>(createParserState());
@@ -52,13 +54,19 @@ const RenderLogs = ({
       setLogs([]);
       setIsLoading(true);
 
+      const token = await getToken();
+      if (!token) {
+        toast.error("Authentication token not available");
+        return;
+      }
+
       const body = {
         github_repositoryId: repoId,
         branch,
         teamId
       };
 
-      const res = await executeAnalysis(body);
+      const res = await executeAnalysisStream(body, token);
 
       if (!res.ok) {
         toast.error(`HTTP error! status: ${res.status}`);

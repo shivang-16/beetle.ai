@@ -5,7 +5,7 @@ import { clerkClient } from '@clerk/express';
 import { Github_Installation } from '../models/github_installations.model.js';
 import { Github_Repository } from '../models/github_repostries.model.js';
 import { CustomError } from '../middlewares/error.js';
-import { logError } from '../utils/logger.js';
+import { logger } from '../utils/logger.js';
 
 
 const slugify = (name: string) =>
@@ -47,7 +47,7 @@ export const getOrCreateCurrentOrgTeam = async (req: Request, res: Response, nex
 
     return res.status(201).json({ success: true, data: team });
   } catch (err) {
-    logError(`getOrCreateCurrentOrgTeam error: ${err}`);
+    logger.error(`getOrCreateCurrentOrgTeam error: ${err}`);
     return next(new CustomError('Failed to ensure organization team', 500));
   }
 };
@@ -76,7 +76,7 @@ export const getTeamRepositories = async (req: Request, res: Response, next: Nex
 
     return res.status(200).json({ success: true, data: repos });
   } catch (err) {
-    logError(`getTeamRepositories error: ${err}`);
+    logger.error(`getTeamRepositories error: ${err}`);
     return next(new CustomError('Failed to fetch team repositories', 500));
   }
 };
@@ -96,7 +96,7 @@ export const getMyTeams = async (req: Request, res: Response, next: NextFunction
 
     return res.status(200).json({ success: true, data: result });
   } catch (err) {
-    logError(`getMyTeams error: ${err}`);
+    logger.error(`getMyTeams error: ${err}`);
     return next(new CustomError('Failed to fetch user teams', 500));
   }
 };

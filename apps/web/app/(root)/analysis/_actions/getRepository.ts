@@ -3,6 +3,7 @@
 import { getAuthToken } from "@/_actions/auth-token";
 import { _config } from "@/lib/_config";
 import { GithubRepository } from "@/types/types";
+import { logger } from "@/lib/logger";
 
 export const getRepository = async (
   query: string,
@@ -57,10 +58,18 @@ export const getRepository = async (
     const data: { success: boolean; data: GithubRepository[] } = await repoRes.json();
     return data;
   } catch (error) {
-    console.log(error);
+    logger.error("Failed to fetch repositories", { 
+      query, 
+      scope, 
+      teamId: teamIdFromClient,
+      error: error instanceof Error ? error.message : error 
+    });
 
     if (error instanceof Error) {
-      console.log("instanceof Error: ", error);
+      logger.error("Repository fetch error details", { 
+        message: error.message,
+        stack: error.stack 
+      });
 
       throw new Error(`${error.message}`);
     } else {

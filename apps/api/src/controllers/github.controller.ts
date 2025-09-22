@@ -7,12 +7,13 @@ import { Octokit } from "@octokit/rest";
 import { authenticateGithubRepo } from "../utils/authenticateGithubUrl.js";
 import { Github_Repository } from "../models/github_repostries.model.js";
 import Team from "../models/team.model.js";
+import { logger } from "../utils/logger.js";
 
 export const getRepoTree = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { github_repositoryId, teamId, branch } = req.query as { github_repositoryId: string, teamId: string, branch?: string };
  
-    console.log("branch", branch);
+    logger.debug("Getting repo tree", { github_repositoryId, teamId, branch });
 
     const github_repository = await Github_Repository.findById(github_repositoryId);
     if (!github_repository) {
@@ -59,7 +60,7 @@ export const getRepoTree = async (req: Request, res: Response, next: NextFunctio
 
     // ✅ Use the branch parameter or default to 'main'
     const selectedBranch = branch || github_repository.defaultBranch || 'main';
-    console.log("selectedBranch", selectedBranch);
+    logger.debug("Selected branch for repo tree", { selectedBranch, defaultBranch: github_repository.defaultBranch });
     const { data: ref } = await octokit.git.getRef({ owner, repo, ref: `heads/${selectedBranch}` });
     const commitSha = ref.object.sha;
 
@@ -88,7 +89,11 @@ export const getRepoTree = async (req: Request, res: Response, next: NextFunctio
     });
 
   } catch (error: any) {
-    console.error("❌ Error getting repository tree:", error);
+    logger.error("Error getting repository tree", { 
+      error: error instanceof Error ? error.message : error,
+      owner: req.params.owner,
+      repo: req.params.repo 
+    });
     next(new CustomError(error.message || "Failed to get repository tree", error.status || 500));
   }
 };
@@ -165,7 +170,11 @@ export const getRepoInfo = async (
       },
     });
   } catch (error: any) {
-    console.error("❌ Error getting repository info:", error);
+    logger.error("Error getting repository info", { 
+      error: error instanceof Error ? error.message : error,
+      owner: req.params.owner,
+      repo: req.params.repo 
+    });
     next(
       new CustomError(error.message || "Failed to get repository info", 500)
     );
@@ -197,8 +206,7 @@ export const createIssue = async (
 
     const [, owner, repo] = githubUrlMatch;
 
-    console.log(`🐛 Creating issue in: ${owner}/${repo}`);
-    console.log(`📝 Title: ${title}`);
+    logger.info("Creating GitHub issue", { owner, repo, title });
 
     // Get GitHub token for authenticated user
     const userId = req.user?._id;
@@ -206,21 +214,23 @@ export const createIssue = async (
 
     if (userId) {
       try {
-        console.log("🔑 Generating GitHub installation token...");
-        console.log(`🎯 Target repository: ${owner}/${repo}`);
-        console.log(`👤 User ID: ${userId}`);
+        logger.debug("Generating GitHub installation token", { owner, repo, userId });
         
         // Debug: Check all installations for this user
         const allInstallations = await getAllUserInstallations(userId);
-        console.log("📋 All installations found:", allInstallations);
+        logger.debug("All installations found", { 
+          userCount: allInstallations.userInstallations.length, 
+          orgCount: allInstallations.orgInstallations.length,
+          installations: allInstallations 
+        });
         
         // First try to get user's personal installation
         let installation;
         try {
           installation = await getUserGitHubInstallation(userId, owner);
-          console.log("✅ Found personal installation:", installation.installationId);
+          logger.debug("Found personal installation", { installationId: installation.installationId });
         } catch (error) {
-          console.log("⚠️ No personal GitHub installation found, checking organization installations...");
+          logger.debug("No personal GitHub installation found, checking organization installations");
         }
 
         // If no personal installation, check if user has access to organization installations
@@ -229,7 +239,7 @@ export const createIssue = async (
           const orgInstallation = await getOrganizationInstallationForRepo(owner, repo, userId);
           if (orgInstallation) {
             installation = orgInstallation;
-            console.log(`✅ Found organization installation for ${owner}/${repo}:`, orgInstallation.installationId);
+            logger.debug("Found organization installation", { owner, repo, installationId: orgInstallation.installationId });
           }
         }
 
@@ -246,15 +256,12 @@ export const createIssue = async (
           githubToken = await generateInstallationToken(
             installation.installationId
           );
-          console.log("✅ GitHub token generated successfully");
+          logger.debug("GitHub token generated successfully");
         } else {
-          console.log("⚠️ No GitHub installation found for user or organization");
+          logger.warn("No GitHub installation found for user or organization", { userId, owner, repo });
         }
       } catch (error) {
-        console.log(
-          "⚠️ Could not generate GitHub token, using fallback:",
-          error
-        );
+        logger.warn("Could not generate GitHub token, using fallback", { error: error instanceof Error ? error.message : error });
       }
     }
 
@@ -286,11 +293,11 @@ export const createIssue = async (
       issueData.assignees = assignees;
     }
 
-    console.log("📤 Creating issue with data:", issueData);
+    logger.debug("Creating issue with data", { issueData });
 
     const { data: issue } = await octokit.issues.create(issueData);
 
-    console.log(`✅ Issue created successfully! Issue #${issue.number}`);
+    logger.info("Issue created successfully", { issueNumber: issue.number, url: issue.html_url });
 
     res.json({
       success: true,
@@ -312,7 +319,12 @@ export const createIssue = async (
       },
     });
   } catch (error: any) {
-    console.error("❌ Error creating issue:", error);
+    logger.error("Error creating issue", { 
+      error: error instanceof Error ? error.message : error,
+      owner: req.params.owner,
+      repo: req.params.repo,
+      status: error.status 
+    });
 
     if (error.status === 404) {
       next(new CustomError("Repository not found or access denied", 404));
@@ -338,8 +350,7 @@ export const getBranches = async (
   try {
     const { github_repositoryId, teamId } = req.query as { github_repositoryId: string, teamId: string };
 
-    console.log("github_repositoryId", github_repositoryId);
-    console.log("teamId", teamId);
+    logger.debug("Getting branches", { github_repositoryId, teamId });
 
     const github_repository = await Github_Repository.findById(github_repositoryId);
     if (!github_repository) {
@@ -407,7 +418,11 @@ export const getBranches = async (
     });
 
   } catch (error: any) {
-    console.error("❌ Error getting repository branches:", error);
+    logger.error("Error getting repository branches", { 
+      error: error instanceof Error ? error.message : error,
+      owner: req.params.owner,
+      repo: req.params.repo 
+    });
     next(new CustomError(error.message || "Failed to get repository branches", error.status || 500));
   }
 };
@@ -451,9 +466,7 @@ export const createPullRequest = async (
 
     const [, owner, repo] = githubUrlMatch;
 
-    console.log(`🔀 Creating pull request in: ${owner}/${repo}`);
-    console.log(`📁 File path: ${filePath}`);
-    console.log(`📝 Title: ${title}`);
+    logger.info("Creating pull request", { owner, repo, filePath, title });
 
     // Get GitHub token for authenticated user
     const userId = req.user?._id;
@@ -461,14 +474,14 @@ export const createPullRequest = async (
 
     if (userId) {
       try {
-        console.log("🔑 Generating GitHub installation token...");
+        logger.debug("Generating GitHub installation token for PR");
         
         // First try to get user's personal installation
         let installation;
         try {
           installation = await getUserGitHubInstallation(userId, owner);
         } catch (error) {
-          console.log("⚠️ No personal GitHub installation found, checking organization installations...");
+          logger.debug("No personal GitHub installation found, checking organization installations");
         }
 
         // If no personal installation, check if user has access to organization installations
@@ -492,15 +505,12 @@ export const createPullRequest = async (
           githubToken = await generateInstallationToken(
             installation.installationId
           );
-          console.log("✅ GitHub token generated successfully");
+          logger.debug("GitHub token generated successfully for PR");
         } else {
-          console.log("⚠️ No GitHub installation found for user or organization");
+          logger.warn("No GitHub installation found for user or organization", { userId, owner, repo });
         }
       } catch (error) {
-        console.log(
-          "⚠️ Could not generate GitHub token, using fallback:",
-          error
-        );
+        logger.warn("Could not generate GitHub token for PR, using fallback", { error: error instanceof Error ? error.message : error });
       }
     }
 
@@ -518,7 +528,7 @@ export const createPullRequest = async (
     // Get the default branch
     const { data: repoInfo } = await octokit.repos.get({ owner, repo });
     const defaultBranch = repoInfo.default_branch;
-    console.log(`🌿 Default branch: ${defaultBranch}`);
+    logger.debug("Retrieved default branch", { defaultBranch, owner, repo });
 
     // Generate branch name if not provided
     const newBranchName = branchName || `fix/${Date.now()}-${Math.random().toString(36).substring(7)}`;
@@ -531,7 +541,7 @@ export const createPullRequest = async (
       ref: `heads/${defaultBranch}`,
     });
     const baseSha = ref.object.sha;
-    console.log(`📋 Base commit SHA: ${baseSha.substring(0, 8)}...`);
+    logger.debug("Retrieved base commit SHA", { baseSha: baseSha.substring(0, 8), owner, repo });
 
     // Create a new branch
     await octokit.git.createRef({
@@ -540,7 +550,7 @@ export const createPullRequest = async (
       ref: `refs/heads/${newBranchName}`,
       sha: baseSha,
     });
-    console.log(`✅ Created new branch: ${newBranchName}`);
+    logger.debug("Created new branch", { newBranchName, baseSha: baseSha.substring(0, 8) });
 
     // Get the current file content
     let currentContent: string;
@@ -565,7 +575,7 @@ export const createPullRequest = async (
       
       currentContent = Buffer.from(fileData.content, 'base64').toString('utf-8');
       currentSha = fileData.sha;
-      console.log(`📄 Current file content retrieved (${currentContent.length} characters)`);
+      logger.debug("Current file content retrieved", { filePath, contentLength: currentContent.length, sha: currentSha.substring(0, 8) });
     } catch (error: any) {
       if (error.status === 404) {
         throw new CustomError(`File ${filePath} not found in the repository`, 404);
@@ -583,7 +593,7 @@ export const createPullRequest = async (
 
     // Replace the content
     const newContent = currentContent.replace(before, after);
-    console.log(`🔄 Content replacement completed`);
+    logger.debug("Content replacement completed", { filePath, beforeLength: before.length, afterLength: after.length });
 
     // Create the commit
     const commitMessage = title;
@@ -596,7 +606,7 @@ export const createPullRequest = async (
       sha: currentSha,
       branch: newBranchName,
     });
-    console.log(`✅ File updated and committed`);
+    logger.debug("File updated and committed", { filePath, commitSha: commit.commit.sha?.substring(0, 8), branch: newBranchName });
 
     // Create pull request body
     let prBody = body || `This pull request updates \`${filePath}\` with the following changes:\n\n`;
@@ -622,7 +632,13 @@ export const createPullRequest = async (
       base: defaultBranch,
     });
 
-    console.log(`✅ Pull request created successfully! PR #${pullRequest.number}`);
+    logger.info("Pull request created successfully", { 
+      pullRequestNumber: pullRequest.number, 
+      title: pullRequest.title,
+      url: pullRequest.html_url,
+      owner,
+      repo
+    });
 
     res.json({
       success: true,
@@ -652,7 +668,7 @@ export const createPullRequest = async (
       },
     });
   } catch (error: any) {
-    console.error("❌ Error creating pull request:", error);
+    logger.error("Error creating pull request", { error: error instanceof Error ? error.message : error });
 
     if (error.status === 404) {
       next(new CustomError("Repository or file not found", 404));

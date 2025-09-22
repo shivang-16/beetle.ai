@@ -3,6 +3,7 @@ import { CustomError } from "../middlewares/error.js";
 import Analysis from "../models/analysis.model.js";
 import { Github_Repository } from "../models/github_repostries.model.js";
 import { executeAnalysis, StreamingCallbacks } from "../services/sandbox/executeAnalysis.js";
+import { logger } from "../utils/logger.js";
 
 export const startAnalysis = async (
   req: Request,
@@ -16,14 +17,17 @@ export const startAnalysis = async (
   let exitCode: number | null = null;
 
   try {
-    console.log("🚀 Starting code analysis...");
+    logger.info("Starting code analysis", { 
+      userId: req.user?._id, 
+      github_repositoryId: req.body.github_repositoryId 
+    });
 
     // Extract parameters from request body or use defaults
     const {
       github_repositoryId,
       branch,
       teamId,
-      model = "gemini-2.5-flash",
+      model = "gemini-1.5-flash",
       prompt = "Analyze this codebase for security vulnerabilities and code quality",
     } = req.body;
 
@@ -60,6 +64,19 @@ export const startAnalysis = async (
     // Function to stream data to client
     const streamToClient = async (data: string) => {
       console.log("[CLIENT STREAMING]", data);
+      
+      // Create a preview for Better Stack while keeping full data for local logs
+      const dataPreview = data.length > 100 ? data.substring(0, 100) + "..." : data;
+      
+      logger.debug(dataPreview, { 
+        dataPreview,
+        fullDataLength: data.length,
+        userId,
+        dataType: typeof data,
+        timestamp: new Date().toISOString(),
+        isLongContent: data.length > 100
+      });
+      
       res.write(data + "\n");
     };
   
@@ -85,7 +102,19 @@ export const startAnalysis = async (
       },
     };
 
-    console.log(teamId, "here is the team id")
+    logger.debug("Team ID for analysis", { teamId, userId });
+    logger.info("Starting analysis execution", {
+      github_repositoryId,
+      repoUrl,
+      branchForAnalysis,
+      userId,
+      model,
+      prompt: prompt.substring(0, 200) + (prompt.length > 200 ? "..." : ""),
+      analysisType: "full_repo_analysis",
+      userEmail: req.user?.email,
+      teamId
+    });
+
     // Call the refactored service function
     const result = await executeAnalysis(
       github_repositoryId,
@@ -103,10 +132,24 @@ export const startAnalysis = async (
 
     exitCode = result.exitCode;
 
+    logger.info("Analysis execution completed", {
+      success: result.success,
+      exitCode: result.exitCode,
+      userId,
+      github_repositoryId,
+      duration: Date.now() - Date.now() // This would need proper timing implementation
+    });
+
     if (result.success) {
       await streamToClient("🎉 Analysis finished successfully!");
+      logger.info("Analysis finished successfully", { userId, github_repositoryId });
     } else {
       await streamToClient("⚠️ Analysis completed with warnings or errors");
+      logger.warn("Analysis completed with warnings or errors", { 
+        userId, 
+        github_repositoryId, 
+        exitCode: result.exitCode 
+      });
       if (result.error) {
         await streamToClient(`Error: ${result.error}`);
       }
@@ -116,7 +159,12 @@ export const startAnalysis = async (
     res.end();
 
   } catch (error: any) {
-    console.error("❌ Error executing analysis:", error);
+    logger.error("Error executing analysis", { 
+      error: error instanceof Error ? error.message : error, 
+      userId, 
+      repoUrl, 
+      exitCode 
+    });
 
     if (!res.headersSent) {
       next(new CustomError(error.message || "Failed to execute analysis", 500));
@@ -140,7 +188,9 @@ export const getAnalysisStatus = async (
       templateId: process.env.E2B_SANDBOX_TEMPLATE || "gh622yvblp3exdpk9tya",
     });
   } catch (error: any) {
-    console.error("Error checking analysis status:", error);
+    logger.error("Error checking analysis status", { 
+      error: error instanceof Error ? error.message : error 
+    });
     next(
       new CustomError(error.message || "Failed to check analysis status", 500)
     );
@@ -156,14 +206,14 @@ export const getRepositoryAnalysis = async (
     const { github_repositoryId } = req.params as {
       github_repositoryId: string;
     };
-    console.log("🔄 Getting analysis: ", github_repositoryId);
+    logger.debug("Getting repository analysis", { github_repositoryId });
 
     let doc = null as any;
     try {
       doc = await Analysis.find({
         github_repositoryId: github_repositoryId,
       }).sort({ createdAt: -1 });
-      // console.log("🔄 Doc: ", doc);
+      // logger.debug("Analysis documents found", { docCount: doc?.length });
     } catch (_) {
       // ignore cast errors
     }
@@ -188,7 +238,10 @@ export const getRepositoryAnalysis = async (
       })),
     });
   } catch (error: any) {
-    console.error("Error fetching analysis:", error);
+    logger.error("Error fetching analysis", { 
+      error: error instanceof Error ? error.message : error,
+      github_repositoryId: req.params.github_repositoryId 
+    });
     next(new CustomError(error.message || "Failed to fetch analysis", 500));
   }
 };
@@ -200,12 +253,12 @@ export const getRepositoryAnalysisLogs = async (
 ) => {
   try {
     const { id } = req.params as { id: string };
-    console.log("🔄 Getting analysis: ", id);
+    logger.debug("Getting analysis logs", { analysisId: id });
 
     let doc = null as any;
     try {
       doc = await Analysis.findById(id).lean();
-      // console.log("🔄 Doc: ", doc);
+      // logger.debug("Analysis document found", { analysisId: id, found: !!doc });
     } catch (_) {
       // ignore cast errors
     }
@@ -219,7 +272,10 @@ export const getRepositoryAnalysisLogs = async (
       data: doc,
     });
   } catch (error: any) {
-    console.error("Error fetching analysis:", error);
+    logger.error("Error fetching analysis logs", { 
+      error: error instanceof Error ? error.message : error,
+      analysisId: req.params.id 
+    });
     next(new CustomError(error.message || "Failed to fetch analysis", 500));
   }
 };

@@ -3,6 +3,7 @@ import { getRepository } from "../_actions/getRepository";
 import { GithubRepository } from "@/types/types";
 import { Separator } from "@/components/ui/separator";
 import RepositoryItem from "./RepositoryItem";
+import { logger } from "@/lib/logger";
 
 type RepoScope = "user" | "team";
 
@@ -21,7 +22,12 @@ const RepositoryList = async ({
     const res = await getRepository(query, scope, teamId);
     data = (res?.data || []).reverse();
   } catch (error) {
-    console.log(error);
+    logger.error("Failed to fetch repositories in RepositoryList", { 
+      query, 
+      scope, 
+      teamId,
+      error: error instanceof Error ? error.message : error 
+    });
   }
 
   return (

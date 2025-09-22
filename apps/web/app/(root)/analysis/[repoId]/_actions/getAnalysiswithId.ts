@@ -3,6 +3,7 @@
 import { getAuthToken } from "@/_actions/auth-token";
 import { _config } from "@/lib/_config";
 import { AnalysisItem } from "@/types/types";
+import { logger } from "@/lib/logger";
 import { revalidateTag } from "next/cache";
 
 export const getAnalysisWithId = async (repoId: string) => {
@@ -22,7 +23,10 @@ export const getAnalysisWithId = async (repoId: string) => {
 
     return list;
   } catch (error) {
-    console.log("Failed to fetch analysis: ", error);
+    logger.error("Failed to fetch analysis", { 
+      repoId, 
+      error: error instanceof Error ? error.message : error 
+    });
   }
 };
 

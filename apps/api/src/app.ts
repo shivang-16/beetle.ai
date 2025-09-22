@@ -2,7 +2,6 @@
 import express, { Application, Request, Response } from "express";
 import cors from "cors";
 import expressWinston from "express-winston";
-import winston from "winston";
 import { createNodeMiddleware } from "@octokit/webhooks";
 import errorMiddleware from "./middlewares/error.js";
 import { webhooks } from "./webooks/github.webooks.js";
@@ -13,6 +12,7 @@ import AnalysisRoutes from "./routes/analysis.routes.js";
 import TeamRoutes from "./routes/team.routes.js";
 import SandboxRoutes from "./routes/sandbox.routes.js";
 import { config } from "dotenv";
+import { logger, winstonLogger } from "./utils/logger.js";
 
 export function createApp(): Application {
   const app = express();
@@ -23,11 +23,7 @@ export function createApp(): Application {
 
   app.use(
     expressWinston.logger({
-      transports: [new winston.transports.Console()],
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.cli()
-      ),
+      winstonInstance: winstonLogger,
       meta: true,
       expressFormat: true,
       colorize: true,

@@ -10,6 +10,7 @@ import {
 } from "@/types/types";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { logger } from "@/lib/logger";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -153,11 +154,14 @@ export function safeParseJSON(str: string) {
 
     // Convert Python single-quoted string values → JSON double-quoted
     normalized = normalized.replace(/'([^']*)'/g, (_, val) => `"${val}"`);
-    console.log({ normalized });
+    logger.debug("Normalized JSON string for parsing", { normalized });
 
     return JSON.parse(normalized);
   } catch (error) {
-    console.log(error);
+    logger.error("Failed to parse JSON string in safeParseJSON", { 
+      originalString: str, 
+      error: error instanceof Error ? error.message : String(error) 
+    });
 
     return null;
   }
@@ -418,8 +422,11 @@ export function bufferJSONToUint8Array(
       const arr = Uint8Array.from(atob(bufferLike), (c) => c.charCodeAt(0));
       // console.log("🔄 Buffer JSON to Uint8Array(base64): ", arr);
       return arr;
-    } catch {
-      console.log("🔄 Buffer JSON to Uint8Array(base64) failed");
+    } catch (error) {
+      logger.error("Failed to convert base64 string to Uint8Array", { 
+        bufferLike, 
+        error: error instanceof Error ? error.message : String(error) 
+      });
       return null;
     }
   }
@@ -431,7 +438,7 @@ export function bufferJSONToUint8Array(
     // console.log("🔄 Buffer JSON to Uint8Array3: ", bufferLike.data);
     return new Uint8Array(bufferLike.data);
   }
-  console.log("🔄 Buffer JSON to Uint8Array4: ", null);
+  logger.warn("Unable to convert bufferLike to Uint8Array - unsupported format", { bufferLike });
   return null;
 }
 
@@ -600,7 +607,10 @@ export function parseToolCall(
         : payloadMatch[1]?.trim(),
     };
   } catch (err) {
-    console.error("Failed to parse log:", err);
+    logger.error("Failed to parse tool call log", { 
+      log, 
+      error: err instanceof Error ? err.message : String(err) 
+    });
     return null;
   }
 }

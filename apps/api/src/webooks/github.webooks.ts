@@ -1,6 +1,6 @@
 // webhooks/github.webhooks.ts
 import { Webhooks } from '@octokit/webhooks';
-
+import { logger } from '../utils/logger.js';
 
 import { commentOnIssueOpened, create_github_installation, delete_github_installation, PrData } from '../queries/github.queries.js';
   // Set up GitHub webhooks
@@ -11,16 +11,23 @@ import { commentOnIssueOpened, create_github_installation, delete_github_install
     try {
       const account = payload.installation.account;
       if (!account) {
-        console.error('No account information in installation payload');
+        logger.error('No account information in installation payload');
         return;
       }
 
-      console.log(payload, "here is the payload")
+      logger.debug('Installation created webhook payload received', { 
+        installationId: payload.installation.id,
+        accountId: account.id 
+      });
       
       const accountLogin = 'login' in account ? account.login : account.slug;
       const accountType = 'type' in account ? account.type : 'Organization';
       
-      console.log(`App installed for account: ${accountLogin}`);
+      logger.info('App installed for account', { 
+        accountLogin, 
+        accountType, 
+        installationId: payload.installation.id 
+      });
       
       await create_github_installation({
         installationId: payload.installation.id,
@@ -50,9 +57,15 @@ import { commentOnIssueOpened, create_github_installation, delete_github_install
         installedAt: new Date()
       })
       
-      console.log('Installation created');
+      logger.info('Installation created successfully', { 
+        installationId: payload.installation.id, 
+        accountLogin 
+      });
     } catch (error) {
-      console.error('Error handling installation.created:', error);
+      logger.error('Error handling installation.created', { 
+        error: error instanceof Error ? error.message : error,
+        installationId: payload.installation?.id 
+      });
     }
   });
   
@@ -61,19 +74,28 @@ import { commentOnIssueOpened, create_github_installation, delete_github_install
     try {
       const account = payload.installation.account;
       if (!account) {
-        console.error('No account information in installation payload');
+        logger.error('No account information in installation payload');
         return;
       }
       
       const accountLogin = 'login' in account ? account.login : account.slug;
       
-      console.log(`App uninstalled for account: ${accountLogin}`);
+      logger.info('App uninstalled for account', { 
+        accountLogin, 
+        installationId: payload.installation.id 
+      });
       
       // Mark installation as deleted (soft delete) or remove it
       await delete_github_installation(payload.installation.id);
-      console.log(`Installation ${payload.installation.id} removed from database`);
+      logger.info('Installation removed from database', { 
+        installationId: payload.installation.id, 
+        accountLogin 
+      });
     } catch (error) {
-      console.error('Error handling installation.deleted:', error);
+      logger.error('Error handling installation.deleted', { 
+        error: error instanceof Error ? error.message : error,
+        installationId: payload.installation?.id 
+      });
     }
   });
   
@@ -83,7 +105,11 @@ import { commentOnIssueOpened, create_github_installation, delete_github_install
       const { repository, ref, installation } = payload;
       const [owner, repo] = repository.full_name.split('/');
       
-      console.log(`Push to ${owner}/${repo} on ref ${ref}`);
+      logger.debug('Push event received', { 
+        repository: repository.full_name, 
+        ref, 
+        installationId: installation?.id 
+      });
       
       // Skip if push is not to main/master branch
       if (!ref.includes('refs/heads/main') && !ref.includes('refs/heads/master')) {
@@ -93,19 +119,28 @@ import { commentOnIssueOpened, create_github_installation, delete_github_install
       // TODO: Add code analysis logic here
       
     } catch (error) {
-      console.error('Error handling push event:', error);
+      logger.error('Error handling push event', { 
+        error: error instanceof Error ? error.message : error 
+      });
     }
   });
 
   // Handle issues opened events
   webhooks.on('issues.opened', async ({ payload }) => {
-    console.log('issues.opened', payload);
+    logger.debug('Issues opened event received', { 
+      issueNumber: payload.issue?.number, 
+      repository: payload.repository?.full_name 
+    });
     await commentOnIssueOpened(payload);
   });
 
   // Handle pull request opened and reopened events
   const handlePullRequestAnalysis = async ({ payload }: { payload: any }) => {
-    console.log("PR analysis triggered:", payload.action)
+    logger.info('PR analysis triggered', { 
+      action: payload.action, 
+      prNumber: payload.pull_request?.number, 
+      repository: payload.repository?.full_name 
+    });
     const prData = await PrData(payload)
   };
 
@@ -114,5 +149,5 @@ import { commentOnIssueOpened, create_github_installation, delete_github_install
   
   // Log all webhook events
   webhooks.onAny(({ name, payload }) => {
-    console.log(`Webhook event received: ${name}`);
+    logger.debug('Webhook event received', { eventName: name });
   });

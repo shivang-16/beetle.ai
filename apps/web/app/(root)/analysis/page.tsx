@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import SyncRepositoriesButton from "./_components/SyncRepositoriesButton";
 import { Plus } from "lucide-react";
 import TeamSwitcher from "./_components/TeamSwitcher";
+import { logger } from "@/lib/logger";
 
 type RepoScope = "user" | "team";
 
@@ -21,6 +22,7 @@ const Page = async (props: {
   const query = searchParams?.query || "";
   const scope = (searchParams?.scope as RepoScope) || "user";
   const teamId = searchParams?.teamId;
+  logger.info(`Analysis page loaded with query:`, { query, scope, teamId });
 
   return (
     <div className="h-svh max-w-7xl w-full mx-auto py-5 px-4">

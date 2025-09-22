@@ -7,6 +7,7 @@ import { RepoTree } from "@/types/types";
 import { buildTreeStructure } from "@/lib/utils";
 import RenderTreeNode from "./RenderTreeNode";
 import { Button } from "@/components/ui/button";
+import { logger } from "@/lib/logger";
 
 const RepoFileTree = ({ repoTree }: { repoTree: RepoTree }) => {
   const treeData = buildTreeStructure(repoTree?.tree || []) ?? [];
@@ -25,7 +26,7 @@ const RepoFileTree = ({ repoTree }: { repoTree: RepoTree }) => {
 
   return (
     <TreeProvider
-      onSelectionChange={(ids) => console.log("Selected:", ids)}
+      onSelectionChange={(ids) => logger.debug("Tree selection changed", { selectedIds: ids })}
       className="max-w-56 overflow-y-auto output-scrollbar">
       <TreeView className="!p-0">
         {repoTree && repoTree.repository && repoTree.repository.repo && (

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronsUpDown } from "lucide-react";
 import { getBranches } from "../_actions/getBranches";
+import { logger } from "@/lib/logger";
 
 interface BranchDropdownProps {
   repositoryId: string;
@@ -47,7 +48,11 @@ const BranchDropdown: React.FC<BranchDropdownProps> = ({
       }
     } catch (err) {
       setError("Failed to fetch branches");
-      console.error("Error fetching branches:", err);
+      logger.error("Error fetching branches", { 
+        repositoryId, 
+        teamId, 
+        error: err instanceof Error ? err.message : err 
+      });
     } finally {
       setLoading(false);
     }
