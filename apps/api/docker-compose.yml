@@ -45,6 +45,9 @@ services:
       - SMTP_SERVICE=${SMTP_SERVICE}
       - SMTP_USER=${SMTP_USER}
       - SMTP_PASS=${SMTP_PASS}
+
+      - BETTERSTACK_SOURCE_TOKEN=${BETTERSTACK_SOURCE_TOKEN}
+      - BETTERSTACK_INGESTING_HOST=${BETTERSTACK_INGESTING_HOST}
     
     volumes:
       # Mount logs directory for persistent logging

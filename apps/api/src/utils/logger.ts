@@ -53,6 +53,7 @@ class Logger {
     
     // Only add BetterStack transport if environment variables are provided
     if (process.env.BETTERSTACK_SOURCE_TOKEN && process.env.BETTERSTACK_INGESTING_HOST) {
+      console.log("BetterStack logging enabled");
       const logtail = new Logtail(process.env.BETTERSTACK_SOURCE_TOKEN, {
         endpoint: `https://${process.env.BETTERSTACK_INGESTING_HOST}`,
       });
