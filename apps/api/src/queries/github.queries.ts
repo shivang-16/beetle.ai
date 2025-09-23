@@ -656,7 +656,7 @@ export const PrData = async (payload: any) => {
           callbacks,
           {pr_data_id: pr_data?.insertedId?.toString(), 
             auth_token: sandbox_token.auth_token,
-            base_url: "https://redbird-polished-whippet.ngrok-free.app"
+            base_url: "https://codeapi.campusbid.in"
           },
           user.email
         ).then(async (result) => {
