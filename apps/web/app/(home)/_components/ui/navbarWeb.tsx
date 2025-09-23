@@ -10,13 +10,13 @@ import { ArrowUpRight } from "lucide-react";
 export default function Navbar() {
   return (
     <header className="fixed font-scandia top-0 left-0 right-0 z-50 w-full rounded-full bg-[#010010]/20 backdrop-blur-lg px-5">
-      <div className="max-w-[1563px] mx-auto w-full flex items-center justify-between  py-4 px-6">
+      <div className="max-w-[1563px] mx-auto w-full flex items-center justify-between py-4 px-6">
         {/* Logo */}
         <Link
           href="/"
           className="flex items-center gap-2 text-xl font-semibold text-white">
           <CodetectorLogo />
-          <span className="sr-only sm:not-sr-only">Codetector</span>
+          <span className="sr-only sm:not-sr-only">Beetle AI</span>
         </Link>
 
         {/* Right section (icons + auth buttons) */}

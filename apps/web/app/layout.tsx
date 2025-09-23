@@ -27,9 +27,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Codetector | AI GitHub Repository Analyzer",
+  title: "Beetle | AI Code Reviewer",
   description:
-    "Codetector helps you analyze GitHub repositories with AI. Gain instant insights, detect issues, and improve code quality with intelligent analysis.",
+    "Beetle AI helps you analyze code with AI. Gain instant insights, detect issues, and improve code quality with intelligent analysis.",
 };
 
 export default function RootLayout({

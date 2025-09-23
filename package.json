@@ -1,5 +1,5 @@
 {
-  "name": "codetector.ai",
+  "name": "beetle.ai",
   "private": true,
   "scripts": {
     "build": "turbo run build",
