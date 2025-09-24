@@ -21,7 +21,7 @@ services:
       
       # Application Configuration
       - PORT=${PORT:-3001}
-      - FRONTEND_URL=${FRONTEND_URL:-https://codetector-ai-web.vercel.app}
+      - FRONTEND_URL=${FRONTEND_URL:-https://beetle-ai.vercel.app}
       - NODE_ENV=${NODE_ENV:-production}
       
       # Clerk Authentication
