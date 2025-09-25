@@ -36,6 +36,7 @@ const BranchDropdown: React.FC<BranchDropdownProps> = ({
   const fetchBranches = async () => {
     if (branches.length > 0) return; // Don't fetch if already loaded
     
+    console.log(repositoryId, teamId);
     setLoading(true);
     setError(null);
     

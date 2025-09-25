@@ -15,6 +15,7 @@ interface RepositoryItemProps {
 const RepositoryItem: React.FC<RepositoryItemProps> = ({ repo, teamId }) => {
   const [selectedBranch, setSelectedBranch] = useState(repo.defaultBranch || 'main');
 
+  console.log(repo);
   const handleBranchChange = (branch: string) => {
     setSelectedBranch(branch);
     // Here you could also update the URL or trigger other actions
