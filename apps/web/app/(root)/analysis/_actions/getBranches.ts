@@ -19,9 +19,10 @@ export const getBranches = async (
 ) => {
   try {
     const { token } = await getAuthToken();
+    console.log(token);
 
     const url = `${_config.API_BASE_URL}/api/github/branches?github_repositoryId=${repositoryId}${teamId ? `&teamId=${teamId}` : ''}`;
-
+    console.log(url);
     const response = await fetch(url, {
       method: "GET",
       headers: { 
@@ -31,9 +32,6 @@ export const getBranches = async (
       cache: "no-store", // Don't cache branches as they can change frequently
     });
 
-    if (!response.ok) {
-      throw new Error("Failed to fetch branches");
-    }
 
     const data: { success: boolean; data: Branch[]; message?: string } = await response.json();
     return data;
