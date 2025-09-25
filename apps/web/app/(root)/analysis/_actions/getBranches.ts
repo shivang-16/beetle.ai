@@ -31,6 +31,10 @@ export const getBranches = async (
       cache: "no-store", // Don't cache branches as they can change frequently
     });
 
+    if (!response.ok) {
+      throw new Error("Failed to fetch branches");
+    }
+
     const data: { success: boolean; data: Branch[]; message?: string } = await response.json();
     return data;
   } catch (error) {

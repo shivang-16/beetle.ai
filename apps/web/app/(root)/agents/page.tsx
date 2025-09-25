@@ -13,11 +13,13 @@ const models = [
 
 async function fetchRepos(): Promise<GithubRepository[]> {
   const res = await getRepository("");
+  console.log(res);
   return res?.data ?? [];
 }
 
 const AgentsPage = async () => {
   const repos = await fetchRepos();
+  console.log(repos.length);
 
   return (
     <div className="h-svh w-full flex items-center justify-center px-4">
