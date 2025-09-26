@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { AnalysisItem } from "@/types/types";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { refreshAnalysisList } from "../_actions/getAnalysiswithId";
 
 const statusColor = (status: AnalysisItem["status"]) => {
@@ -27,6 +27,8 @@ const AnalysisContent = ({
   repoId: string;
 }) => {
   const pathname = usePathname();
+  const containerRef = useRef<HTMLElement>(null);
+  const [isNarrow, setIsNarrow] = useState(false);
 
   const analysis_id = pathname.split("/")[pathname.split("/").length - 1];
 
@@ -37,13 +39,13 @@ const AnalysisContent = ({
   const teamId = searchParams.get("teamId");
   const scope = searchParams.get("scope");
 
-  const params = new URLSearchParams();
-
-  if (teamId) params.append("teamId", teamId);
-  if (branch) params.append("branch", branch);
-  if (scope) params.append("scope", scope);
-
-  const queryString = params.toString();
+  const queryString = useMemo(() => {
+    const params = new URLSearchParams();
+    if (teamId) params.append("teamId", teamId);
+    if (branch) params.append("branch", branch);
+    if (scope) params.append("scope", scope);
+    return params.toString();
+  }, [teamId, branch, scope]);
 
   useEffect(() => {
     if (!analysisList?.length) return;
@@ -55,18 +57,37 @@ const AnalysisContent = ({
     router.replace(redirectUrl);
   }, [analysisList, queryString, repoId, router]);
 
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const width = entry.contentRect.width;
+        // Set threshold at 200px - adjust this value as needed
+        setIsNarrow(width < 200);
+      }
+    });
+
+    resizeObserver.observe(container);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
+
   return (
-    <aside className="max-w-80 w-full border-r h-full">
-      <div className="flex items-center justify-between p-3">
+    <aside ref={containerRef} className="w-full h-full flex flex-col">
+      <div className="flex items-center justify-between p-3 border-b">
         <h3 className="text-base font-medium">Analyses</h3>
         <Button
           size="sm"
           onClick={async () => await refreshAnalysisList(repoId)}
-          className="cursor-pointer">
+          className="cursor-pointer hidden">
           Refresh
         </Button>
       </div>
-      <div className="flex flex-col gap-2 h-[calc(100%-36px-24px)] overflow-y-auto output-scrollbar p-3">
+      <div className="flex flex-col gap-2 flex-1 overflow-y-auto output-scrollbar p-3">
         {analysisList?.map((a, idx) => (
           <Button
             key={a._id}
@@ -83,11 +104,14 @@ const AnalysisContent = ({
                   #{idx + 1}
                 </span>
                 <span
-                  className={`text-[10px] px-2 py-0.5 rounded border capitalize ${statusColor(a.status)}`}>
+                  className={`text-[10px] px-2 py-0.5 rounded border capitalize ${statusColor(a.status)} ${isNarrow ? "hidden" : "block"}`}>
                   {a.status}
                 </span>
               </div>
-              <div className="mt-1 text-sm font-medium truncate">
+              <div className={cn(
+                "mt-1 text-sm font-medium truncate",
+                isNarrow ? "hidden" : "block"
+              )}>
                 {new Date(a.createdAt).toLocaleString()}{" "}
               </div>
             </Link>
