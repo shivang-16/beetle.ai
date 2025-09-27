@@ -10,7 +10,7 @@ const heroSection = () => {
       {/* Hero Section */}
       <div className="max-w-[1563px] w-full mx-auto md:px-6 pt-[15%] md:pt-[4%] pb-6 border border-t-0 border-b-0 border-[#333333]">
         <div className="relative z-10 font-geist-sans py-10 flex h-[85svh]">
-          <div
+          {/* <div
             className="absolute inset-0 z-0 mask-radial-[100%_100%] mask-radial-from-[5%] mask-radial-at-right"
             style={{
               backgroundImage: "url('/smoke.png')",
@@ -18,7 +18,21 @@ const heroSection = () => {
               backgroundPosition: "right center",
               backgroundRepeat: "no-repeat",
             }}
-          />
+          /> */}
+            <video
+            className="absolute top-0 right-0 bottom-0 z-0 w-3/4 h-full object-contain mask-radial-[100%_100%] mask-radial-from-[5%] mask-radial-at-right"
+            autoPlay
+            loop
+            muted
+            playsInline
+          >
+            <source src="/landing_page.mp4" type="video/mp4" />
+            <img 
+              src="/smoke.png" 
+              alt="Background smoke effect" 
+              className="w-full h-full object-cover"
+            />
+          </video>
           <div className="relative z-10 flex-2 px-4 md:pr-0 flex flex-col justify-between">
             <h1 className="text-6xl sm:text-6xl md:text-7xl lg:text-7xl leading-tight font-inter font-medium text-white mb-6">
               <HeroTitle />

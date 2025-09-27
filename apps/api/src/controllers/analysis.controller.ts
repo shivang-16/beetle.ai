@@ -27,7 +27,7 @@ export const startAnalysis = async (
       github_repositoryId,
       branch,
       teamId,
-      model = "gemini-1.5-flash",
+      model = "gemini-2.0-flash",
       prompt = "Analyze this codebase for security vulnerabilities and code quality",
     } = req.body;
 

@@ -650,7 +650,7 @@ export const PrData = async (payload: any) => {
           repoUrl,
           branchForAnalysis,
           githubInstallation.userId,
-          "gemini-1.5-flash", // model
+          "gemini-2.0-flash", // model
           prAnalysisPrompt,
           "pr_analysis", // analysisType
           callbacks,

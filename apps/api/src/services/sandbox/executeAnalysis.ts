@@ -30,7 +30,7 @@ export const executeAnalysis = async (
   repoUrl: string,
   branch: string,
   userId: string,
-  model = "gemini-2.5-flash",
+  model = "gemini-2.0-flash",
   prompt = "Analyze this codebase for security vulnerabilities and code quality",
   analysisType: string,
   callbacks?: StreamingCallbacks,
@@ -128,7 +128,7 @@ export const executeAnalysis = async (
     const dataParam = data ? JSON.stringify(data) : '{}';
     console.log("🔧 Formatted data parameter length:", dataParam.length);
     
-    const analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" --model "${model}" --mode ${analysisType} --api-key ${process.env.GOOGLE_API_KEY} --data '${dataParam.replace(/'/g, "'\"'\"'")}'`;
+    const analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" --user-id "${userId}" --github-repository-id ${github_repositoryId} --model "${model}" --mode ${analysisType} --api-key ${process.env.GOOGLE_API_KEY} --data '${dataParam.replace(/'/g, "'\"'\"'")}'`;
 
     if (callbacks?.onProgress) {
       await callbacks.onProgress("🚀 Starting workflow execution...");
