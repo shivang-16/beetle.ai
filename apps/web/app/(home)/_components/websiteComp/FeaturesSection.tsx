@@ -7,28 +7,31 @@ import { ReactNode } from "react";
 
 const loadingStates = [
   {
-    text: "Buying a condo",
+    text: "Securly cloning Git repository",
   },
   {
-    text: "Traveling in a flight",
+    text: "Parsing Abstract Syntax Trees",
   },
   {
-    text: "Meeting Tyler Durden",
+    text: "Analysing Git history for better context",
   },
   {
-    text: "He makes soap",
+    text: "Indexing codebase structure",
   },
   {
-    text: "We goto a bar",
+    text: "LLM connection established - a workflow that acts as humans",
   },
   {
-    text: "Start a fight",
+    text: "Building analysis context - feed to Agent",
   },
   {
-    text: "We like it",
+    text: "Processing streaming AI analysis",
   },
   {
-    text: "Welcome to F**** C***",
+    text: "Generating Github Issues along with Suggest Fix for those",
+  },
+  {
+    text: "Let's F***** Go",
   },
 ];
 
@@ -54,10 +57,10 @@ export default function Features() {
             {/* Main Heading */}
             <div className="space-y-1 text-white text-4xl sm:text-3xl md:text-4xl lg:text-5xl font-medium leading-tight">
               <div>
-                We're not building flashy demos. We're
+                We're not just static reviewer. We're
               </div>
               <div>
-                engineering agents that think like humans,
+                engineering agent that think like humans,
               </div>
               <div>
                 and work better with them.
@@ -70,7 +73,7 @@ export default function Features() {
               </div>
               <div className="text-[1rem] w-[50%]">
               <p className="mb-5">
-                At <span className="text-primary">CodeDetector</span>, we believe intelligence isn't just about generating answers—it's about understanding context, reasoning through complexity, and acting with intent.
+                At <span className="text-primary">Beetle AI</span>, we believe intelligence isn't just about generating answers—it's about understanding context, reasoning through complexity, and acting with intent.
               </p>
               <p>
                 True AI should be controllable, predictable in behavior, steerable by design, and fully auditable in every step. It must be context-aware, able to learn from interactions and adapt over time. And it has to be tool-native, seamlessly operating within real environments, not isolated sandboxes.
@@ -85,8 +88,8 @@ export default function Features() {
             <CardHeader className="pb-3">
               <CardHeading
                 icon={MapIcon}
-                title="Real time location tracking"
-                description="Advanced tracking system, Instantly locate all your assets."
+                title="Auto Github Issues and Pull Requests"
+                description="Generate Github Issues and Pull Requests based on the analysis."
               />
             </CardHeader>
 
@@ -110,8 +113,8 @@ export default function Features() {
             <CardHeader className="pb-3">
               <CardHeading
                 icon={Calendar}
-                title="Advanced Scheduling"
-                description="Scheduling system, Instantly locate all your assets."
+                title="Advanced Analysis"
+                description="Multi-step analysis process, providing the best insights about your codebase."
               />
             </CardHeader>
 

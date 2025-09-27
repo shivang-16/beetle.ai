@@ -55,12 +55,12 @@ export const MacbookScroll = ({
   const scaleX = useTransform(
     scrollYProgress,
     [0, 0.3],
-    [1.2, isMobile ? 1 : 1.5],
+    [1.2, isMobile ? 2.5 : 2.75],
   );
   const scaleY = useTransform(
     scrollYProgress,
     [0, 0.3],
-    [0.6, isMobile ? 1 : 1.5],
+    [0.6, isMobile ? 1.5 : 2.75],
   );
   const translate = useTransform(scrollYProgress, [0, 1], [0, 1500]);
   const rotate = useTransform(scrollYProgress, [0.1, 0.12, 0.3], [-28, -28, 0]);
@@ -167,7 +167,7 @@ export const Lid = ({
         <img
           src={src as string}
           alt="codetector logo"
-          className="absolute inset-0 h-full w-[full] rounded-lg object-contain object-left-top"
+          className="absolute inset-0 h-full w-[full] rounded-sm object-contain object-left-top"
         />
       </motion.div>
     </div>

@@ -251,7 +251,7 @@ const RenderLogs = ({
                         defaultValue="item-1">
                         <AccordionItem value="item-1" className="border-none">
                           <AccordionTrigger className="px-3 border border-input rounded-t-md data-[state=closed]:rounded-b-md cursor-pointer">
-                            Bootstrapping Codetector Sandbox
+                            Bootstrapping Beetle AI Sandbox
                           </AccordionTrigger>
                           <AccordionContent className="border border-input rounded-b-md bg-card p-3">
                             <div>{log.messages.join("\n")}</div>

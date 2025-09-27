@@ -67,7 +67,7 @@ const AppSidebar = () => {
                     "font-semibold",
                     open ? "not-sr-only" : "sr-only"
                   )}>
-                  Beetle AI
+                  BEETLE
                 </span>
               </Link>
             </SidebarMenuButton>

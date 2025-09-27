@@ -2,6 +2,7 @@
 import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "motion/react";
 import { useState, useEffect } from "react";
+import { LoaderOne } from "./loader";
 
 const CheckIcon = ({ className }: { className?: string }) => {
   return (
@@ -53,16 +54,16 @@ const LoaderCore = ({
         return (
           <motion.div
             key={index}
-            className={cn("text-left flex gap-2 mb-4")}
+            className={cn(`text-left flex gap-2 mb-6 ${index == value && 'border-t-2 border-neutral-800 pl-2 pt-2.5 rounded-xl'}`)}
             initial={{ opacity: 0, y: -(value * 40) }}
             animate={{ opacity: opacity, y: -(value * 40) }}
             transition={{ duration: 0.5 }}>
             <div>
-              {index > value && <CheckIcon className="text-white" />}
-              {index <= value && (
+              {index == value && <LoaderOne />}
+              {index < value && (
                 <CheckFilled
                   className={cn(
-                    "text-white",
+                    "text-primary",
                     value === index && "text-primary opacity-100"
                   )}
                 />
@@ -71,7 +72,7 @@ const LoaderCore = ({
             <span
               className={cn(
                 "text-white",
-                value === index && "text-primary opacity-100"
+                value > index && "text-primary opacity-100"
               )}>
               {loadingState.text}
             </span>

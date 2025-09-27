@@ -14,14 +14,11 @@ const OverviewSection = () => {
         <div className="px-4 flex flex-col md:flex-row gap-3 items-center justify-between">
           <div className="flex-1">
             <h2 className="text-white text-4xl font-semibold max-w-xl leading-tight text-left mb-6">
-              The Lyra ecosystem brings together our models with AI Agents
-            </h2>
+            Your repo, your rules — allows you to pick the model that roasts your code best            </h2>
           </div>
           <div className="flex flex-col gap-8 justify-end">
             <p className="text-white text-md font-medium max-w-xl">
-              Empower your team with workflows that adapt to your needs, whether
-              you prefer git synchronization or a AI Agents interface.
-            </p>
+Empower your team to focus on building — we’ll hunt, fix, and prevent bugs with full-repo analysis, not just PR reviews, so you ship faster.   </p>
             <div>
 <Button
                 variant={"ghost"}
@@ -34,7 +31,7 @@ const OverviewSection = () => {
 
             
         </div>
-        <MacbookScroll src={"/analysis-page-dark.png"} />
+        <MacbookScroll src={"/analysis-page.png"} />
         {/* <motion.div
           initial={{ opacity: 0, filter: "blur(5px)", y: 10 }}
           animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
