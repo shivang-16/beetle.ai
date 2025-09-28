@@ -5,7 +5,7 @@ export interface IGithubIssue extends Document {
   issueId: string;
   title: string;
   body?: string;
-  state: 'open' | 'closed';
+  state: 'draft' | 'open' | 'closed';
   githubUrl: string;
   githubId: number;
   labels?: string[];

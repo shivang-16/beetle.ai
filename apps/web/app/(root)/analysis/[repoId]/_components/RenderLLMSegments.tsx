@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import Markdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -25,6 +25,14 @@ import { _config } from "@/lib/_config";
 
 const GithubIssueDialog = dynamic(() => import("./GithubIssueDialog"));
 
+// Types for issue state management
+interface IssueState {
+  state: 'draft' | 'open' | 'closed';
+  githubUrl?: string;
+  githubId?: number;
+  issueNumber?: number;
+}
+
 export function RenderLLMSegments({
   segments,
   repoId,
@@ -37,6 +45,125 @@ export function RenderLLMSegments({
   const { resolvedTheme } = useTheme();
   const { getToken } = useAuth();
 
+  // State management for GitHub issues
+  const [issueStates, setIssueStates] = useState<Record<string, IssueState>>({});
+  const [isLoadingStates, setIsLoadingStates] = useState(false);
+  const [statesFetched, setStatesFetched] = useState(false);
+
+  // Memoize GitHub issue segments and their issueIds
+  const githubIssueSegments = useMemo(() => {
+    return segments
+      .map((seg, index) => ({ seg, index }))
+      .filter(({ seg }) => seg.kind === "githubIssue");
+  }, [segments]);
+
+  const issueIds = useMemo(() => {
+    return githubIssueSegments.map(({ seg, index }) => {
+      const { issueId } = extractTitleAndDescription(seg.content);
+      return issueId || `segment-${index}`;
+    });
+  }, [githubIssueSegments]);
+
+  // Performance optimization: Only fetch states for a reasonable number of issues at once
+  const prioritizedIssueIds = useMemo(() => {
+    const MAX_INITIAL_FETCH = 20; // Fetch states for first 20 issues immediately
+    return issueIds.slice(0, MAX_INITIAL_FETCH);
+  }, [issueIds]);
+
+  // Batch fetch GitHub issue states with debouncing and chunking for large datasets
+  const fetchIssueStates = useCallback(async () => {
+    if (issueIds.length === 0 || statesFetched || isLoadingStates) {
+      return;
+    }
+
+    try {
+      setIsLoadingStates(true);
+      const token = await getToken();
+      if (!token) return;
+
+      // Process in chunks to handle large numbers of issues
+      const CHUNK_SIZE = 50; // Smaller than API limit for better performance
+      const chunks = [];
+      for (let i = 0; i < issueIds.length; i += CHUNK_SIZE) {
+        chunks.push(issueIds.slice(i, i + CHUNK_SIZE));
+      }
+
+      // Process chunks sequentially to avoid overwhelming the API
+      for (const chunk of chunks) {
+        const response = await fetch(`${_config.API_BASE_URL}/api/github/issue-states`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            github_repositoryId: repoId,
+            analysisId,
+            issueIds: chunk,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data?.issueStates) {
+            setIssueStates(prev => ({ ...prev, ...data.data.issueStates }));
+          }
+        }
+        
+        // Small delay between chunks to prevent API rate limiting
+        if (chunks.length > 1) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+      
+      setStatesFetched(true);
+    } catch (error) {
+      console.error("Error fetching GitHub issue states:", error);
+    } finally {
+      setIsLoadingStates(false);
+    }
+  }, [issueIds, statesFetched, isLoadingStates, getToken, repoId, analysisId]);
+
+  // Effect to fetch issue states when prioritizedIssueIds change
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
+    if (prioritizedIssueIds.length > 0) {
+      // Debounce the fetch to avoid excessive API calls
+      timeoutId = setTimeout(() => {
+        fetchIssueStates();
+      }, 300);
+    }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [prioritizedIssueIds, fetchIssueStates]);
+
+  // Lazy load remaining issue states after initial render
+  useEffect(() => {
+    if (issueIds.length > 20 && statesFetched) {
+      const remainingIds = issueIds.slice(20);
+      const timeoutId = setTimeout(() => {
+        // Fetch remaining states in background
+        fetchIssueStates();
+      }, 1000); // Delay to prioritize initial render
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [issueIds, statesFetched, fetchIssueStates]);
+
+  // Cleanup effect to prevent memory leaks with large datasets
+  useEffect(() => {
+    return () => {
+      // Clear states when component unmounts to free memory
+      setIssueStates({});
+      setStatesFetched(false);
+    };
+  }, []);
+
   // Save GitHub issue to database during streaming
   const saveGithubIssueToDb = async (segment: LLMResponseSegment, segmentIndex: number) => {
     try {
@@ -44,6 +171,7 @@ export function RenderLLMSegments({
       if (!token) return;
 
       const { title, description, issueId } = extractTitleAndDescription(segment.content);
+      const finalIssueId = issueId || `segment-${segmentIndex}`;
       
       await fetch(`${_config.API_BASE_URL}/api/github/save-issue`, {
         method: "POST",
@@ -57,10 +185,17 @@ export function RenderLLMSegments({
           title: title || "Issue from Analysis",
           body: description || segment.content,
           labels: ["analysis", "automated"],
-          segmentIssueId: issueId || `segment-${segmentIndex}`,
-          segmentIndex,
+          segmentIssueId: finalIssueId,
         }),
       });
+
+      // Update local state to reflect the saved issue
+      setIssueStates(prev => ({
+        ...prev,
+        [finalIssueId]: {
+          state: 'draft',
+        }
+      }));
     } catch (error) {
       console.error("Error saving GitHub issue to database:", error);
     }
@@ -111,8 +246,9 @@ export function RenderLLMSegments({
       }
 
       const { title, description, issueId } = extractTitleAndDescription(segment.content);
+      const finalIssueId = issueId || `segment-${segments.indexOf(segment)}`;
       
-      console.log("issueId ====> ", issueId);
+      console.log("issueId ====> ", finalIssueId);
       const response = await fetch(`${_config.API_BASE_URL}/api/github/issue`, {
         method: "POST",
         headers: {
@@ -125,7 +261,7 @@ export function RenderLLMSegments({
           title: title || "Issue from Analysis",
           body: description || segment.content,
           labels: ["analysis", "automated"],
-          segmentIssueId: issueId,
+          segmentIssueId: finalIssueId,
         }),
       });
 
@@ -139,6 +275,18 @@ export function RenderLLMSegments({
       
       if (data.success && data.data?.html_url) {
         toast.success("GitHub issue created successfully!");
+        
+        // Update local state to reflect the opened issue
+        setIssueStates(prev => ({
+          ...prev,
+          [finalIssueId]: {
+            state: 'open',
+            githubUrl: data.data.html_url,
+            githubId: data.data.id,
+            issueNumber: data.data.number,
+          }
+        }));
+        
         // Open the GitHub issue in a new tab
         window.open(data.data.html_url, "_blank");
       } else {
@@ -203,6 +351,8 @@ export function RenderLLMSegments({
 
     if (seg.kind === "githubIssue") {
       const githubIssue = extractTitleAndDescription(seg.content);
+      const currentIssueId = githubIssue.issueId || `segment-${i}`;
+      const issueState = issueStates[currentIssueId];
 
       // Save to database during streaming (only once per segment)
       if (!savedSegments.has(i)) {
@@ -210,16 +360,31 @@ export function RenderLLMSegments({
         setSavedSegments(prev => new Set(prev).add(i));
       }
 
+      // Determine button state and color
+      const isOpen = issueState?.state === 'open';
+      const isDraft = !issueState || issueState.state === 'draft';
+      const isClosed = issueState?.state === 'closed';
+      
+      const stateColor = isOpen ? '#238636' : isClosed ? '#8b5cf6' : '#6b7280';
+      const buttonText = isOpen ? 'View' : 'Open';
+      const buttonAction = isOpen && issueState?.githubUrl 
+        ? () => window.open(issueState.githubUrl, "_blank")
+        : () => openGithubIssue(seg);
+
       return (
         <div
           key={i}
           className="w-full my-4 rounded-md border bg-card hover:bg-accent/40 transition-colors">
           <div className="flex items-center gap-3 p-4">
             {/* state dot */}
-            <div className="border rounded-full p-1 mt-1 h-4 w-4 border-[#238636] flex items-center justify-center">
+            <div 
+              className="border rounded-full p-1 mt-1 h-4 w-4 flex items-center justify-center"
+              style={{ borderColor: stateColor }}
+            >
               <span
                 aria-hidden
-                className="inline-block h-1 w-1 rounded-full bg-[#238636]"
+                className="inline-block h-1 w-1 rounded-full"
+                style={{ backgroundColor: stateColor }}
               />
             </div>
 
@@ -238,20 +403,31 @@ export function RenderLLMSegments({
               />
 
               <div className="text-xs text-muted-foreground">
-                <span className="font-medium">#{i + 1}</span>
+                <span className="font-medium">
+                  {isOpen && issueState?.issueNumber ? `#${issueState.issueNumber}` : `#${i + 1}`}
+                </span>
                 <span className="mx-1">·</span>
-                <span>Beetle suggested this issue</span>
+                <span>
+                  {isOpen ? 'Open on GitHub' : isClosed ? 'Closed' : 'Beetle suggested this issue'}
+                </span>
+                {isLoadingStates && !issueState && (
+                  <>
+                    <span className="mx-1">·</span>
+                    <span className="text-blue-500">Loading...</span>
+                  </>
+                )}
               </div>
             </div>
 
             {/* right meta */}
             <div>
-              {/* mimic comment count */}
               <Button 
                 className="cursor-pointer" 
-                onClick={() => openGithubIssue(seg)}
+                onClick={buttonAction}
+                disabled={isLoadingStates && !issueState}
+                variant={isOpen ? "secondary" : "default"}
               >
-                Open
+                {buttonText}
               </Button>
             </div>
           </div>

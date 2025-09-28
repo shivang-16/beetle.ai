@@ -1024,3 +1024,113 @@ export const createPullRequest = async (
     }
   }
 };
+
+export const getIssueStates = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { github_repositoryId, analysisId, issueIds } = req.body;
+
+    // Validate required fields
+    if (!github_repositoryId || !issueIds || !Array.isArray(issueIds)) {
+      throw new CustomError("github_repositoryId and issueIds array are required", 400);
+    }
+
+    // Limit the number of issueIds to prevent performance issues
+    const MAX_ISSUE_IDS = 100;
+    if (issueIds.length > MAX_ISSUE_IDS) {
+      throw new CustomError(`Too many issueIds. Maximum allowed: ${MAX_ISSUE_IDS}`, 400);
+    }
+
+    const userId = req.user?._id;
+    if (!userId) {
+      throw new CustomError("User authentication required", 401);
+    }
+
+    logger.info("Getting GitHub issue states", { 
+      github_repositoryId, 
+      analysisId, 
+      issueIds: issueIds.length,
+      userId 
+    });
+
+    // Verify repository exists and user has access
+    const github_repository = await Github_Repository.findById(github_repositoryId);
+    if (!github_repository) {
+      throw new CustomError("Github repository not found", 404);
+    }
+
+    // Build query filter
+    const issueFilter: any = { 
+      github_repositoryId: github_repositoryId,
+      createdBy: userId,
+      issueId: { $in: issueIds }
+    };
+    
+    if (analysisId) {
+      issueFilter.analysisId = analysisId;
+    }
+
+    // Get GitHub issues with only necessary fields for performance
+    const githubIssues = await GithubIssue.find(issueFilter)
+      .select('issueId state githubUrl githubId issueNumber')
+      .lean();
+
+    logger.debug("Found GitHub issues", { count: githubIssues.length });
+
+    // Create a map for efficient lookup
+    const issueStatesMap: Record<string, {
+      state: string;
+      githubUrl?: string;
+      githubId?: number;
+      issueNumber?: number;
+    }> = {};
+
+    githubIssues.forEach(issue => {
+      if (issue.issueId) {
+        issueStatesMap[issue.issueId] = {
+          state: issue.state,
+          githubUrl: issue.githubUrl,
+          githubId: issue.githubId,
+          issueNumber: issue.issueNumber
+        };
+      }
+    });
+
+    // Fill in missing issueIds with default state
+    issueIds.forEach((issueId: string) => {
+      if (!issueStatesMap[issueId]) {
+        issueStatesMap[issueId] = {
+          state: 'draft'
+        };
+      }
+    });
+
+    logger.info("Successfully retrieved issue states", { 
+      requestedCount: issueIds.length,
+      foundCount: githubIssues.length,
+      totalStates: Object.keys(issueStatesMap).length
+    });
+
+    res.json({
+      success: true,
+      data: {
+        repository: {
+          id: github_repository._id,
+          fullName: github_repository.fullName
+        },
+        issueStates: issueStatesMap
+      }
+    });
+
+  } catch (error: any) {
+    logger.error("Error getting GitHub issue states", { 
+      error: error instanceof Error ? error.message : error,
+      github_repositoryId: req.body.github_repositoryId,
+      analysisId: req.body.analysisId
+    });
+    next(new CustomError(error.message || "Failed to get GitHub issue states", error.status || 500));
+  }
+};
