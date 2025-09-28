@@ -541,7 +541,7 @@ export const savePatch = async (
     // Create new patch record
     const githubPullRequest = new GithubPullRequest({
       patchId: patchId,
-      github_issueId: segmentIssueId,
+      issueId: segmentIssueId,
       title: title,
       body: body || "",
       state: 'draft',
@@ -579,6 +579,105 @@ export const savePatch = async (
       patchId: req.body.patchId
     });
     next(new CustomError(error.message || "Failed to save patch", error.status || 500));
+  }
+};
+
+export const getGithubIssuesWithPullRequests = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { github_repositoryId, analysisId } = req.query as { 
+      github_repositoryId: string; 
+      analysisId?: string; 
+    };
+
+    // Validate required fields
+    if (!github_repositoryId) {
+      throw new CustomError("github_repositoryId is required", 400);
+    }
+
+    const userId = req.user?._id;
+    if (!userId) {
+      throw new CustomError("User authentication required", 401);
+    }
+
+    logger.info("Getting GitHub issues with pull requests", { 
+      github_repositoryId, 
+      analysisId, 
+      userId 
+    });
+
+    // Verify repository exists and user has access
+    const github_repository = await Github_Repository.findById(github_repositoryId);
+    if (!github_repository) {
+      console.log("no github repo id")
+      throw new CustomError("Github repository not found", 404);
+    }
+
+    // Build query filter
+    const issueFilter: any = { 
+      github_repositoryId: github_repositoryId,
+      createdBy: userId 
+    };
+    
+    if (analysisId) {
+      issueFilter.analysisId = analysisId;
+    }
+
+    // Get GitHub issues
+    const githubIssues = await GithubIssue.find(issueFilter)
+      .sort({ createdAt: -1 })
+      .lean();
+
+    logger.debug("Found GitHub issues", { count: githubIssues.length });
+
+    // Get associated pull requests for each issue
+    const issuesWithPullRequests = await Promise.all(
+      githubIssues.map(async (issue) => {
+        const pullRequests = await GithubPullRequest.find({
+          issueId: issue.issueId,
+          github_repositoryId: github_repositoryId,
+          createdBy: userId
+        })
+        .sort({ createdAt: -1 })
+        .lean();
+
+        return {
+          ...issue,
+          pullRequests: pullRequests || []
+        };
+      })
+    );
+
+    logger.info("Successfully retrieved issues with pull requests", { 
+      issueCount: issuesWithPullRequests.length,
+      totalPullRequests: issuesWithPullRequests.reduce((sum, issue) => sum + issue.pullRequests.length, 0)
+    });
+
+    console.log(issuesWithPullRequests)
+
+    res.json({
+      success: true,
+      data: {
+        repository: {
+          id: github_repository._id,
+          fullName: github_repository.fullName,
+          owner: github_repository.fullName.split('/')[0],
+          repo: github_repository.fullName.split('/')[1]
+        },
+        issues: issuesWithPullRequests
+      }
+    });
+
+  } catch (error: any) {
+    logger.error("Error getting GitHub issues with pull requests", { 
+      error: error instanceof Error ? error.message : error,
+      github_repositoryId: req.query.github_repositoryId,
+      analysisId: req.query.analysisId
+    });
+    next(new CustomError(error.message || "Failed to get GitHub issues", error.status || 500));
   }
 };
 

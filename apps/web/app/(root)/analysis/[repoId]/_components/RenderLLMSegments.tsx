@@ -140,7 +140,7 @@ export function RenderLLMSegments({
       if (data.success && data.data?.html_url) {
         toast.success("GitHub issue created successfully!");
         // Open the GitHub issue in a new tab
-        window.open(data.data.html_ur, "_blank");
+        window.open(data.data.html_url, "_blank");
       } else {
         throw new Error("Failed to create GitHub issue");
       }

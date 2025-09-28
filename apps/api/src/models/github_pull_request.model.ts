@@ -3,7 +3,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 export interface IGithubPullRequest extends Document {
   pullRequestNumber?: number; // GitHub PR number (when actually created)
   patchId: string; // Unique identifier for the patch
-  github_issueId: string;
+  issueId: string;
   title: string;
   body?: string;
   state: 'draft' | 'open' | 'closed' | 'merged';
@@ -39,7 +39,7 @@ const GithubPullRequestSchema = new Schema<IGithubPullRequest>(
       type: Number,
       index: true,
     },
-    github_issueId: {
+    issueId: {
       type: String
     },
     patchId: {

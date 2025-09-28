@@ -214,11 +214,11 @@ const RenderLogs = ({
   }, [logs]);
 
   return (
-    <main className="flex w-full">
+    <main className="flex w-full h-full">
       <RepoFileTree repoTree={repoTree} />
 
-      <div className="h-full w-full flex flex-col">
-        <div className="px-4 py-3 flex justify-end-safe gap-3">
+      <div className="h-full w-full flex flex-col overflow-hidden">
+        <div className="px-4 py-3 flex justify-end-safe gap-3 flex-shrink-0">
           <Button onClick={analyzeRepo} className="cursor-pointer">
             Fetch Logs
           </Button>
@@ -230,7 +230,7 @@ const RenderLogs = ({
             Cancel Logs
           </Button>
         </div>
-        <div className="flex-1 px-4 pb-3 max-h-[calc(100%-60px)] max-w-2xl w-full mx-auto">
+        <div className="flex-1 px-4 pb-3 max-w-2xl w-full mx-auto overflow-hidden">
           <div className="w-full h-full py-3 overflow-y-auto output-scrollbar">
             <div className="w-full flex flex-col items-start gap-3.5">
               {processedLogs.map((log, i) => (

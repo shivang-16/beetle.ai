@@ -1,6 +1,6 @@
 import express, { Router } from "express";
 import { checkAuth } from "../middlewares/checkAuth.js";
-import { getRepoTree, getRepoInfo, openIssue, createPullRequest, getBranches, saveGithubIssue, savePatch } from "../controllers/github.controller.js";
+import { getRepoTree, getRepoInfo, openIssue, createPullRequest, getBranches, saveGithubIssue, savePatch, getGithubIssuesWithPullRequests } from "../controllers/github.controller.js";
 import { getAllUserInstallations } from "../queries/github.queries.js";
 
 const router: Router = express.Router();
@@ -9,6 +9,7 @@ const router: Router = express.Router();
 router.get("/tree", checkAuth, getRepoTree);
 router.get("/branches", checkAuth, getBranches);
 router.post("/info", checkAuth, getRepoInfo);
+router.get("/issues", checkAuth, getGithubIssuesWithPullRequests);
 
 // Protected routes (auth required)
 router.post("/issue", checkAuth, openIssue);
