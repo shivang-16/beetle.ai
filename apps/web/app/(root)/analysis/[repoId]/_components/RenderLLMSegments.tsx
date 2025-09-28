@@ -19,15 +19,68 @@ import {
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@clerk/nextjs";
+import { toast } from "sonner";
+import { _config } from "@/lib/_config";
 
 const GithubIssueDialog = dynamic(() => import("./GithubIssueDialog"));
 
 export function RenderLLMSegments({
   segments,
+  repoId,
 }: {
   segments: LLMResponseSegment[];
+  repoId: string;
 }) {
   const { resolvedTheme } = useTheme();
+  const { getToken } = useAuth();
+
+  const createGithubIssue = async (segment: LLMResponseSegment) => {
+    try {
+      const token = await getToken();
+      if (!token) {
+        toast.error("Authentication token not available");
+        return;
+      }
+
+      const { title, description, issueId } = extractTitleAndDescription(segment.content);
+      
+      console.log("issueId ====> ", issueId, title);
+      const response = await fetch(`${_config.API_BASE_URL}/api/github/issue`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          github_repositoryId: repoId,
+          title: title || "Issue from Analysis",
+          body: description || segment.content,
+          labels: ["analysis", "automated"],
+          segmentIssueId: issueId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log(data, "here is teh dat")
+      
+      if (data.success && data.data?.html_url) {
+        toast.success("GitHub issue created successfully!");
+        // Open the GitHub issue in a new tab
+        window.open(data.data.html_ur, "_blank");
+      } else {
+        throw new Error("Failed to create GitHub issue");
+      }
+    } catch (error) {
+      console.error("Error creating GitHub issue:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to create GitHub issue");
+    }
+  };
   const [expandedWarnings, setExpandedWarnings] = useState<Set<number>>(
     new Set()
   );
@@ -112,14 +165,19 @@ export function RenderLLMSegments({
               <div className="text-xs text-muted-foreground">
                 <span className="font-medium">#{i + 1}</span>
                 <span className="mx-1">·</span>
-                <span>AI assistant opened just now</span>
+                <span>Beetle suggested this issue</span>
               </div>
             </div>
 
             {/* right meta */}
             <div>
               {/* mimic comment count */}
-              <Button className="cursor-pointer">Open</Button>
+              <Button 
+                className="cursor-pointer" 
+                onClick={() => createGithubIssue(seg)}
+              >
+                Open
+              </Button>
             </div>
           </div>
         </div>
@@ -130,6 +188,7 @@ export function RenderLLMSegments({
       const patch = parsePatchString(seg.content);
       const before = extractFencedContent(patch.before).code.split("\n");
       const after = extractFencedContent(patch.after).code.split("\n");
+      const explanation = patch.explanation || "";
       const file = patch.file || "";
 
       return (
@@ -171,7 +230,11 @@ export function RenderLLMSegments({
               </pre>
             </div>
           </div>
-
+             {explanation && (
+            <div className="m-2 px-3 text-foreground/90">
+              {explanation}
+            </div>
+          )}
           <div className="flex items-center justify-end gap-2 pb-4">
             <Button variant="secondary" size="sm" disabled>
               Add suggestion to batch
@@ -180,6 +243,9 @@ export function RenderLLMSegments({
               Commit suggestion
             </Button>
           </div>
+
+       
+
         </div>
       );
     }

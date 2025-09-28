@@ -468,13 +468,17 @@ export function extractTitleAndDescription(input: string) {
   const titleLine = lines.find((line) => line.startsWith("# "));
   const title = titleLine ? titleLine.replace(/^#\s*/, "").trim() : "";
 
-  // Remove that line and take the rest as description
+  // Find ISSUE_ID line
+  const issueIdLine = lines.find((line) => line.startsWith("ISSUE_ID:"));
+  const issueId = issueIdLine ? issueIdLine.replace(/^ISSUE_ID:\s*/, "").trim() : "";
+
+  // Remove title line and issue ID line, take the rest as description
   const description = lines
-    .filter((line) => line !== titleLine) // everything except title line
+    .filter((line) => line !== titleLine && line !== issueIdLine) // everything except title and issue ID lines
     .join("\n")
     .trim();
 
-  return { title, description };
+  return { title, description, issueId };
 }
 
 export function parsePatchString(input: string): ParsedPatch {

@@ -6,8 +6,10 @@ import { getUserGitHubInstallation, getOrganizationInstallationForRepo, getAllUs
 import { Octokit } from "@octokit/rest";
 import { authenticateGithubRepo } from "../utils/authenticateGithubUrl.js";
 import { Github_Repository } from "../models/github_repostries.model.js";
+import GithubIssue from "../models/github_issue.model.js";
 import Team from "../models/team.model.js";
 import { logger } from "../utils/logger.js";
+import { randomUUID } from "crypto";
 
 export const getRepoTree = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -187,7 +189,7 @@ export const createIssue = async (
   next: NextFunction
 ) => {
   try {
-    const { github_repositoryId, title, body, labels, assignees } = req.body;
+    const { github_repositoryId, title, body, labels, assignees, segmentIssueId } = req.body;
 
     const github_repository = await Github_Repository.findById(github_repositoryId);
     if (!github_repository) {
@@ -299,6 +301,40 @@ export const createIssue = async (
 
     logger.info("Issue created successfully", { issueNumber: issue.number, url: issue.html_url });
 
+    // Save issue to database
+    try {
+      const githubIssue = new GithubIssue({
+        issueNumber: issue.number,
+        issueId: segmentIssueId,
+        title: issue.title,
+        body: issue.body || "",
+        state: issue.state as 'open' | 'closed',
+        githubUrl: issue.html_url,
+        githubId: issue.id,
+        labels: issue.labels?.map((label: any) => typeof label === 'string' ? label : label.name) || [],
+        assignees: issue.assignees?.map((assignee: any) => assignee.login) || [],
+        createdBy: userId || "",
+        github_repositoryId: github_repositoryId,
+        repository: {
+          owner,
+          repo,
+          fullName: `${owner}/${repo}`,
+        },
+        githubCreatedAt: new Date(issue.created_at),
+        githubUpdatedAt: new Date(issue.updated_at),
+      });
+
+      await githubIssue.save();
+      logger.info("Issue saved to database", { issueId: githubIssue._id, issueNumber: issue.number });
+    } catch (dbError) {
+      logger.error("Failed to save issue to database", { 
+        error: dbError instanceof Error ? dbError.message : dbError,
+        issueNumber: issue.number,
+        githubUrl: issue.html_url
+      });
+      // Don't fail the request if database save fails, as the GitHub issue was created successfully
+    }
+
     res.json({
       success: true,
       data: {
@@ -306,7 +342,7 @@ export const createIssue = async (
         title: issue.title,
         body: issue.body,
         state: issue.state,
-        url: issue.html_url,
+        html_url: issue.html_url,
         created_at: issue.created_at,
         updated_at: issue.updated_at,
         labels: issue.labels,
