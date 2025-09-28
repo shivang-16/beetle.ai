@@ -6,6 +6,7 @@ export interface AnalysisRequest {
   teamId?: string;
   model?: string;
   prompt?: string;
+  analysisId?: string; // Optional pre-created analysis ID
 }
 
 export const executeAnalysisStream = async (

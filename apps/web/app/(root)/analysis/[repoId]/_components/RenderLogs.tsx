@@ -26,6 +26,8 @@ import {
 } from "@/components/ui/accordion";
 import { executeAnalysisStream } from "@/lib/api/analysis";
 import { useAuth } from "@clerk/nextjs";
+import { useRouter, useSearchParams } from "next/navigation";
+import { createAnalysisRecord } from "../_actions/createAnalysis";
 
 const RenderLogs = ({
   repoId,
@@ -40,6 +42,8 @@ const RenderLogs = ({
   branch?: string;  
   teamId?: string;
 }) => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [logs, setLogs] = useState<LogItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { getToken } = useAuth();
@@ -47,7 +51,7 @@ const RenderLogs = ({
   const abortControllerRef = useRef<AbortController>(null);
   const parserStateRef = useRef<ParserState>(createParserState());
 
-  const analyzeRepo = async () => {
+  const streamAnalysis = async (targetAnalysisId: string) => {
     try {
       abortControllerRef.current = new AbortController();
       const signal = abortControllerRef.current.signal;
@@ -60,10 +64,16 @@ const RenderLogs = ({
         return;
       }
 
+      console.log("Starting analysis stream for:", targetAnalysisId);
+      
+      // Start the actual analysis with the pre-created ID
       const body = {
         github_repositoryId: repoId,
-        branch,
-        teamId
+        branch: branch,
+        teamId: teamId,
+        model: "gemini-2.0-flash",
+        prompt: "Analyze this codebase for security vulnerabilities and code quality",
+        analysisId: targetAnalysisId // Pass the pre-created analysis ID
       };
 
       const res = await executeAnalysisStream(body, token);
@@ -120,6 +130,46 @@ const RenderLogs = ({
       }
     } finally {
       await refreshAnalysisList(repoId);
+      setIsLoading(false);
+    }
+  };
+
+  const analyzeRepo = async () => {
+    try {
+      setIsLoading(true);
+
+      const token = await getToken();
+      if (!token) {
+        toast.error("Authentication token not available");
+        return;
+      }
+
+      // Step 1: Create analysis record upfront
+      const analysisResult = await createAnalysisRecord({
+        github_repositoryId: repoId,
+        branch: branch,
+        teamId: teamId,
+        model: "gemini-2.0-flash",
+        prompt: "Analyze this codebase for security vulnerabilities and code quality"
+      });
+
+      if (!analysisResult.success) {
+        throw new Error(analysisResult.error || "Failed to create analysis record");
+      }
+
+      const newAnalysisId = analysisResult.analysisId;
+      
+      console.log('Routing to new analysis page:', newAnalysisId);
+      // Step 2: Navigate to the new analysis page - the new page will handle streaming
+      router.push(`/analysis/${repoId}/${newAnalysisId}?autoStart=true`);
+      
+    } catch (error) {
+      if (error instanceof Error) {
+        toast.error(`${error.message}`);
+      } else {
+        toast.error(`An unexpected error occurred while creating analysis.`);
+      }
+    } finally {
       setIsLoading(false);
     }
   };
@@ -187,6 +237,20 @@ const RenderLogs = ({
 
     loadFromDb();
   }, [analysisId]);
+
+  // Auto-start streaming if autoStart query param is present
+  useEffect(() => {
+    const autoStart = searchParams.get('autoStart');
+    if (autoStart === 'true' && analysisId && !isLoading) {
+      console.log('Auto-starting analysis stream for:', analysisId);
+      streamAnalysis(analysisId);
+      // Remove the autoStart param from URL to prevent re-triggering
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('autoStart');
+      router.replace(newUrl.pathname + newUrl.search);
+    }
+  }, [analysisId, searchParams, isLoading]);
+
   // console.log("State Logs ====> ", logs);
 
   const handleCancelLogs = () => {
@@ -219,8 +283,11 @@ const RenderLogs = ({
 
       <div className="h-full w-full flex flex-col overflow-hidden">
         <div className="px-4 py-3 flex justify-end-safe gap-3 flex-shrink-0">
-          <Button onClick={analyzeRepo} className="cursor-pointer">
-            Fetch Logs
+          <Button 
+            onClick={() => analyzeRepo()} 
+            className="cursor-pointer"
+          >
+            {'Start New Analysis'}
           </Button>
 
           <Button

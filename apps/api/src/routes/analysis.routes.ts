@@ -1,5 +1,6 @@
 import express, { Router } from "express";
 import {
+  createAnalysis,
   startAnalysis,
   getAnalysisStatus,
   getRepositoryAnalysis,
@@ -14,6 +15,7 @@ router.get("/status", getAnalysisStatus);
 
 // Protected analysis endpoint
 router.use(checkAuth);
+router.post("/create", createAnalysis);
 router.post("/execute", startAnalysis);
 router.get("/:id/logs", getRepositoryAnalysisLogs);
 router.get("/:github_repositoryId", getRepositoryAnalysis);

@@ -1,7 +1,7 @@
 import mongoose, { Schema } from 'mongoose';
 
 export interface IAnalysis {
-  analysisId: string;
+  _id: mongoose.Types.ObjectId;
   analysis_type: string;
   userId: string;
   repoUrl: string;
@@ -9,10 +9,10 @@ export interface IAnalysis {
   sandboxId: string;
   model: string;
   prompt: string;
-  status: 'completed' | 'interrupted' | 'error';
+  status: 'running' | 'completed' | 'interrupted' | 'error';
   exitCode?: number | null;
-  logsCompressed: Buffer;
-  compression: {
+  logsCompressed?: Buffer;
+  compression?: {
     algorithm: 'gzip';
     originalBytes: number;
     compressedBytes: number;
@@ -23,7 +23,6 @@ export interface IAnalysis {
 
 const AnalysisSchema = new Schema<IAnalysis>(
   {
-    analysisId: { type: String, required: true, unique: true, index: true },
     analysis_type: { type: String, required: true },
     userId: { type: String, required: true, index: true },
     repoUrl: { type: String, required: true },
@@ -33,15 +32,15 @@ const AnalysisSchema = new Schema<IAnalysis>(
     prompt: { type: String, required: true },
     status: {
       type: String,
-      enum: ['completed', 'interrupted', 'error'],
+      enum: ['running', 'completed', 'interrupted', 'error'],
       required: true,
     },
     exitCode: { type: Number },
-    logsCompressed: { type: Buffer, required: true },
+    logsCompressed: { type: Buffer },
     compression: {
-      algorithm: { type: String, enum: ['gzip'], required: true },
-      originalBytes: { type: Number, required: true },
-      compressedBytes: { type: Number, required: true },
+      algorithm: { type: String, enum: ['gzip'] },
+      originalBytes: { type: Number },
+      compressedBytes: { type: Number },
     },
   },
   { timestamps: true }

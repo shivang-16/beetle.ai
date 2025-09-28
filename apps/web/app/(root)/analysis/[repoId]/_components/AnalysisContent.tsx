@@ -7,6 +7,9 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { refreshAnalysisList } from "../_actions/getAnalysiswithId";
+import { Loader2 } from "lucide-react";
+import { _config } from "@/lib/_config";
+import { useAuth } from "@clerk/nextjs";
 
 const statusColor = (status: AnalysisItem["status"]) => {
   switch (status) {
@@ -14,13 +17,15 @@ const statusColor = (status: AnalysisItem["status"]) => {
       return "bg-green-100 text-green-700 border-green-200";
     case "interrupted":
       return "bg-yellow-100 text-yellow-700 border-yellow-200";
+    case "running":
+      return "bg-blue-100 text-blue-700 border-blue-200";
     default:
       return "bg-red-100 text-red-700 border-red-200";
   }
 };
 
 const AnalysisContent = ({
-  analysisList,
+  analysisList: initialAnalysisList,
   repoId,
 }: {
   analysisList: AnalysisItem[];
@@ -29,8 +34,15 @@ const AnalysisContent = ({
   const pathname = usePathname();
   const containerRef = useRef<HTMLElement>(null);
   const [isNarrow, setIsNarrow] = useState(false);
+  const [analysisList, setAnalysisList] = useState<AnalysisItem[]>(initialAnalysisList);
+  const { getToken } = useAuth();
 
   const analysis_id = pathname.split("/")[pathname.split("/").length - 1];
+
+  // Check if there are any running analyses
+  const hasRunningAnalyses = useMemo(() => {
+    return analysisList.some(analysis => analysis.status === "running");
+  }, [analysisList]);
 
   const router = useRouter();
 
@@ -57,6 +69,37 @@ const AnalysisContent = ({
     router.replace(redirectUrl);
   }, [analysisList, queryString, repoId, router]);
 
+  // Function to fetch analysis data directly
+  const fetchAnalysisList = async () => {
+    try {
+      const token = await getToken();
+      if (!token) return;
+
+      const res = await fetch(`${_config.API_BASE_URL}/api/analysis/${repoId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      
+      if (res.ok) {
+        const json = await res.json();
+        const list: AnalysisItem[] = Array.isArray(json?.data) ? json.data : [];
+        setAnalysisList(list);
+      }
+    } catch (error) {
+      console.error("Failed to fetch analysis list:", error);
+    }
+  };
+
+  // Auto-refresh when there are running analyses
+  useEffect(() => {
+    if (!hasRunningAnalyses) return;
+
+    const interval = setInterval(fetchAnalysisList, 3000); // Refresh every 3 seconds
+
+    return () => clearInterval(interval);
+  }, [hasRunningAnalyses, repoId, getToken]);
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -82,7 +125,7 @@ const AnalysisContent = ({
         <h3 className="text-base font-medium">Analyses</h3>
         <Button
           size="sm"
-          onClick={async () => await refreshAnalysisList(repoId)}
+          onClick={fetchAnalysisList}
           className="cursor-pointer hidden">
           Refresh
         </Button>
@@ -104,7 +147,10 @@ const AnalysisContent = ({
                   #{idx + 1}
                 </span>
                 <span
-                  className={`text-[10px] px-2 py-0.5 rounded border capitalize ${statusColor(a.status)} ${isNarrow ? "hidden" : "block"}`}>
+                  className={`text-[10px] px-2 py-0.5 rounded border capitalize flex items-center gap-1 ${statusColor(a.status)} ${isNarrow ? "hidden" : "block"}`}>
+                  {a.status === "running" && (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  )}
                   {a.status}
                 </span>
               </div>

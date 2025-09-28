@@ -4,6 +4,105 @@ import Analysis from "../models/analysis.model.js";
 import { Github_Repository } from "../models/github_repostries.model.js";
 import { executeAnalysis, StreamingCallbacks } from "../services/sandbox/executeAnalysis.js";
 import { logger } from "../utils/logger.js";
+import mongoose from "mongoose";
+import Team from "../models/team.model.js";
+
+export const createAnalysis = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    logger.info("Creating analysis record", { 
+      userId: req.user?._id, 
+      github_repositoryId: req.body.github_repositoryId 
+    });
+
+    // Extract parameters from request body
+    const {
+      github_repositoryId,
+      branch,
+      teamId,
+      model = "gemini-2.0-flash",
+      prompt = "Analyze this codebase for security vulnerabilities and code quality",
+      analysis_type = "full_repo_analysis",
+      status = "running"
+    } = req.body;
+
+    const github_repository = await Github_Repository.findById(github_repositoryId);
+
+    if (!github_repository) {
+      return next(new CustomError("Github repository not found", 404));
+    }
+
+    if (github_repository.analysisRequired === false) {
+      return next(
+        new CustomError("You haven't enabled analysis for this repository", 400)
+      );
+    }
+
+    const repoUrl = `https://github.com/${github_repository.fullName}`;
+    let userId = req.user._id;
+
+    // Handle team ownership
+    if (teamId && teamId !== 'null') {
+      const team = await Team.findById(teamId);
+      if (!team) {
+        return next(new CustomError("Team not found", 404));
+      }
+      userId = team.ownerId;
+    }
+
+    // Generate new MongoDB ObjectId for the analysis
+    const analysisId = new mongoose.Types.ObjectId();
+
+    // Create analysis record with 'running' status
+    const analysis = await Analysis.create({
+      _id: analysisId,
+      analysis_type,
+      userId,
+      repoUrl,
+      github_repositoryId,
+      sandboxId: "", // Will be updated when sandbox is created
+      model,
+      prompt,
+      status,
+    });
+
+    logger.info("Analysis record created successfully", { 
+      analysisId: analysisId.toString(),
+      github_repositoryId,
+      userId 
+    });
+
+    res.json({
+      success: true,
+      data: {
+        analysisId: analysisId.toString(),
+        analysis: {
+          _id: analysisId.toString(),
+          analysis_type,
+          userId,
+          repoUrl,
+          github_repositoryId,
+          model,
+          prompt,
+          status,
+          createdAt: analysis.createdAt
+        }
+      },
+      message: "Analysis record created successfully"
+    });
+
+  } catch (error: any) {
+    logger.error("Error creating analysis record", { 
+      error: error instanceof Error ? error.message : error,
+      userId: req.user?._id,
+      github_repositoryId: req.body.github_repositoryId 
+    });
+    next(new CustomError(error.message || "Failed to create analysis record", 500));
+  }
+};
 
 export const startAnalysis = async (
   req: Request,
@@ -27,6 +126,7 @@ export const startAnalysis = async (
       github_repositoryId,
       branch,
       teamId,
+      analysisId, // Optional pre-created analysis ID
       model = "gemini-2.0-flash",
       prompt = "Analyze this codebase for security vulnerabilities and code quality",
     } = req.body;
@@ -127,7 +227,8 @@ export const startAnalysis = async (
       callbacks,
       undefined, // data parameter
       req.user?.email, // userEmail parameter
-      teamId
+      teamId,
+      analysisId // Pass the optional pre-created analysis ID
     );
 
     exitCode = result.exitCode;

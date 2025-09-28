@@ -172,7 +172,6 @@ export function RenderLLMSegments({
 
       const { title, description, issueId } = extractTitleAndDescription(segment.content);
       const finalIssueId = issueId || `segment-${segmentIndex}`;
-      
       await fetch(`${_config.API_BASE_URL}/api/github/save-issue`, {
         method: "POST",
         headers: {
@@ -213,6 +212,8 @@ export function RenderLLMSegments({
       const patchId = patch.patchId || `patch-${segmentIndex}`;
       const issueId = patch.issueId || `segment-${segmentIndex}`;
 
+            console.log("patchId ====> ", patchId);
+
       await fetch(`${_config.API_BASE_URL}/api/github/save-patch`, {
         method: "POST",
         headers: {
@@ -246,6 +247,7 @@ export function RenderLLMSegments({
       }
 
       const { title, description, issueId } = extractTitleAndDescription(segment.content);
+      console.log("title ====> ", title, issueId); 
       const finalIssueId = issueId || `segment-${segments.indexOf(segment)}`;
       
       console.log("issueId ====> ", finalIssueId);
