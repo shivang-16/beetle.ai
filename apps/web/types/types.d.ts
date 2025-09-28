@@ -146,6 +146,8 @@ export type ParsedPatch = {
   before?: string;
   after?: string;
   explanation?: string;
+  issueId?: string;
+  patchId?: string;
 };
 
 export type ParsedWarning = {

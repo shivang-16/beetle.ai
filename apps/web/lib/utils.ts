@@ -518,6 +518,17 @@ export function parsePatchString(input: string): ParsedPatch {
   if (explanationMatch && explanationMatch[1])
     result.explanation = explanationMatch[1].trim();
 
+  
+  // Find ISSUE_ID line
+  const issueIdLine = input.match(/^ISSUE_ID:\s*(.*)$/m);
+  const issueId = issueIdLine && issueIdLine[1] ? issueIdLine[1].trim() : "";
+  if (issueId) result.issueId = issueId;
+
+  // Find PATCH_ID line
+  const patchIdLine = input.match(/^PATCH_ID:\s*(.*)$/m);
+  const patchId = patchIdLine && patchIdLine[1] ? patchIdLine[1].trim() : "";
+  if (patchId) result.patchId = patchId;
+
   return result;
 }
 

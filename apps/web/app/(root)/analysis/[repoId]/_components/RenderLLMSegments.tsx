@@ -28,14 +28,81 @@ const GithubIssueDialog = dynamic(() => import("./GithubIssueDialog"));
 export function RenderLLMSegments({
   segments,
   repoId,
+  analysisId,
 }: {
   segments: LLMResponseSegment[];
   repoId: string;
+  analysisId?: string;
 }) {
   const { resolvedTheme } = useTheme();
   const { getToken } = useAuth();
 
-  const createGithubIssue = async (segment: LLMResponseSegment) => {
+  // Save GitHub issue to database during streaming
+  const saveGithubIssueToDb = async (segment: LLMResponseSegment, segmentIndex: number) => {
+    try {
+      const token = await getToken();
+      if (!token) return;
+
+      const { title, description, issueId } = extractTitleAndDescription(segment.content);
+      
+      await fetch(`${_config.API_BASE_URL}/api/github/save-issue`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          github_repositoryId: repoId,
+          analysisId,
+          title: title || "Issue from Analysis",
+          body: description || segment.content,
+          labels: ["analysis", "automated"],
+          segmentIssueId: issueId || `segment-${segmentIndex}`,
+          segmentIndex,
+        }),
+      });
+    } catch (error) {
+      console.error("Error saving GitHub issue to database:", error);
+    }
+  };
+
+  // Save patch to database during streaming
+  const savePatchToDb = async (segment: LLMResponseSegment, segmentIndex: number) => {
+    try {
+      const token = await getToken();
+      if (!token) return;
+
+      const patch = parsePatchString(segment.content);
+      const before = extractFencedContent(patch.before).code;
+      const after = extractFencedContent(patch.after).code;
+      const patchId = patch.patchId || `patch-${segmentIndex}`;
+      const issueId = patch.issueId || `segment-${segmentIndex}`;
+
+      await fetch(`${_config.API_BASE_URL}/api/github/save-patch`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          github_repositoryId: repoId,
+          analysisId,
+          patchId,
+          title: `Patch for ${extractPath(patch.file || "")}`,
+          body: patch.explanation || "Automated patch suggestion",
+          filePath: patch.file || "",
+          before,
+          after,
+          explanation: patch.explanation || "",
+          segmentIssueId: issueId,
+        }),
+      });
+    } catch (error) {
+      console.error("Error saving patch to database:", error);
+    }
+  };
+
+  const openGithubIssue = async (segment: LLMResponseSegment) => {
     try {
       const token = await getToken();
       if (!token) {
@@ -45,7 +112,7 @@ export function RenderLLMSegments({
 
       const { title, description, issueId } = extractTitleAndDescription(segment.content);
       
-      console.log("issueId ====> ", issueId, title);
+      console.log("issueId ====> ", issueId);
       const response = await fetch(`${_config.API_BASE_URL}/api/github/issue`, {
         method: "POST",
         headers: {
@@ -54,6 +121,7 @@ export function RenderLLMSegments({
         },
         body: JSON.stringify({
           github_repositoryId: repoId,
+          analysisId,
           title: title || "Issue from Analysis",
           body: description || segment.content,
           labels: ["analysis", "automated"],
@@ -84,6 +152,7 @@ export function RenderLLMSegments({
   const [expandedWarnings, setExpandedWarnings] = useState<Set<number>>(
     new Set()
   );
+  const [savedSegments, setSavedSegments] = useState<Set<number>>(new Set());
 
   const extractFencedContent = (
     input: string | undefined
@@ -135,6 +204,12 @@ export function RenderLLMSegments({
     if (seg.kind === "githubIssue") {
       const githubIssue = extractTitleAndDescription(seg.content);
 
+      // Save to database during streaming (only once per segment)
+      if (!savedSegments.has(i)) {
+        saveGithubIssueToDb(seg, i);
+        setSavedSegments(prev => new Set(prev).add(i));
+      }
+
       return (
         <div
           key={i}
@@ -174,7 +249,7 @@ export function RenderLLMSegments({
               {/* mimic comment count */}
               <Button 
                 className="cursor-pointer" 
-                onClick={() => createGithubIssue(seg)}
+                onClick={() => openGithubIssue(seg)}
               >
                 Open
               </Button>
@@ -190,6 +265,12 @@ export function RenderLLMSegments({
       const after = extractFencedContent(patch.after).code.split("\n");
       const explanation = patch.explanation || "";
       const file = patch.file || "";
+
+      // Save to database during streaming (only once per segment)
+      if (!savedSegments.has(i)) {
+        savePatchToDb(seg, i);
+        setSavedSegments(prev => new Set(prev).add(i));
+      }
 
       return (
         <div key={i} className="w-full my-5 overflow-hidden">

@@ -12,6 +12,7 @@ export interface IGithubIssue extends Document {
   assignees?: string[];
   createdBy: string; // userId who created the issue
   github_repositoryId: Schema.Types.ObjectId;
+  analysisId?: Schema.Types.ObjectId;
   repository: {
     owner: string;
     repo: string;
@@ -27,8 +28,7 @@ const GithubIssueSchema = new Schema<IGithubIssue>(
   {
     issueNumber: {
       type: Number,
-      required: true,
-      index: true,
+    //   required: true,
     },
     issueId: {
       type: String,
@@ -47,21 +47,21 @@ const GithubIssueSchema = new Schema<IGithubIssue>(
     },
     state: {
       type: String,
-      enum: ['open', 'closed'],
+      enum: ['draft', 'open', 'closed'],
       required: true,
       default: 'open',
       index: true,
     },
     githubUrl: {
       type: String,
-      required: true,
+    //   required: true,
       trim: true,
     },
     githubId: {
       type: Number,
-      required: true,
-      unique: true,
-      index: true,
+    //   required: true,
+    //   unique: true,
+    //   index: true,
     },
     labels: [{
       type: String,
@@ -80,6 +80,11 @@ const GithubIssueSchema = new Schema<IGithubIssue>(
       type: Schema.Types.ObjectId,
       ref: 'Github_Repository',
       required: true,
+      index: true,
+    },
+    analysisId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Analysis',
       index: true,
     },
     repository: {
@@ -114,8 +119,8 @@ const GithubIssueSchema = new Schema<IGithubIssue>(
 );
 
 // Compound indexes for efficient queries
-GithubIssueSchema.index({ github_repositoryId: 1, issueNumber: 1 });
-GithubIssueSchema.index({ createdBy: 1, state: 1 });
-GithubIssueSchema.index({ 'repository.fullName': 1, issueNumber: 1 });
+// GithubIssueSchema.index({ github_repositoryId: 1, issueNumber: 1 });
+// GithubIssueSchema.index({ createdBy: 1, state: 1 });
+// GithubIssueSchema.index({ 'repository.fullName': 1, issueNumber: 1 });
 
 export default mongoose.models.GithubIssue || mongoose.model<IGithubIssue>('Github_Issue', GithubIssueSchema);

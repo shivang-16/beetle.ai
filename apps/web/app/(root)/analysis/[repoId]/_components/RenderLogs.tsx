@@ -237,7 +237,7 @@ const RenderLogs = ({
                 <React.Fragment key={i}>
                   {log.type === "LLM_RESPONSE" && log.segments ? (
                     <div className="w-full p-3 break-words text-sm m-0">
-                      <RenderLLMSegments segments={log.segments} repoId={repoId} />
+                      <RenderLLMSegments segments={log.segments} repoId={repoId} analysisId={analysisId} />
                     </div>
                   ) : log.type === "TOOL_CALL" ? (
                     <div className="w-full p-3 whitespace-pre-wrap text-sm m-0">
