@@ -44,9 +44,21 @@ const items = [
 
 const AppSidebar = () => {
   const { open } = useSidebar();
-
   const pathname = usePathname();
   const { resolvedTheme } = useTheme();
+
+  // Helper function to get current path without team slug
+  const getCurrentPathWithoutTeamSlug = (): string => {
+    const pathSegments = pathname.split('/').filter(Boolean) as any;
+    // If first segment looks like a team slug (not dashboard, analysis, agents, etc.)
+    if (pathSegments.length > 0 && !['dashboard', 'analysis', 'agents', 'repo'].includes(pathSegments[0])) {
+      const pathWithoutSlug = '/' + pathSegments.slice(1).join('/');
+      return pathWithoutSlug || '/dashboard';
+    }
+    return pathname || '/dashboard';
+  };
+
+
 
   return (
     <Sidebar collapsible="icon">
@@ -136,7 +148,17 @@ const AppSidebar = () => {
           <SidebarMenuItem className="items-center justify-start flex w-full">
             <SidebarMenuButton asChild>
               <OrganizationSwitcher
-                hidePersonal
+                hidePersonal={false}
+                afterSelectOrganizationUrl={(organization) => {
+                  const currentPathWithoutSlug = getCurrentPathWithoutTeamSlug();
+                  return `/${organization.slug}${currentPathWithoutSlug}`;
+                }}
+                afterSelectPersonalUrl={() => {
+                  return getCurrentPathWithoutTeamSlug();
+                }}
+                afterCreateOrganizationUrl={(organization) => {
+                  return `/${organization.slug}/dashboard`;
+                }}
                 appearance={{
                   baseTheme: resolvedTheme === "dark" ? dark : undefined,
                   elements: {

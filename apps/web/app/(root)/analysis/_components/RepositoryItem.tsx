@@ -46,7 +46,7 @@ const RepositoryItem: React.FC<RepositoryItemProps> = ({ repo, teamId }) => {
         </Badge>
       </Link>
       <div className="flex items-center gap-2">
-           <Link href={`/${encodeURIComponent(repo._id)}/settings${teamId ? `?teamId=${teamId}` : ''}`}>
+           <Link href={`/repo/${encodeURIComponent(repo._id)}/settings${teamId ? `?teamId=${teamId}` : ''}`}>
           <Button
             variant="ghost"
             size="sm"

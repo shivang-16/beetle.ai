@@ -12,6 +12,7 @@ declare global {
       user?: any; 
       isServerRequest?: boolean;
       org?: { id: string; role?: string; slug?: string };
+      team?: { id: string; role?: string; slug?: string };
     }
   }
 }
@@ -90,6 +91,30 @@ export const checkAuth = async (req: Request, res: Response, next: NextFunction)
           { _id: user._id },
           { $push: { teams: { _id: orgId, role } } }
         );
+      }
+    }
+
+    // Handle team context from X-Team-Id header
+    const teamIdFromHeader = req.headers['x-team-id'] as string;
+    if (teamIdFromHeader) {
+      logger.debug(`Team ID from header: ${teamIdFromHeader}`);
+      
+      // Verify user has access to this team
+      const team = await Team.findById(teamIdFromHeader);
+      if (team) {
+        const member = team.members.find((m: any) => m.userId === user._id);
+        if (member) {
+          req.team = { 
+            id: teamIdFromHeader, 
+            role: member.role, 
+            slug: team.slug 
+          };
+          logger.debug(`Team context set: ${team.name} (${member.role})`);
+        } else {
+          logger.warn(`User ${user._id} attempted to access team ${teamIdFromHeader} without membership`);
+        }
+      } else {
+        logger.warn(`Team ${teamIdFromHeader} not found`);
       }
     }
     logger.info(`User authenticated successfully: ${user.email}`);

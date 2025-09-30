@@ -1,7 +1,6 @@
 "use server";
 
-import { getAuthToken } from "@/_actions/auth-token";
-import { _config } from "@/lib/_config";
+import { apiGet } from "@/lib/api-client";
 import { GithubRepository } from "@/types/types";
 import { logger } from "@/lib/logger";
 
@@ -11,14 +10,11 @@ export const getRepository = async (
   teamIdFromClient?: string
 ) => {
   try {
-    const { token } = await getAuthToken();
-
     if (scope === "user") {
-      const userRes = await fetch(
-        `${_config.API_BASE_URL}/api/user/repositories?search=${query}`,
+      const userRes = await apiGet(
+        `/api/user/repositories?search=${query}`,
         {
-          method: "GET",
-          headers: { Authorization: `Bearer ${token}` },
+          includeTeamId: false,
           cache: "force-cache",
           next: { tags: ["repository_list", "user"] },
         }
@@ -31,27 +27,14 @@ export const getRepository = async (
       return { success: true, data: flat };
     }
 
-    // Team scope
-    let teamId = teamIdFromClient;
-    if (!teamId) {
-      const res = await fetch(`${_config.API_BASE_URL}/api/team/current`, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      });
-      const teamData: { success: boolean; data: { _id: string } } = await res.json();
-      teamId = teamData?.data?._id;
-    }
+    // Team scope - now the backend will get teamId from headers automatically
 
-    const repoRes = await fetch(
-      `${_config.API_BASE_URL}/api/team/${teamId}/repositories?search=${query}`,
+
+    const repoRes = await apiGet(
+      `/api/team/repositories?search=${query}`,
       {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
         cache: "force-cache",
-        next: { tags: ["repository_list", teamId || "team"] },
+        next: { tags: ["repository_list"] },
       }
     );
 

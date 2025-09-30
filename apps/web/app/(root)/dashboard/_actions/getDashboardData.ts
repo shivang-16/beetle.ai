@@ -1,25 +1,14 @@
 "use server";
 
-import { getAuthToken } from "@/_actions/auth-token";
-import { _config } from "@/lib/_config";
+import { apiGet } from "@/lib/api-client";
 import { DashboardResponse } from "@/types/dashboard";
 import { logger } from "@/lib/logger";
 
 export const getDashboardData = async () => {
   try {
-    const { token } = await getAuthToken();
-
-    const response = await fetch(
-      `${_config.API_BASE_URL}/api/user/dashboard`,
-      {
-        method: "GET",
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        cache: "no-store", // Dashboard data should be fresh
-      }
-    );
+    const response = await apiGet("/api/user/dashboard", {
+      cache: "no-store", // Dashboard data should be fresh
+    });
 
     if (!response.ok) {
       throw new Error(`Failed to fetch dashboard data: ${response.status} ${response.statusText}`);

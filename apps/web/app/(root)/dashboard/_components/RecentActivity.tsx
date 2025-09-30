@@ -53,7 +53,7 @@ export const RecentActivity = ({ data }: RecentActivityProps) => {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
+        <div className="space-y-4 h-[400px] overflow-auto">
           {mergedActivities.length > 0 ? (
             mergedActivities.map((activity, index) => (
               <div key={index} className="border rounded-lg p-4 hover:bg-neutral-900 cursor-pointer transition-colors">

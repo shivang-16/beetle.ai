@@ -14,3 +14,16 @@ export const getAuthToken = async () => {
 
   return { token, userId, isAuthenticated };
 };
+
+export const getAuthWithTeam = async () => {
+  const { getToken, userId, isAuthenticated, sessionClaims } = await auth();
+
+  if (!userId || !isAuthenticated) {
+    redirect("/sign-in");
+  }
+
+  const token = await getToken();
+  const activeOrgId = (sessionClaims as any)?.o?.id as string | undefined;
+
+  return { token, userId, isAuthenticated, teamId: activeOrgId };
+};

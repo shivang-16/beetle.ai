@@ -6,6 +6,7 @@ export interface IGithub_Repository extends Document {
     private: boolean;
     defaultBranch?: string;
     github_installationId: Schema.Types.ObjectId;
+    teams?: string[];               // team IDs this repo belongs to
     analysisType?: string;          // e.g., "security", "quality", "performance"
     analysisFrequency?: string;     // e.g., "on_push", "daily", "weekly", "custom"
     analysisIntervalDays?: number;  // if frequency == 'custom', run every N days
@@ -41,6 +42,11 @@ const RepositorySchema = new Schema<IGithub_Repository>({
         type: String,
         required: false,
         default: 'main'
+    },
+    teams: {
+        type: [String],
+        ref: 'Team',
+        default: []
     },
     analysisRequired: {
         type: Boolean,
