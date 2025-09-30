@@ -26,7 +26,6 @@ import { IconCaretDownFilled } from "@tabler/icons-react";
 import CodetectorLogo from "../shared/codetector-logo";
 import Image from "next/image";
 
-
 export const MacbookScroll = ({
   src,
   showGradient,
@@ -55,12 +54,12 @@ export const MacbookScroll = ({
   const scaleX = useTransform(
     scrollYProgress,
     [0, 0.3],
-    [1.2, isMobile ? 2.5 : 2.75],
+    [1.2, isMobile ? 2.5 : 2.75]
   );
   const scaleY = useTransform(
     scrollYProgress,
     [0, 0.3],
-    [0.6, isMobile ? 1.5 : 2.75],
+    [0.6, isMobile ? 1.5 : 2.75]
   );
   const translate = useTransform(scrollYProgress, [0, 1], [0, 1500]);
   const rotate = useTransform(scrollYProgress, [0.1, 0.12, 0.3], [-28, -28, 0]);
@@ -70,17 +69,17 @@ export const MacbookScroll = ({
   return (
     <div
       ref={ref}
-      className="flex min-h-[200vh] shrink-0 scale-[0.35] transform flex-col items-center justify-start py-0 [perspective:800px] sm:scale-50 md:scale-100 md:py-52"
-    >
-      {title && <motion.h2
-        style={{
-          translateY: textTransform,
-          opacity: textOpacity,
-        }}
-        className="mb-20 text-center text-3xl font-bold text-neutral-800 dark:text-white"
-      >
-        {title || ""}
-      </motion.h2>}
+      className="flex min-h-[200vh] shrink-0 scale-[0.35] transform flex-col items-center justify-start py-0 [perspective:800px] sm:scale-50 md:scale-100 md:py-52">
+      {title && (
+        <motion.h2
+          style={{
+            translateY: textTransform,
+            opacity: textOpacity,
+          }}
+          className="mb-20 text-center text-3xl font-bold text-neutral-800 dark:text-white">
+          {title || ""}
+        </motion.h2>
+      )}
       {/* Lid */}
       <Lid
         src={src}
@@ -138,20 +137,18 @@ export const Lid = ({
           transformOrigin: "bottom",
           transformStyle: "preserve-3d",
         }}
-        className="relative h-[12rem] w-[32rem] rounded-2xl bg-[#010101] p-2"
-      >
+        className="relative h-[12rem] w-[32rem] rounded-2xl bg-[#010101] p-2">
         <div
           style={{
             boxShadow: "0px 2px 0px 2px #171717 inset",
           }}
-          className="absolute inset-0 flex items-center justify-center rounded-lg bg-[#010101]"
-        >
+          className="absolute inset-0 flex items-center justify-center rounded-lg bg-[#010101]">
           <span className="text-white">
             <CodetectorLogo />
           </span>
         </div>
       </div>
-      
+
       <motion.div
         style={{
           scaleX: scaleX,
@@ -161,13 +158,13 @@ export const Lid = ({
           transformStyle: "preserve-3d",
           transformOrigin: "top",
         }}
-        className="absolute inset-0 h-96 max-w-[42rem] rounded-2xl bg-[#010101] p-2"
-      >
+        className="absolute inset-0 h-96 max-w-[40rem] w-full rounded-2xl bg-[#010101] p-2">
         <div className="absolute inset-0 rounded-lg bg-black" />
-        <img
+        <Image
           src={src as string}
           alt="codetector logo"
-          className="absolute inset-0 h-full w-[full] rounded-sm object-contain object-left-top"
+          fill
+          className="absolute inset-0 h-full w-full rounded-sm object-contain object-left-top"
         />
       </motion.div>
     </div>
@@ -180,8 +177,7 @@ export const Trackpad = () => {
       className="mx-auto my-1 h-32 w-[40%] rounded-xl"
       style={{
         boxShadow: "0px 0px 1px 1px #00000020 inset",
-      }}
-    ></div>
+      }}></div>
   );
 };
 
@@ -192,8 +188,7 @@ export const Keypad = () => {
       <div className="mb-[2px] flex w-full shrink-0 gap-[2px]">
         <KBtn
           className="w-10 items-end justify-start pb-[2px] pl-[4px]"
-          childrenClassName="items-start"
-        >
+          childrenClassName="items-start">
           esc
         </KBtn>
         <KBtn>
@@ -307,8 +302,7 @@ export const Keypad = () => {
         </KBtn>
         <KBtn
           className="w-10 items-end justify-end pr-[4px] pb-[2px]"
-          childrenClassName="items-end"
-        >
+          childrenClassName="items-end">
           delete
         </KBtn>
       </div>
@@ -317,8 +311,7 @@ export const Keypad = () => {
       <div className="mb-[2px] flex w-full shrink-0 gap-[2px]">
         <KBtn
           className="w-10 items-end justify-start pb-[2px] pl-[4px]"
-          childrenClassName="items-start"
-        >
+          childrenClassName="items-start">
           tab
         </KBtn>
         <KBtn>
@@ -369,8 +362,7 @@ export const Keypad = () => {
       <div className="mb-[2px] flex w-full shrink-0 gap-[2px]">
         <KBtn
           className="w-[2.8rem] items-end justify-start pb-[2px] pl-[4px]"
-          childrenClassName="items-start"
-        >
+          childrenClassName="items-start">
           caps lock
         </KBtn>
         <KBtn>
@@ -410,8 +402,7 @@ export const Keypad = () => {
         </KBtn>
         <KBtn
           className="w-[2.85rem] items-end justify-end pr-[4px] pb-[2px]"
-          childrenClassName="items-end"
-        >
+          childrenClassName="items-end">
           return
         </KBtn>
       </div>
@@ -420,8 +411,7 @@ export const Keypad = () => {
       <div className="mb-[2px] flex w-full shrink-0 gap-[2px]">
         <KBtn
           className="w-[3.65rem] items-end justify-start pb-[2px] pl-[4px]"
-          childrenClassName="items-start"
-        >
+          childrenClassName="items-start">
           shift
         </KBtn>
         <KBtn>
@@ -459,8 +449,7 @@ export const Keypad = () => {
         </KBtn>
         <KBtn
           className="w-[3.65rem] items-end justify-end pr-[4px] pb-[2px]"
-          childrenClassName="items-end"
-        >
+          childrenClassName="items-end">
           shift
         </KBtn>
       </div>
@@ -493,8 +482,7 @@ export const Keypad = () => {
         </KBtn>
         <KBtn
           className="w-8"
-          childrenClassName="h-full justify-between py-[4px]"
-        >
+          childrenClassName="h-full justify-between py-[4px]">
           <div className="flex w-full justify-end pr-1">
             <IconCommand className="h-[6px] w-[6px]" />
           </div>
@@ -505,8 +493,7 @@ export const Keypad = () => {
         <KBtn className="w-[8.2rem]"></KBtn>
         <KBtn
           className="w-8"
-          childrenClassName="h-full justify-between py-[4px]"
-        >
+          childrenClassName="h-full justify-between py-[4px]">
           <div className="flex w-full justify-start pl-1">
             <IconCommand className="h-[6px] w-[6px]" />
           </div>
@@ -558,26 +545,23 @@ export const KBtn = ({
     <div
       className={cn(
         "[transform:translateZ(0)] rounded-[4px] p-[0.5px] [will-change:transform]",
-        backlit && "bg-white/[0.2] shadow-xl shadow-white",
-      )}
-    >
+        backlit && "bg-white/[0.2] shadow-xl shadow-white"
+      )}>
       <div
         className={cn(
           "flex h-6 w-6 items-center justify-center rounded-[3.5px] bg-[#0A090D]",
-          className,
+          className
         )}
         style={{
           boxShadow:
             "0px -0.5px 2px 0 #0D0D0F inset, -0.5px 0px 2px 0 #0D0D0F inset",
-        }}
-      >
+        }}>
         <div
           className={cn(
             "flex w-full flex-col items-center justify-center text-[5px] text-neutral-200",
             childrenClassName,
-            backlit && "text-white",
-          )}
-        >
+            backlit && "text-white"
+          )}>
           {children}
         </div>
       </div>
@@ -593,8 +577,7 @@ export const SpeakerGrid = () => {
         backgroundImage:
           "radial-gradient(circle, #08080A 0.5px, transparent 0.5px)",
         backgroundSize: "3px 3px",
-      }}
-    ></div>
+      }}></div>
   );
 };
 
@@ -606,8 +589,7 @@ export const OptionKey = ({ className }: { className: string }) => {
       id="icon"
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 32 32"
-      className={className}
-    >
+      className={className}>
       <rect
         stroke="currentColor"
         strokeWidth={2}
@@ -631,5 +613,3 @@ export const OptionKey = ({ className }: { className: string }) => {
     </svg>
   );
 };
-
-

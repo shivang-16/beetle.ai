@@ -11,25 +11,27 @@ const OverviewSection = () => {
   return (
     <section className="px-5 pt-10">
       <div className="py-14 md:px-6 max-w-[1563px] w-full mx-auto border border-t-0 border-b-0 border-[#333333]">
-        <div className="px-4 flex flex-col md:flex-row gap-3 items-center justify-between">
+        <div className="px-4 flex flex-col lg:flex-row gap-3 items-center justify-between">
           <div className="flex-1">
-            <h2 className="text-white text-4xl font-semibold max-w-xl leading-tight text-left mb-6">
-            Your repo, your rules — allows you to pick the model that roasts your code best            </h2>
+            <h2 className="text-white text-4xl font-semibold lg:max-w-xl leading-tight text-left mb-6">
+              Your repo, your rules — allows you to pick the model that roasts
+              your code best{" "}
+            </h2>
           </div>
           <div className="flex flex-col gap-8 justify-end">
-            <p className="text-white text-md font-medium max-w-xl">
-Empower your team to focus on building — we’ll hunt, fix, and prevent bugs with full-repo analysis, not just PR reviews, so you ship faster.   </p>
+            <p className="text-white text-md font-medium lg:max-w-xl">
+              Empower your team to focus on building — we’ll hunt, fix, and
+              prevent bugs with full-repo analysis, not just PR reviews, so you
+              ship faster.{" "}
+            </p>
             <div>
-<Button
+              <Button
                 variant={"ghost"}
                 className="cursor-pointer border bg-white text-black hover:text-white/80">
                 Launch Agent <ArrowUpRight />
               </Button>
-</div>
+            </div>
           </div>
-
-
-            
         </div>
         <MacbookScroll src={"/analysis-page.png"} />
         {/* <motion.div
