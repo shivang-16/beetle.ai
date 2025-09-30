@@ -6,7 +6,6 @@ import {
 import { connectSandbox, createSandbox } from "../../config/sandbox.js";
 import { Github_Repository } from "../../models/github_repostries.model.js";
 import { authenticateGithubRepo } from "../../utils/authenticateGithubUrl.js";
-import { randomUUID } from "crypto";
 import Analysis from "../../models/analysis.model.js";
 import mongoose from "mongoose";
 import { mailService } from "../mail/mail_service.js";
@@ -22,6 +21,7 @@ export interface AnalysisResult {
   success: boolean;
   exitCode: number;
   sandboxId: string | null;
+  _id: string;
   error?: string;
 }
 
@@ -36,13 +36,16 @@ export const executeAnalysis = async (
   callbacks?: StreamingCallbacks,
   data?: any, // Optional data parameter for PR analysis or other structured data
   userEmail?: string, // Optional email parameter to send analysis results
-  teamId?: string
+  teamId?: string,
+  preCreatedAnalysisId?: string // Optional pre-created analysis ID
 ): Promise<AnalysisResult> => {
   // Hoisted context for streaming persistence
   let sandboxRef: any | undefined;
   let runExitCode: number | undefined;
   let sandboxId: string = "";
-  let analysisId: string = randomUUID();
+  let _id: mongoose.Types.ObjectId = preCreatedAnalysisId 
+    ? new mongoose.Types.ObjectId(preCreatedAnalysisId)
+    : new mongoose.Types.ObjectId();
 
   try {
 
@@ -58,6 +61,7 @@ export const executeAnalysis = async (
         success: false,
         exitCode: -1,
         sandboxId: null,
+        _id: new mongoose.Types.ObjectId().toString(),
         error: "Team not found",
       };;
       }
@@ -71,11 +75,41 @@ export const executeAnalysis = async (
         success: false,
         exitCode: -1,
         sandboxId: null,
+        _id: new mongoose.Types.ObjectId().toString(),
         error: authResult.message,
       };
     }
 
     const repoUrlForAnalysis = authResult.repoUrl;
+
+    // Create analysis record upfront with 'running' status (only if not pre-created)
+    if (!preCreatedAnalysisId) {
+      try {
+        await Analysis.create({
+          _id,
+          analysis_type: analysisType,
+          userId,
+          repoUrl,
+          github_repositoryId,
+          sandboxId: "", // Will be updated once sandbox is created
+          model,
+          prompt,
+          status: "running",
+        });
+        console.log(`📝 Analysis record created with ID: ${_id}`);
+      } catch (createError) {
+        console.error("❌ Failed to create analysis record:", createError);
+        return {
+          success: false,
+          exitCode: -1,
+          sandboxId: null,
+          _id: _id.toString(),
+          error: "Failed to create analysis record",
+        };
+      }
+    } else {
+      console.log(`📝 Using pre-created analysis record with ID: ${_id}`);
+    }
 
     console.log("🚀 Starting code analysis...");
 
@@ -115,11 +149,24 @@ export const executeAnalysis = async (
     sandboxId = sandbox.sandboxId;
     console.log("✅ Sandbox created successfully");
 
+    // Update analysis record with sandboxId
+    try {
+      await Analysis.findOneAndUpdate(
+        { _id },
+        { sandboxId },
+        { new: true }
+      );
+      console.log(`📝 Analysis record updated with sandboxId: ${sandboxId}`);
+    } catch (updateError) {
+      console.error("⚠️ Failed to update analysis record with sandboxId:", updateError);
+      // Continue execution as this is not critical
+    }
+
     if (callbacks?.onProgress) {
       await callbacks.onProgress("✅ Sandbox created successfully");
     }
 
-    await initRedisBuffer(analysisId);
+    await initRedisBuffer(_id.toString());
     
     // Debug: Log the data being passed
     // console.log("📊 Data parameter being passed to sandbox:", JSON.stringify(data, null, 2));
@@ -143,7 +190,7 @@ export const executeAnalysis = async (
 
         // Buffer to Redis
         try {
-          await appendToRedisBuffer(analysisId, cleanData);
+          await appendToRedisBuffer(_id.toString(), cleanData);
         } catch (e) {
           console.error("Redis append error:", e);
         }
@@ -158,7 +205,7 @@ export const executeAnalysis = async (
 
         // Buffer to Redis
         try {
-          await appendToRedisBuffer(analysisId, `⚠️ ${cleanData}`);
+          await appendToRedisBuffer(_id.toString(), `⚠️ ${cleanData}`);
         } catch (e) {
           console.error("Redis append error:", e);
         }
@@ -195,7 +242,7 @@ export const executeAnalysis = async (
         const status: "completed" | "error" =
           result.exitCode === 0 ? "completed" : "error";
         await finalizeAnalysisAndPersist({
-          analysisId,
+          _id: _id.toString(),
           analysis_type: analysisType,
           userId,
           repoUrl,
@@ -225,7 +272,7 @@ export const executeAnalysis = async (
               username: 'User', // You can get this from user data if available
               repositoryName: repositoryName,
               repositoryUrl: repoUrl,
-              analysisId: analysisId,
+              analysisId: _id.toString(),
               analysisType: 'full',
               analysisResults: {
                 issuesFound: 12, // Dummy data for testing
@@ -237,7 +284,7 @@ export const executeAnalysis = async (
                 ],
                 summary: 'Analysis completed successfully with security and quality recommendations'
               },
-              dashboardLink: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/analysis/${analysisId}`
+              dashboardLink: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/analysis/${_id.toString()}`
             });
             console.log("✅ Mail service call completed successfully");
 
@@ -265,6 +312,7 @@ export const executeAnalysis = async (
       success: result.exitCode === 0,
       exitCode: result.exitCode,
       sandboxId: sandboxId,
+      _id: _id.toString(),
     };
   } catch (error: any) {
     console.error("❌ Error executing analysis:", error);
@@ -277,7 +325,7 @@ export const executeAnalysis = async (
     if (userId && repoUrl && github_repositoryId) {
       try {
         await finalizeAnalysisAndPersist({
-          analysisId,
+          _id: _id.toString(),
           analysis_type: analysisType,
           userId,
           repoUrl,
@@ -302,7 +350,7 @@ export const executeAnalysis = async (
               username: 'User', // You can get this from user data if available
               repositoryName: repositoryName,
               repositoryUrl: repoUrl,
-              analysisId: analysisId,
+              analysisId: _id.toString(),
               errorMessage: error.message || 'An unexpected error occurred during analysis',
               errorCode: `EXIT_${runExitCode || -1}`,
               supportLink: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/support`
@@ -330,6 +378,7 @@ export const executeAnalysis = async (
       success: false,
       exitCode: runExitCode || -1,
       sandboxId: sandboxId,
+      _id: _id.toString(),
       error: error.message,
     };
   } finally {

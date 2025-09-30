@@ -5,19 +5,19 @@ import Analysis from "../models/analysis.model.js";
 
 const gzipAsync = promisify(gzip);
 
-export function getAnalysisRedisKey(analysisId: string): string {
-  return `analysis:${analysisId}:buffer`;
+export function getAnalysisRedisKey(_id: string): string {
+  return `analysis:${_id}:buffer`;
 }
 
-export async function initRedisBuffer(analysisId: string, ttlSeconds = 60 * 60 * 4): Promise<void> {
-  const key = getAnalysisRedisKey(analysisId);
+export async function initRedisBuffer(_id: string, ttlSeconds = 60 * 60 * 4): Promise<void> {
+  const key = getAnalysisRedisKey(_id);
   // Initialize with empty string and TTL so abandoned runs are cleaned up
   await redis.set(key, "", "EX", ttlSeconds);
   // console.log(`[Redis][init] key=${key} ttl=${ttlSeconds}s`);
 }
 
-export async function appendToRedisBuffer(analysisId: string, data: string): Promise<void> {
-  const key = getAnalysisRedisKey(analysisId);
+export async function appendToRedisBuffer(_id: string, data: string): Promise<void> {
+  const key = getAnalysisRedisKey(_id);
   // Always append a trailing newline to preserve line boundaries
   const payload = data.endsWith("\n") ? data : data + "\n";
   const appendedLen = Buffer.byteLength(payload);
@@ -28,7 +28,7 @@ export async function appendToRedisBuffer(analysisId: string, data: string): Pro
 type FinalizeStatus = "completed" | "interrupted" | "error";
 
 export interface FinalizeParams {
-  analysisId: string;
+  _id: string;
   analysis_type: string;
   userId: string;
   repoUrl: string;
@@ -41,8 +41,8 @@ export interface FinalizeParams {
 }
 
 export async function finalizeAnalysisAndPersist(params: FinalizeParams): Promise<void> {
-  const { analysisId, analysis_type, userId, repoUrl, model, prompt, status, exitCode, github_repositoryId, sandboxId } = params;
-  const key = getAnalysisRedisKey(analysisId);
+  const { _id, analysis_type, userId, repoUrl, model, prompt, status, exitCode, github_repositoryId, sandboxId } = params;
+  const key = getAnalysisRedisKey(_id);
 
   try {
     const rawBuffer = await redis.getBuffer(key);
@@ -50,25 +50,21 @@ export async function finalizeAnalysisAndPersist(params: FinalizeParams): Promis
     const compressed = rawBuffer && originalBytes > 0 ? await gzipAsync(rawBuffer) : Buffer.alloc(0);
     // console.log(`[Redis][finalize:start] key=${key} originalBytes=${originalBytes} compressedBytes=${compressed.length} status=${status} exitCode=${exitCode ?? null}`);
 
-    await Analysis.create({
-      analysisId,
-      analysis_type,
-      userId,
-      repoUrl,
-      github_repositoryId,
-      sandboxId,
-      model,
-      prompt,
-      status,
-      exitCode: typeof exitCode === "number" ? exitCode : null,
-      logsCompressed: compressed,
-      compression: {
-        algorithm: "gzip",
-        originalBytes,
-        compressedBytes: compressed.length,
+    await Analysis.findOneAndUpdate(
+      { _id },
+      {
+        status,
+        exitCode: typeof exitCode === "number" ? exitCode : null,
+        logsCompressed: compressed,
+        compression: {
+          algorithm: "gzip",
+          originalBytes,
+          compressedBytes: compressed.length,
+        },
       },
-    });
-    console.log(`[Mongo][persisted] analysisId=${analysisId}`);
+      { new: true }
+    );
+    console.log(`[Mongo][updated] _id=${_id}`);
   } finally {
     try {
       const delCount = await redis.del(key);

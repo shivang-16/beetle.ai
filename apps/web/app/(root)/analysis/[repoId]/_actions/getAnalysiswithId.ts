@@ -15,7 +15,7 @@ export const getAnalysisWithId = async (repoId: string) => {
         Authorization: `Bearer ${token}`,
       },
       next: {
-        tags: ["analysis", repoId],
+        tags: ["analysis", `analysis-${repoId}`],
       },
     });
     const json = await res.json();
@@ -32,5 +32,6 @@ export const getAnalysisWithId = async (repoId: string) => {
 
 export const refreshAnalysisList = async (repoId: string) => {
   revalidateTag("analysis");
-  revalidateTag(repoId);
+  // Only revalidate the specific analysis tag, not the entire repoId which affects repo tree
+  revalidateTag(`analysis-${repoId}`);
 };

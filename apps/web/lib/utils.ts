@@ -468,13 +468,17 @@ export function extractTitleAndDescription(input: string) {
   const titleLine = lines.find((line) => line.startsWith("# "));
   const title = titleLine ? titleLine.replace(/^#\s*/, "").trim() : "";
 
-  // Remove that line and take the rest as description
+  // Find ISSUE_ID line
+  const issueIdLine = lines.find((line) => line.startsWith("ISSUE_ID:"));
+  const issueId = issueIdLine ? issueIdLine.replace(/^ISSUE_ID:\s*/, "").trim() : "";
+
+  // Remove title line and issue ID line, take the rest as description
   const description = lines
-    .filter((line) => line !== titleLine) // everything except title line
+    .filter((line) => line !== titleLine && line !== issueIdLine) // everything except title and issue ID lines
     .join("\n")
     .trim();
 
-  return { title, description };
+  return { title, description, issueId };
 }
 
 export function parsePatchString(input: string): ParsedPatch {
@@ -513,6 +517,17 @@ export function parsePatchString(input: string): ParsedPatch {
   const explanationMatch = input.match(/### Explanation\s*([\s\S]*)/);
   if (explanationMatch && explanationMatch[1])
     result.explanation = explanationMatch[1].trim();
+
+  
+  // Find ISSUE_ID line
+  const issueIdLine = input.match(/^ISSUE_ID:\s*(.*)$/m);
+  const issueId = issueIdLine && issueIdLine[1] ? issueIdLine[1].trim() : "";
+  if (issueId) result.issueId = issueId;
+
+  // Find PATCH_ID line
+  const patchIdLine = input.match(/^PATCH_ID:\s*(.*)$/m);
+  const patchId = patchIdLine && patchIdLine[1] ? patchIdLine[1].trim() : "";
+  if (patchId) result.patchId = patchId;
 
   return result;
 }

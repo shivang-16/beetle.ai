@@ -6,8 +6,11 @@ import { getUserGitHubInstallation, getOrganizationInstallationForRepo, getAllUs
 import { Octokit } from "@octokit/rest";
 import { authenticateGithubRepo } from "../utils/authenticateGithubUrl.js";
 import { Github_Repository } from "../models/github_repostries.model.js";
+import GithubIssue from "../models/github_issue.model.js";
+import GithubPullRequest from "../models/github_pull_request.model.js";
 import Team from "../models/team.model.js";
 import { logger } from "../utils/logger.js";
+import { randomUUID } from "crypto";
 
 export const getRepoTree = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -181,17 +184,58 @@ export const getRepoInfo = async (
   }
 };
 
-export const createIssue = async (
+export const openIssue = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    const { github_repositoryId, title, body, labels, assignees } = req.body;
+    const { github_repositoryId, analysisId, title, body, labels, assignees, segmentIssueId } = req.body;
+
+    // Validate required fields
+    if (!github_repositoryId || !title || !segmentIssueId) {
+      throw new CustomError("github_repositoryId, title, and segmentIssueId are required", 400);
+    }
+
+    const userId = req.user?._id;
+    if (!userId) {
+      throw new CustomError("User authentication required", 401);
+    }
 
     const github_repository = await Github_Repository.findById(github_repositoryId);
     if (!github_repository) {
       return next(new CustomError("Github repository not found", 404));
+    }
+
+    let github_issue = await GithubIssue.findOne({issueId: segmentIssueId});
+    
+    // If issue doesn't exist, create a new one
+    if (!github_issue) {
+      logger.info("Creating new GitHub issue record", { segmentIssueId, title, userId });
+      
+      github_issue = new GithubIssue({
+        issueId: segmentIssueId,
+        title: title,
+        body: body || "",
+        state: 'draft',
+        labels: labels || [],
+        assignees: assignees || [],
+        createdBy: userId,
+        github_repositoryId: github_repositoryId,
+        analysisId,
+        repository: {
+          owner: github_repository.fullName.split('/')[0],
+          repo: github_repository.fullName.split('/')[1],
+          fullName: github_repository.fullName,
+        },
+        githubCreatedAt: new Date(),
+        githubUpdatedAt: new Date(),
+      });
+      
+      await github_issue.save();
+      logger.info("New GitHub issue record created", { issueId: segmentIssueId });
+    } else if (github_issue.state === "open") {
+      return next(new CustomError("Github issue is already open", 400));
     }
 
     const repoUrl = `https://github.com/${github_repository.fullName}`;
@@ -209,7 +253,6 @@ export const createIssue = async (
     logger.info("Creating GitHub issue", { owner, repo, title });
 
     // Get GitHub token for authenticated user
-    const userId = req.user?._id;
     let githubToken: string | undefined = process.env.GITHUB_TOKEN;
 
     if (userId) {
@@ -299,23 +342,41 @@ export const createIssue = async (
 
     logger.info("Issue created successfully", { issueNumber: issue.number, url: issue.html_url });
 
+    // Save issue to database
+    try {
+      await github_issue.updateOne({
+        $set: {
+          state: issue.state as 'open' | 'closed',
+          githubUrl: issue.html_url,
+          githubId: issue.id,
+          labels: issue.labels?.map((label: any) => typeof label === 'string' ? label : label.name) || [],
+          assignees: issue.assignees?.map((assignee: any) => assignee.login) || [],
+          githubUpdatedAt: new Date(issue.updated_at),
+        }
+      });
+
+      logger.info("Issue saved to database", { issueId: segmentIssueId, issueNumber: issue.number });
+    } catch (dbError) {
+      logger.error("Failed to save issue to database", { 
+        error: dbError instanceof Error ? dbError.message : dbError,
+        issueNumber: issue.number,
+        githubUrl: issue.html_url
+      });
+      // Don't fail the request if database save fails, as the GitHub issue was created successfully
+    }
+
     res.json({
       success: true,
       data: {
-        issue_number: issue.number,
-        title: issue.title,
-        body: issue.body,
+        issueId: segmentIssueId,
+
         state: issue.state,
-        url: issue.html_url,
+        html_url: issue.html_url,
         created_at: issue.created_at,
         updated_at: issue.updated_at,
         labels: issue.labels,
         assignees: issue.assignees,
-        repository: {
-          owner,
-          repo,
-          full_name: `${owner}/${repo}`,
-        },
+
       },
     });
   } catch (error: any) {
@@ -339,6 +400,284 @@ export const createIssue = async (
         new CustomError(error.message || "Failed to create issue", 500)
       );
     }
+  }
+};
+
+export const saveGithubIssue = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { 
+      github_repositoryId, 
+      analysisId,
+      title, 
+      body, 
+      labels, 
+      assignees, 
+      segmentIssueId,
+      repository 
+    } = req.body;
+
+    // Validate required fields
+    if (!github_repositoryId || !title || !segmentIssueId) {
+      throw new CustomError("github_repositoryId, title, and segmentIssueId are required", 400);
+    }
+
+    const userId = req.user?._id;
+    if (!userId) {
+      throw new CustomError("User authentication required", 401);
+    }
+
+    logger.info("Saving GitHub issue to database", { segmentIssueId, title, userId });
+
+    // Check if issue already exists
+    const existingIssue = await GithubIssue.findOne({ issueId: segmentIssueId });
+    if (existingIssue) {
+      logger.debug("Issue already exists", { issueId: segmentIssueId });
+      return res.json({
+        success: true,
+        data: existingIssue,
+        message: "Issue already exists"
+      });
+    }
+
+    // Get repository info
+    const github_repository = await Github_Repository.findById(github_repositoryId);
+    if (!github_repository) {
+      throw new CustomError("Github repository not found", 404);
+    }
+
+    // Create new issue record
+    const githubIssue = new GithubIssue({
+      issueId: segmentIssueId,
+      title: title,
+      body: body || "",
+      state: 'draft',
+      labels: labels || [],
+      assignees: assignees || [],
+      createdBy: userId,
+      github_repositoryId: github_repositoryId,
+      analysisId: analysisId,
+      repository: repository || {
+        owner: github_repository.fullName.split('/')[0],
+        repo: github_repository.fullName.split('/')[1],
+        fullName: github_repository.fullName,
+      },
+      githubCreatedAt: new Date(),
+      githubUpdatedAt: new Date(),
+    });
+
+    await githubIssue.save();
+    logger.info("Issue saved to database successfully", { issueId: githubIssue._id, segmentIssueId });
+
+    res.json({
+      success: true,
+      data: githubIssue,
+      message: "Issue saved successfully"
+    });
+
+  } catch (error: any) {
+    logger.error("Error saving GitHub issue", { 
+      error: error instanceof Error ? error.message : error,
+      segmentIssueId: req.body.segmentIssueId
+    });
+    next(new CustomError(error.message || "Failed to save GitHub issue", error.status || 500));
+  }
+};
+
+export const savePatch = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { 
+      github_repositoryId, 
+      title, 
+      body, 
+      labels, 
+      assignees, 
+      patchId,
+      filePath,
+      before,
+      after,
+      explanation,
+      repository,
+      segmentIssueId, 
+      analysisId,
+    } = req.body;
+
+    // Validate required fields
+    if (!github_repositoryId || !title || !patchId || !filePath || !before || !after) {
+      throw new CustomError("github_repositoryId, title, patchId, filePath, before, and after are required", 400);
+    }
+
+    const userId = req.user?._id;
+    if (!userId) {
+      throw new CustomError("User authentication required", 401);
+    }
+
+    logger.info("Saving patch to database", { patchId, title, filePath, userId });
+
+    // Check if patch already exists
+    const existingPatch = await GithubPullRequest.findOne({ patchId: patchId });
+    if (existingPatch) {
+      logger.debug("Patch already exists", { patchId });
+      return res.json({
+        success: true,
+        data: existingPatch,
+        message: "Patch already exists"
+      });
+    }
+
+    // Get repository info
+    const github_repository = await Github_Repository.findById(github_repositoryId);
+    if (!github_repository) {
+      throw new CustomError("Github repository not found", 404);
+    }
+
+    // Create new patch record
+    const githubPullRequest = new GithubPullRequest({
+      patchId: patchId,
+      issueId: segmentIssueId,
+      title: title,
+      body: body || "",
+      state: 'draft',
+      labels: labels || [],
+      assignees: assignees || [],
+      createdBy: userId,
+      github_repositoryId: github_repositoryId,
+      analysisId,
+      repository: repository || {
+        owner: github_repository.fullName.split('/')[0],
+        repo: github_repository.fullName.split('/')[1],
+        fullName: github_repository.fullName,
+      },
+      patch: {
+        filePath: filePath,
+        before: before,
+        after: after,
+        explanation: explanation || "",
+      },
+      baseBranch: github_repository.defaultBranch || 'main',
+    });
+
+    await githubPullRequest.save();
+    logger.info("Patch saved to database successfully", { patchId: githubPullRequest._id, segmentPatchId: patchId });
+
+    res.json({
+      success: true,
+      data: githubPullRequest,
+      message: "Patch saved successfully"
+    });
+
+  } catch (error: any) {
+    logger.error("Error saving patch", { 
+      error: error instanceof Error ? error.message : error,
+      patchId: req.body.patchId
+    });
+    next(new CustomError(error.message || "Failed to save patch", error.status || 500));
+  }
+};
+
+export const getGithubIssuesWithPullRequests = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { github_repositoryId, analysisId } = req.query as { 
+      github_repositoryId: string; 
+      analysisId?: string; 
+    };
+
+    // Validate required fields
+    if (!github_repositoryId) {
+      throw new CustomError("github_repositoryId is required", 400);
+    }
+
+    const userId = req.user?._id;
+    if (!userId) {
+      throw new CustomError("User authentication required", 401);
+    }
+
+    logger.info("Getting GitHub issues with pull requests", { 
+      github_repositoryId, 
+      analysisId, 
+      userId 
+    });
+
+    // Verify repository exists and user has access
+    const github_repository = await Github_Repository.findById(github_repositoryId);
+    if (!github_repository) {
+      console.log("no github repo id")
+      throw new CustomError("Github repository not found", 404);
+    }
+
+    // Build query filter
+    const issueFilter: any = { 
+      github_repositoryId: github_repositoryId,
+      createdBy: userId 
+    };
+    
+    if (analysisId) {
+      issueFilter.analysisId = analysisId;
+    }
+
+    // Get GitHub issues
+    const githubIssues = await GithubIssue.find(issueFilter)
+      .sort({ createdAt: -1 })
+      .lean();
+
+    logger.debug("Found GitHub issues", { count: githubIssues.length });
+
+    // Get associated pull requests for each issue
+    const issuesWithPullRequests = await Promise.all(
+      githubIssues.map(async (issue) => {
+        const pullRequests = await GithubPullRequest.find({
+          issueId: issue.issueId,
+          github_repositoryId: github_repositoryId,
+          createdBy: userId
+        })
+        .sort({ createdAt: -1 })
+        .lean();
+
+        return {
+          ...issue,
+          pullRequests: pullRequests || []
+        };
+      })
+    );
+
+    logger.info("Successfully retrieved issues with pull requests", { 
+      issueCount: issuesWithPullRequests.length,
+      totalPullRequests: issuesWithPullRequests.reduce((sum, issue) => sum + issue.pullRequests.length, 0)
+    });
+
+    console.log(issuesWithPullRequests)
+
+    res.json({
+      success: true,
+      data: {
+        repository: {
+          id: github_repository._id,
+          fullName: github_repository.fullName,
+          owner: github_repository.fullName.split('/')[0],
+          repo: github_repository.fullName.split('/')[1]
+        },
+        issues: issuesWithPullRequests
+      }
+    });
+
+  } catch (error: any) {
+    logger.error("Error getting GitHub issues with pull requests", { 
+      error: error instanceof Error ? error.message : error,
+      github_repositoryId: req.query.github_repositoryId,
+      analysisId: req.query.analysisId
+    });
+    next(new CustomError(error.message || "Failed to get GitHub issues", error.status || 500));
   }
 };
 
@@ -683,5 +1022,115 @@ export const createPullRequest = async (
         new CustomError(error.message || "Failed to create pull request", 500)
       );
     }
+  }
+};
+
+export const getIssueStates = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { github_repositoryId, analysisId, issueIds } = req.body;
+
+    // Validate required fields
+    if (!github_repositoryId || !issueIds || !Array.isArray(issueIds)) {
+      throw new CustomError("github_repositoryId and issueIds array are required", 400);
+    }
+
+    // Limit the number of issueIds to prevent performance issues
+    const MAX_ISSUE_IDS = 100;
+    if (issueIds.length > MAX_ISSUE_IDS) {
+      throw new CustomError(`Too many issueIds. Maximum allowed: ${MAX_ISSUE_IDS}`, 400);
+    }
+
+    const userId = req.user?._id;
+    if (!userId) {
+      throw new CustomError("User authentication required", 401);
+    }
+
+    logger.info("Getting GitHub issue states", { 
+      github_repositoryId, 
+      analysisId, 
+      issueIds: issueIds.length,
+      userId 
+    });
+
+    // Verify repository exists and user has access
+    const github_repository = await Github_Repository.findById(github_repositoryId);
+    if (!github_repository) {
+      throw new CustomError("Github repository not found", 404);
+    }
+
+    // Build query filter
+    const issueFilter: any = { 
+      github_repositoryId: github_repositoryId,
+      createdBy: userId,
+      issueId: { $in: issueIds }
+    };
+    
+    if (analysisId) {
+      issueFilter.analysisId = analysisId;
+    }
+
+    // Get GitHub issues with only necessary fields for performance
+    const githubIssues = await GithubIssue.find(issueFilter)
+      .select('issueId state githubUrl githubId issueNumber')
+      .lean();
+
+    logger.debug("Found GitHub issues", { count: githubIssues.length });
+
+    // Create a map for efficient lookup
+    const issueStatesMap: Record<string, {
+      state: string;
+      githubUrl?: string;
+      githubId?: number;
+      issueNumber?: number;
+    }> = {};
+
+    githubIssues.forEach(issue => {
+      if (issue.issueId) {
+        issueStatesMap[issue.issueId] = {
+          state: issue.state,
+          githubUrl: issue.githubUrl,
+          githubId: issue.githubId,
+          issueNumber: issue.issueNumber
+        };
+      }
+    });
+
+    // Fill in missing issueIds with default state
+    issueIds.forEach((issueId: string) => {
+      if (!issueStatesMap[issueId]) {
+        issueStatesMap[issueId] = {
+          state: 'draft'
+        };
+      }
+    });
+
+    logger.info("Successfully retrieved issue states", { 
+      requestedCount: issueIds.length,
+      foundCount: githubIssues.length,
+      totalStates: Object.keys(issueStatesMap).length
+    });
+
+    res.json({
+      success: true,
+      data: {
+        repository: {
+          id: github_repository._id,
+          fullName: github_repository.fullName
+        },
+        issueStates: issueStatesMap
+      }
+    });
+
+  } catch (error: any) {
+    logger.error("Error getting GitHub issue states", { 
+      error: error instanceof Error ? error.message : error,
+      github_repositoryId: req.body.github_repositoryId,
+      analysisId: req.body.analysisId
+    });
+    next(new CustomError(error.message || "Failed to get GitHub issue states", error.status || 500));
   }
 };

@@ -24,8 +24,11 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { executeAnalysisStream } from "@/lib/api/analysis";
+import { executeAnalysisStream, updateAnalysisStatus } from "@/lib/api/analysis";
 import { useAuth } from "@clerk/nextjs";
+import { useRouter, useSearchParams } from "next/navigation";
+import { createAnalysisRecord } from "../_actions/createAnalysis";
+import { triggerAnalysisListRefresh } from "@/lib/utils/analysisEvents";
 
 const RenderLogs = ({
   repoId,
@@ -40,6 +43,8 @@ const RenderLogs = ({
   branch?: string;  
   teamId?: string;
 }) => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [logs, setLogs] = useState<LogItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { getToken } = useAuth();
@@ -47,7 +52,7 @@ const RenderLogs = ({
   const abortControllerRef = useRef<AbortController>(null);
   const parserStateRef = useRef<ParserState>(createParserState());
 
-  const analyzeRepo = async () => {
+  const streamAnalysis = async (targetAnalysisId: string) => {
     try {
       abortControllerRef.current = new AbortController();
       const signal = abortControllerRef.current.signal;
@@ -60,10 +65,16 @@ const RenderLogs = ({
         return;
       }
 
+      console.log("Starting analysis stream for:", targetAnalysisId);
+      
+      // Start the actual analysis with the pre-created ID
       const body = {
         github_repositoryId: repoId,
-        branch,
-        teamId
+        branch: branch,
+        teamId: teamId,
+        model: "gemini-2.0-flash",
+        prompt: "Analyze this codebase for security vulnerabilities and code quality",
+        analysisId: targetAnalysisId // Pass the pre-created analysis ID
       };
 
       const res = await executeAnalysisStream(body, token);
@@ -119,7 +130,51 @@ const RenderLogs = ({
         toast.error(`An unexpected error occurred while analyzing this repo.`);
       }
     } finally {
-      await refreshAnalysisList(repoId);
+      // Trigger analysis list refresh to show the completed/error status
+      triggerAnalysisListRefresh();
+      setIsLoading(false);
+    }
+  };
+
+  const analyzeRepo = async () => {
+    try {
+      setIsLoading(true);
+
+      const token = await getToken();
+      if (!token) {
+        toast.error("Authentication token not available");
+        return;
+      }
+
+      // Step 1: Create analysis record upfront
+      const analysisResult = await createAnalysisRecord({
+        github_repositoryId: repoId,
+        branch: branch,
+        teamId: teamId,
+        model: "gemini-2.0-flash",
+        prompt: "Analyze this codebase for security vulnerabilities and code quality"
+      });
+
+      if (!analysisResult.success) {
+        throw new Error(analysisResult.error || "Failed to create analysis record");
+      }
+
+      const newAnalysisId = analysisResult.analysisId;
+      
+      // Trigger analysis list refresh to show the new draft analysis
+      triggerAnalysisListRefresh();
+      
+      console.log('Routing to new analysis page:', newAnalysisId);
+      // Step 2: Navigate to the new analysis page - user will manually start analysis
+      router.push(`/analysis/${repoId}/${newAnalysisId}`);
+      
+    } catch (error) {
+      if (error instanceof Error) {
+        toast.error(`${error.message}`);
+      } else {
+        toast.error(`An unexpected error occurred while creating analysis.`);
+      }
+    } finally {
       setIsLoading(false);
     }
   };
@@ -187,6 +242,9 @@ const RenderLogs = ({
 
     loadFromDb();
   }, [analysisId]);
+
+
+
   // console.log("State Logs ====> ", logs);
 
   const handleCancelLogs = () => {
@@ -194,6 +252,34 @@ const RenderLogs = ({
       abortControllerRef.current.abort();
     }
     setIsLoading(false);
+  };
+
+  const startCurrentAnalysis = async () => {
+    if (!analysisId) return;
+    
+    try {
+      // First, update the analysis status from 'draft' to 'running'
+      const token = await getToken();
+      if (!token) {
+        toast.error("Authentication token not available");
+        return;
+      }
+
+      const statusUpdateResult = await updateAnalysisStatus(analysisId, "running", token);
+      if (!statusUpdateResult.success) {
+        toast.error(statusUpdateResult.error || "Failed to update analysis status");
+        return;
+      }
+
+      // Trigger analysis list refresh to show the updated status
+      triggerAnalysisListRefresh();
+
+      // Then start the analysis stream
+      await streamAnalysis(analysisId);
+    } catch (error) {
+      console.error("Error starting analysis:", error);
+      toast.error("Failed to start analysis");
+    }
   };
 
   const processedLogs = useMemo(() => {
@@ -214,13 +300,16 @@ const RenderLogs = ({
   }, [logs]);
 
   return (
-    <main className="flex w-full">
+    <main className="flex w-full h-full">
       <RepoFileTree repoTree={repoTree} />
 
-      <div className="h-full w-full flex flex-col">
-        <div className="px-4 py-3 flex justify-end-safe gap-3">
-          <Button onClick={analyzeRepo} className="cursor-pointer">
-            Fetch Logs
+      <div className="h-full w-full flex flex-col overflow-hidden">
+        <div className="px-4 py-3 flex justify-end-safe gap-3 flex-shrink-0">
+          <Button 
+            onClick={() => analyzeRepo()} 
+            className="cursor-pointer"
+          >
+            {'Start New Analysis'}
           </Button>
 
           <Button
@@ -230,40 +319,63 @@ const RenderLogs = ({
             Cancel Logs
           </Button>
         </div>
-        <div className="flex-1 px-4 pb-3 max-h-[calc(100%-60px)] max-w-2xl w-full mx-auto">
+        <div className="flex-1 px-4 pb-3 max-w-2xl w-full mx-auto overflow-hidden">
           <div className="w-full h-full py-3 overflow-y-auto output-scrollbar">
-            <div className="w-full flex flex-col items-start gap-3.5">
-              {processedLogs.map((log, i) => (
-                <React.Fragment key={i}>
-                  {log.type === "LLM_RESPONSE" && log.segments ? (
-                    <div className="w-full p-3 break-words text-sm m-0">
-                      <RenderLLMSegments segments={log.segments} />
-                    </div>
-                  ) : log.type === "TOOL_CALL" ? (
-                    <div className="w-full p-3 whitespace-pre-wrap text-sm m-0">
-                      <RenderToolCall log={log} />
-                    </div>
-                  ) : log.type === "INITIALISATION" ? (
-                    <div className="w-full p-3 whitespace-pre-wrap dark:text-neutral-200 text-neutral-800 text-sm leading-7 m-0">
-                      <Accordion
-                        type="single"
-                        collapsible
-                        defaultValue="item-1">
-                        <AccordionItem value="item-1" className="border-none">
-                          <AccordionTrigger className="px-3 border border-input rounded-t-md data-[state=closed]:rounded-b-md cursor-pointer">
-                            Bootstrapping Beetle AI Sandbox
-                          </AccordionTrigger>
-                          <AccordionContent className="border border-input rounded-b-md bg-card p-3">
-                            <div>{log.messages.join("\n")}</div>
-                          </AccordionContent>
-                        </AccordionItem>
-                      </Accordion>
-                    </div>
-                  ) : null}
-                </React.Fragment>
-              ))}
-            </div>
+            {/* Show start analysis button when no logs exist and not loading */}
+            {processedLogs.length === 0 && !isLoading && analysisId && (
+              <div className="w-full h-full flex flex-col items-center justify-center gap-4">
+                <div className="text-center space-y-4">
+                  <Button 
+                    onClick={startCurrentAnalysis}
+                    size="lg"
+                    className="px-8 py-3 text-base font-medium"
+                  >
+                    Start Analysis
+                  </Button>
+                  <p className="text-sm text-muted-foreground max-w-md">
+                    You are about to start a full repository analysis on your default branch. 
+                    This will analyze your codebase for security vulnerabilities and code quality.
+                  </p>
+                </div>
+              </div>
+            )}
 
+            {/* Show logs when they exist */}
+            {processedLogs.length > 0 && (
+              <div className="w-full flex flex-col items-start gap-3.5">
+                {processedLogs.map((log, i) => (
+                  <React.Fragment key={i}>
+                    {log.type === "LLM_RESPONSE" && log.segments ? (
+                      <div className="w-full p-3 break-words text-sm m-0">
+                        <RenderLLMSegments segments={log.segments} repoId={repoId} analysisId={analysisId} />
+                      </div>
+                    ) : log.type === "TOOL_CALL" ? (
+                      <div className="w-full p-3 whitespace-pre-wrap text-sm m-0">
+                        <RenderToolCall log={log} />
+                      </div>
+                    ) : log.type === "INITIALISATION" ? (
+                      <div className="w-full p-3 whitespace-pre-wrap dark:text-neutral-200 text-neutral-800 text-sm leading-7 m-0">
+                        <Accordion
+                          type="single"
+                          collapsible
+                          defaultValue="item-1">
+                          <AccordionItem value="item-1" className="border-none">
+                            <AccordionTrigger className="px-3 border border-input rounded-t-md data-[state=closed]:rounded-b-md cursor-pointer">
+                              Bootstrapping Beetle AI Sandbox
+                            </AccordionTrigger>
+                            <AccordionContent className="border border-input rounded-b-md bg-card p-3">
+                              <div>{log.messages.join("\n")}</div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        </Accordion>
+                      </div>
+                    ) : null}
+                  </React.Fragment>
+                ))}
+              </div>
+            )}
+
+            {/* Show loading indicator */}
             {isLoading && (
               <div className="flex items-center gap-2">
                 <RefreshCcwDotIcon className="size-5 animate-spin text-primary" />

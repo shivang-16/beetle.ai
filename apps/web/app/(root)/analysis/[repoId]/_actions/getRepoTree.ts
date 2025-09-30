@@ -23,6 +23,10 @@ export const getRepoTree = async (repoId: string, teamId?: string, branch?: stri
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
+      next: {
+        tags: [`repo-tree-${repoId}`, `repo-tree-${repoId}-${branch || 'main'}`],
+        revalidate: 300, // Cache for 5 minutes
+      },
     });
 
     const data: { success: boolean; data: RepoTree } = await res.json();

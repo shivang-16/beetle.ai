@@ -57,7 +57,7 @@ export default function IntegrationsSection() {
           </div>
           <div className="bg-linear-to-t from-black relative z-20 mx-auto mt-12 max-w-lg space-y-6 from-55% text-center">
             <h2 className="text-balance text-3xl font-semibold md:text-4xl text-white">
-              AI Models
+              Choose your AI model
             </h2>
             <p className="text-white/60">
               Powered by the world's most advanced AI models. Beetle AI integrates 

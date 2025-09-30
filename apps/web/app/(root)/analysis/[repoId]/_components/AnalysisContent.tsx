@@ -6,7 +6,8 @@ import { AnalysisItem } from "@/types/types";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { refreshAnalysisList } from "../_actions/getAnalysiswithId";
+import { Loader2 } from "lucide-react";
+import { useAnalysisList } from "@/hooks/useAnalysisList";
 
 const statusColor = (status: AnalysisItem["status"]) => {
   switch (status) {
@@ -14,13 +15,17 @@ const statusColor = (status: AnalysisItem["status"]) => {
       return "bg-green-100 text-green-700 border-green-200";
     case "interrupted":
       return "bg-yellow-100 text-yellow-700 border-yellow-200";
+    case "running":
+      return "bg-blue-100 text-blue-700 border-blue-200";
+    case "draft":
+      return "bg-gray-100 text-gray-700 border-gray-200";
     default:
       return "bg-red-100 text-red-700 border-red-200";
   }
 };
 
 const AnalysisContent = ({
-  analysisList,
+  analysisList: initialAnalysisList,
   repoId,
 }: {
   analysisList: AnalysisItem[];
@@ -29,6 +34,18 @@ const AnalysisContent = ({
   const pathname = usePathname();
   const containerRef = useRef<HTMLElement>(null);
   const [isNarrow, setIsNarrow] = useState(false);
+  
+  // Use the custom hook for analysis list management
+  const { 
+    analysisList, 
+    isLoading: isRefreshing, 
+    error, 
+    refreshAnalysisList, 
+    hasRunningAnalyses 
+  } = useAnalysisList({ 
+    repoId, 
+    initialAnalysisList 
+  });
 
   const analysis_id = pathname.split("/")[pathname.split("/").length - 1];
 
@@ -57,6 +74,8 @@ const AnalysisContent = ({
     router.replace(redirectUrl);
   }, [analysisList, queryString, repoId, router]);
 
+
+
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -82,7 +101,7 @@ const AnalysisContent = ({
         <h3 className="text-base font-medium">Analyses</h3>
         <Button
           size="sm"
-          onClick={async () => await refreshAnalysisList(repoId)}
+          onClick={refreshAnalysisList}
           className="cursor-pointer hidden">
           Refresh
         </Button>
@@ -104,7 +123,10 @@ const AnalysisContent = ({
                   #{idx + 1}
                 </span>
                 <span
-                  className={`text-[10px] px-2 py-0.5 rounded border capitalize ${statusColor(a.status)} ${isNarrow ? "hidden" : "block"}`}>
+                  className={`text-[10px] px-2 py-0.5 rounded border capitalize flex items-center gap-1 ${statusColor(a.status)} ${isNarrow ? "hidden" : "block"}`}>
+                  {a.status === "running" && (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  )}
                   {a.status}
                 </span>
               </div>

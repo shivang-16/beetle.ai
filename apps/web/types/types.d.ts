@@ -146,6 +146,8 @@ export type ParsedPatch = {
   before?: string;
   after?: string;
   explanation?: string;
+  issueId?: string;
+  patchId?: string;
 };
 
 export type ParsedWarning = {
@@ -167,7 +169,7 @@ type AnalysisItem = {
   repoUrl: string;
   model: string;
   prompt: string;
-  status: "completed" | "interrupted" | "error";
+  status: "draft" | "completed" | "interrupted" | "error" | "running";
   exitCode?: number | null;
   createdAt: string;
   updatedAt: string;
