@@ -25,8 +25,8 @@ const Page = async (props: {
   logger.info(`Analysis page loaded with query:`, { query, scope, teamId });
 
   return (
-    <div className="h-svh max-w-7xl w-full mx-auto py-5 px-4">
-      <div className="h-full border rounded-3xl p-4">
+    <div className="h-svh max-w-8xl w-full mx-auto py-5 px-4">
+      <div className="h-full p-4">
         <div className="flex items-center justify-between gap-2 border-b pb-4">
           <h2 className="text-2xl font-medium">Repositories</h2>
 

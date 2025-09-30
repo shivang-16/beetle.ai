@@ -2,7 +2,7 @@ import mongoose, { Schema } from 'mongoose';
 
 export interface IAnalysis {
   _id: mongoose.Types.ObjectId;
-  analysis_type: string;
+  analysis_type: 'full_repo_analysis' | 'pr_analysis';
   userId: string;
   repoUrl: string;
   github_repositoryId: Schema.Types.ObjectId;
