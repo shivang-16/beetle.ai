@@ -38,7 +38,7 @@ const Page = async (props: {
 
             <Link
               href={
-                "https://github.com/apps/codetector-ai/installations/select_target"
+                "https://github.com/apps/beetles-ai/installations/select_target"
               }
               target="_blank">
               <Button className="cursor-pointer text-xs">

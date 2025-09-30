@@ -7,7 +7,7 @@ import { GitHubIssuesChart } from "@/app/(root)/dashboard/_components/GitHubIssu
 import { PullRequestsChart } from "@/app/(root)/dashboard/_components/PullRequestsChart";
 import { ActivityOverviewChart } from "@/app/(root)/dashboard/_components/ActivityOverviewChart";
 import { DashboardData } from "@/types/dashboard";
-import { getDashboardData } from "../../dashboard/_actions/getDashboardData";
+import { getTeamDashboardData } from "./_actions/getTeamDashboardData";
 import { Loader2 } from "lucide-react";
 
 interface PageProps {
@@ -36,12 +36,11 @@ const Page = ({ params }: PageProps) => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        // TODO: Update getDashboardData to accept teamSlug/teamId parameter
-        const result = await getDashboardData();
+        const result = await getTeamDashboardData();
         setDashboardData(result.data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
-        console.error('Error fetching dashboard data:', err);
+        console.error('Error fetching team dashboard data:', err);
       } finally {
         setLoading(false);
       }
