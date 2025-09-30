@@ -2,6 +2,7 @@ import express, { Router } from "express";
 import { checkAuth } from "../middlewares/checkAuth.js";
 import { getRepoTree, getRepoInfo, openIssue, createPullRequest, getBranches, saveGithubIssue, savePatch, getGithubIssuesWithPullRequests, getIssueStates } from "../controllers/github.controller.js";
 import { getAllUserInstallations } from "../queries/github.queries.js";
+import { updateRepoSettings, getRepoSettings } from "../controllers/repository.controller.js";
 
 const router: Router = express.Router();
 
@@ -19,6 +20,10 @@ router.post("/pull-request", checkAuth, createPullRequest);
 // Save routes for streaming (auth required)
 router.post("/save-issue", checkAuth, saveGithubIssue);
 router.post("/save-patch", checkAuth, savePatch);
+
+// Repository settings routes (auth required)
+router.get("/repository/:repoId/settings", checkAuth, getRepoSettings);
+router.put("/repository/:repoId/settings", checkAuth, updateRepoSettings);
 
 // Debug endpoint to check installations
 router.get("/installations", checkAuth, async (req, res) => {
