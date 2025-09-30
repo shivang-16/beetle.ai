@@ -3,6 +3,9 @@
 import React, { useEffect, useState } from "react";
 import { DashboardMetrics } from "@/app/(root)/dashboard/_components/DashboardMetrics";
 import { RecentActivity } from "@/app/(root)/dashboard/_components/RecentActivity";
+import { GitHubIssuesChart } from "@/app/(root)/dashboard/_components/GitHubIssuesChart";
+import { PullRequestsChart } from "@/app/(root)/dashboard/_components/PullRequestsChart";
+import { ActivityOverviewChart } from "@/app/(root)/dashboard/_components/ActivityOverviewChart";
 import { DashboardData } from "@/types/dashboard";
 import { getDashboardData } from "./_actions/getDashboardData";
 import { Loader2 } from "lucide-react";
@@ -72,8 +75,26 @@ const Page = () => {
         {/* Dashboard Metrics */}
         <DashboardMetrics data={dashboardData} />
         
-        {/* Recent Activity */}
-        <RecentActivity data={dashboardData} />
+        {/* Bento Layout: Charts on left, Recent Activity on right */}
+        <div className="flex gap-6 mb-6 ">
+          {/* Left side - Recent Activity (takes 2 columns) */}
+          <div className="w-full">
+            <RecentActivity data={dashboardData} />
+
+          </div>
+
+          {/* Right side - Charts stacked (takes 1 column) */}
+          <div className="w-full flex flex-col gap-4">
+
+            <GitHubIssuesChart data={dashboardData} />
+            <PullRequestsChart data={dashboardData} />
+          </div>
+        </div>
+        
+        {/* Activity Overview Chart - Full width below */}
+        {/* <div className="mb-6">
+          <ActivityOverviewChart data={dashboardData} />
+        </div> */}
       </div>
     </div>
   );
