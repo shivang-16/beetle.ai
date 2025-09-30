@@ -2,11 +2,9 @@ import React, { Suspense } from "react";
 import SearchRepositories from "../../analysis/_components/SearchRepositories";
 import RepositoryList from "../../analysis/_components/RepositoryList";
 import RepositoryListSkeleton from "../../analysis/_components/RepositoryListSkeleton";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import SyncRepositoriesButton from "../../analysis/_components/SyncRepositoriesButton";
-import { Plus } from "lucide-react";
 import TeamSwitcher from "../../analysis/_components/TeamSwitcher";
+import { AddRepositoriesModal } from "./_components/add-repositories-modal";
 import { logger } from "@/lib/logger";
 
 type RepoScope = "user" | "team";
@@ -47,16 +45,7 @@ const Page = async (props: PageProps) => {
 
             <SyncRepositoriesButton />
 
-            <Link
-              href={
-                "https://github.com/apps/beetles-ai/installations/select_target"
-              }
-              target="_blank">
-              <Button className="cursor-pointer text-xs">
-                <Plus />
-                <span>Add Repositories</span>
-              </Button>
-            </Link>
+            <AddRepositoriesModal teamSlug={teamSlug} />
           </div>
         </div>
 
