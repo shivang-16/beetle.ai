@@ -26,7 +26,7 @@ export const createAnalysis = async (
       model = "gemini-2.0-flash",
       prompt = "Analyze this codebase for security vulnerabilities and code quality",
       analysis_type = "full_repo_analysis",
-      status = "running"
+      status = "draft"
     } = req.body;
 
     const github_repository = await Github_Repository.findById(github_repositoryId);
@@ -344,6 +344,68 @@ export const getRepositoryAnalysis = async (
       github_repositoryId: req.params.github_repositoryId 
     });
     next(new CustomError(error.message || "Failed to fetch analysis", 500));
+  }
+};
+
+export const updateAnalysisStatus = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    // Validate status
+    const validStatuses = ['draft', 'running', 'completed', 'interrupted', 'error'];
+    if (!validStatuses.includes(status)) {
+      return next(new CustomError("Invalid status value", 400));
+    }
+
+    // Find and update the analysis
+    const analysis = await Analysis.findById(id);
+    if (!analysis) {
+      return next(new CustomError("Analysis not found", 404));
+    }
+
+    // Check if user owns this analysis or is part of the team
+    if (analysis.userId !== req.user._id) {
+      // Check if it's a team analysis and user is part of the team
+      if (analysis.userId) {
+        const team = await Team.findOne({ ownerId: analysis.userId });
+        if (!team || !team.members?.includes(req.user._id)) {
+          return next(new CustomError("Unauthorized to update this analysis", 403));
+        }
+      } else {
+        return next(new CustomError("Unauthorized to update this analysis", 403));
+      }
+    }
+
+    // Update the status
+    analysis.status = status;
+    await analysis.save();
+
+    logger.info("Analysis status updated", { 
+      analysisId: id, 
+      newStatus: status, 
+      userId: req.user._id 
+    });
+
+    res.json({
+      success: true,
+      message: "Analysis status updated successfully",
+      data: {
+        id: analysis._id,
+        status: analysis.status,
+        updatedAt: analysis.updatedAt
+      }
+    });
+  } catch (error: any) {
+    logger.error("Failed to update analysis status", { 
+      analysisId: req.params.id, 
+      error: error.message 
+    });
+    next(new CustomError(error.message || "Failed to update analysis status", 500));
   }
 };
 

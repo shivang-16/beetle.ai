@@ -6,10 +6,8 @@ import { AnalysisItem } from "@/types/types";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { refreshAnalysisList } from "../_actions/getAnalysiswithId";
 import { Loader2 } from "lucide-react";
-import { _config } from "@/lib/_config";
-import { useAuth } from "@clerk/nextjs";
+import { useAnalysisList } from "@/hooks/useAnalysisList";
 
 const statusColor = (status: AnalysisItem["status"]) => {
   switch (status) {
@@ -19,6 +17,8 @@ const statusColor = (status: AnalysisItem["status"]) => {
       return "bg-yellow-100 text-yellow-700 border-yellow-200";
     case "running":
       return "bg-blue-100 text-blue-700 border-blue-200";
+    case "draft":
+      return "bg-gray-100 text-gray-700 border-gray-200";
     default:
       return "bg-red-100 text-red-700 border-red-200";
   }
@@ -34,15 +34,20 @@ const AnalysisContent = ({
   const pathname = usePathname();
   const containerRef = useRef<HTMLElement>(null);
   const [isNarrow, setIsNarrow] = useState(false);
-  const [analysisList, setAnalysisList] = useState<AnalysisItem[]>(initialAnalysisList);
-  const { getToken } = useAuth();
+  
+  // Use the custom hook for analysis list management
+  const { 
+    analysisList, 
+    isLoading: isRefreshing, 
+    error, 
+    refreshAnalysisList, 
+    hasRunningAnalyses 
+  } = useAnalysisList({ 
+    repoId, 
+    initialAnalysisList 
+  });
 
   const analysis_id = pathname.split("/")[pathname.split("/").length - 1];
-
-  // Check if there are any running analyses
-  const hasRunningAnalyses = useMemo(() => {
-    return analysisList.some(analysis => analysis.status === "running");
-  }, [analysisList]);
 
   const router = useRouter();
 
@@ -69,36 +74,7 @@ const AnalysisContent = ({
     router.replace(redirectUrl);
   }, [analysisList, queryString, repoId, router]);
 
-  // Function to fetch analysis data directly
-  const fetchAnalysisList = async () => {
-    try {
-      const token = await getToken();
-      if (!token) return;
 
-      const res = await fetch(`${_config.API_BASE_URL}/api/analysis/${repoId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      
-      if (res.ok) {
-        const json = await res.json();
-        const list: AnalysisItem[] = Array.isArray(json?.data) ? json.data : [];
-        setAnalysisList(list);
-      }
-    } catch (error) {
-      console.error("Failed to fetch analysis list:", error);
-    }
-  };
-
-  // Auto-refresh when there are running analyses
-  useEffect(() => {
-    if (!hasRunningAnalyses) return;
-
-    const interval = setInterval(fetchAnalysisList, 3000); // Refresh every 3 seconds
-
-    return () => clearInterval(interval);
-  }, [hasRunningAnalyses, repoId, getToken]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -125,7 +101,7 @@ const AnalysisContent = ({
         <h3 className="text-base font-medium">Analyses</h3>
         <Button
           size="sm"
-          onClick={fetchAnalysisList}
+          onClick={refreshAnalysisList}
           className="cursor-pointer hidden">
           Refresh
         </Button>

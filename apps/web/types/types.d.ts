@@ -169,7 +169,7 @@ type AnalysisItem = {
   repoUrl: string;
   model: string;
   prompt: string;
-  status: "completed" | "interrupted" | "error" | "running";
+  status: "draft" | "completed" | "interrupted" | "error" | "running";
   exitCode?: number | null;
   createdAt: string;
   updatedAt: string;

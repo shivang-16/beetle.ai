@@ -36,7 +36,7 @@ export const createAnalysisRecord = async (params: CreateAnalysisParams): Promis
         model: params.model || "gemini-2.0-flash",
         prompt: params.prompt || "Analyze this codebase for security vulnerabilities and code quality",
         analysis_type: "full_repo_analysis",
-        status: "running"
+        status: "draft"
       }),
     });
 

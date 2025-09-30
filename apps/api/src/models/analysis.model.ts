@@ -9,7 +9,7 @@ export interface IAnalysis {
   sandboxId: string;
   model: string;
   prompt: string;
-  status: 'running' | 'completed' | 'interrupted' | 'error';
+  status: 'draft' | 'running' | 'completed' | 'interrupted' | 'error';
   exitCode?: number | null;
   logsCompressed?: Buffer;
   compression?: {
@@ -32,7 +32,7 @@ const AnalysisSchema = new Schema<IAnalysis>(
     prompt: { type: String, required: true },
     status: {
       type: String,
-      enum: ['running', 'completed', 'interrupted', 'error'],
+      enum: ['draft', 'running', 'completed', 'interrupted', 'error'],
       required: true,
     },
     exitCode: { type: Number },

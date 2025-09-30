@@ -5,6 +5,7 @@ import {
   getAnalysisStatus,
   getRepositoryAnalysis,
   getRepositoryAnalysisLogs,
+  updateAnalysisStatus,
 } from "../controllers/analysis.controller.js";
 import { checkAuth } from "../middlewares/checkAuth.js";
 
@@ -17,6 +18,7 @@ router.get("/status", getAnalysisStatus);
 router.use(checkAuth);
 router.post("/create", createAnalysis);
 router.post("/execute", startAnalysis);
+router.put("/:id/status", updateAnalysisStatus);
 router.get("/:id/logs", getRepositoryAnalysisLogs);
 router.get("/:github_repositoryId", getRepositoryAnalysis);
 

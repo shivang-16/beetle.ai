@@ -24,10 +24,11 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { executeAnalysisStream } from "@/lib/api/analysis";
+import { executeAnalysisStream, updateAnalysisStatus } from "@/lib/api/analysis";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createAnalysisRecord } from "../_actions/createAnalysis";
+import { triggerAnalysisListRefresh } from "@/lib/utils/analysisEvents";
 
 const RenderLogs = ({
   repoId,
@@ -129,7 +130,8 @@ const RenderLogs = ({
         toast.error(`An unexpected error occurred while analyzing this repo.`);
       }
     } finally {
-      await refreshAnalysisList(repoId);
+      // Trigger analysis list refresh to show the completed/error status
+      triggerAnalysisListRefresh();
       setIsLoading(false);
     }
   };
@@ -159,9 +161,12 @@ const RenderLogs = ({
 
       const newAnalysisId = analysisResult.analysisId;
       
+      // Trigger analysis list refresh to show the new draft analysis
+      triggerAnalysisListRefresh();
+      
       console.log('Routing to new analysis page:', newAnalysisId);
-      // Step 2: Navigate to the new analysis page - the new page will handle streaming
-      router.push(`/analysis/${repoId}/${newAnalysisId}?autoStart=true`);
+      // Step 2: Navigate to the new analysis page - user will manually start analysis
+      router.push(`/analysis/${repoId}/${newAnalysisId}`);
       
     } catch (error) {
       if (error instanceof Error) {
@@ -238,18 +243,7 @@ const RenderLogs = ({
     loadFromDb();
   }, [analysisId]);
 
-  // Auto-start streaming if autoStart query param is present
-  useEffect(() => {
-    const autoStart = searchParams.get('autoStart');
-    if (autoStart === 'true' && analysisId && !isLoading) {
-      console.log('Auto-starting analysis stream for:', analysisId);
-      streamAnalysis(analysisId);
-      // Remove the autoStart param from URL to prevent re-triggering
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.delete('autoStart');
-      router.replace(newUrl.pathname + newUrl.search);
-    }
-  }, [analysisId, searchParams, isLoading]);
+
 
   // console.log("State Logs ====> ", logs);
 
@@ -258,6 +252,34 @@ const RenderLogs = ({
       abortControllerRef.current.abort();
     }
     setIsLoading(false);
+  };
+
+  const startCurrentAnalysis = async () => {
+    if (!analysisId) return;
+    
+    try {
+      // First, update the analysis status from 'draft' to 'running'
+      const token = await getToken();
+      if (!token) {
+        toast.error("Authentication token not available");
+        return;
+      }
+
+      const statusUpdateResult = await updateAnalysisStatus(analysisId, "running", token);
+      if (!statusUpdateResult.success) {
+        toast.error(statusUpdateResult.error || "Failed to update analysis status");
+        return;
+      }
+
+      // Trigger analysis list refresh to show the updated status
+      triggerAnalysisListRefresh();
+
+      // Then start the analysis stream
+      await streamAnalysis(analysisId);
+    } catch (error) {
+      console.error("Error starting analysis:", error);
+      toast.error("Failed to start analysis");
+    }
   };
 
   const processedLogs = useMemo(() => {
@@ -299,38 +321,61 @@ const RenderLogs = ({
         </div>
         <div className="flex-1 px-4 pb-3 max-w-2xl w-full mx-auto overflow-hidden">
           <div className="w-full h-full py-3 overflow-y-auto output-scrollbar">
-            <div className="w-full flex flex-col items-start gap-3.5">
-              {processedLogs.map((log, i) => (
-                <React.Fragment key={i}>
-                  {log.type === "LLM_RESPONSE" && log.segments ? (
-                    <div className="w-full p-3 break-words text-sm m-0">
-                      <RenderLLMSegments segments={log.segments} repoId={repoId} analysisId={analysisId} />
-                    </div>
-                  ) : log.type === "TOOL_CALL" ? (
-                    <div className="w-full p-3 whitespace-pre-wrap text-sm m-0">
-                      <RenderToolCall log={log} />
-                    </div>
-                  ) : log.type === "INITIALISATION" ? (
-                    <div className="w-full p-3 whitespace-pre-wrap dark:text-neutral-200 text-neutral-800 text-sm leading-7 m-0">
-                      <Accordion
-                        type="single"
-                        collapsible
-                        defaultValue="item-1">
-                        <AccordionItem value="item-1" className="border-none">
-                          <AccordionTrigger className="px-3 border border-input rounded-t-md data-[state=closed]:rounded-b-md cursor-pointer">
-                            Bootstrapping Beetle AI Sandbox
-                          </AccordionTrigger>
-                          <AccordionContent className="border border-input rounded-b-md bg-card p-3">
-                            <div>{log.messages.join("\n")}</div>
-                          </AccordionContent>
-                        </AccordionItem>
-                      </Accordion>
-                    </div>
-                  ) : null}
-                </React.Fragment>
-              ))}
-            </div>
+            {/* Show start analysis button when no logs exist and not loading */}
+            {processedLogs.length === 0 && !isLoading && analysisId && (
+              <div className="w-full h-full flex flex-col items-center justify-center gap-4">
+                <div className="text-center space-y-4">
+                  <Button 
+                    onClick={startCurrentAnalysis}
+                    size="lg"
+                    className="px-8 py-3 text-base font-medium"
+                  >
+                    Start Analysis
+                  </Button>
+                  <p className="text-sm text-muted-foreground max-w-md">
+                    You are about to start a full repository analysis on your default branch. 
+                    This will analyze your codebase for security vulnerabilities and code quality.
+                  </p>
+                </div>
+              </div>
+            )}
 
+            {/* Show logs when they exist */}
+            {processedLogs.length > 0 && (
+              <div className="w-full flex flex-col items-start gap-3.5">
+                {processedLogs.map((log, i) => (
+                  <React.Fragment key={i}>
+                    {log.type === "LLM_RESPONSE" && log.segments ? (
+                      <div className="w-full p-3 break-words text-sm m-0">
+                        <RenderLLMSegments segments={log.segments} repoId={repoId} analysisId={analysisId} />
+                      </div>
+                    ) : log.type === "TOOL_CALL" ? (
+                      <div className="w-full p-3 whitespace-pre-wrap text-sm m-0">
+                        <RenderToolCall log={log} />
+                      </div>
+                    ) : log.type === "INITIALISATION" ? (
+                      <div className="w-full p-3 whitespace-pre-wrap dark:text-neutral-200 text-neutral-800 text-sm leading-7 m-0">
+                        <Accordion
+                          type="single"
+                          collapsible
+                          defaultValue="item-1">
+                          <AccordionItem value="item-1" className="border-none">
+                            <AccordionTrigger className="px-3 border border-input rounded-t-md data-[state=closed]:rounded-b-md cursor-pointer">
+                              Bootstrapping Beetle AI Sandbox
+                            </AccordionTrigger>
+                            <AccordionContent className="border border-input rounded-b-md bg-card p-3">
+                              <div>{log.messages.join("\n")}</div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        </Accordion>
+                      </div>
+                    ) : null}
+                  </React.Fragment>
+                ))}
+              </div>
+            )}
+
+            {/* Show loading indicator */}
             {isLoading && (
               <div className="flex items-center gap-2">
                 <RefreshCcwDotIcon className="size-5 animate-spin text-primary" />
