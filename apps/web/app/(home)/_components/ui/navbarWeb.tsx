@@ -16,7 +16,7 @@ export default function Navbar() {
           href="/"
           className="flex items-center gap-2 text-xl font-semibold text-white">
           <CodetectorLogo />
-          <span className="sr-only sm:not-sr-only">BEETLE</span>
+          <span className="not-sr-only">BEETLE</span>
         </Link>
 
         {/* Right section (icons + auth buttons) */}
