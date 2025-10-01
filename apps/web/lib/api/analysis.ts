@@ -11,16 +11,24 @@ export interface AnalysisRequest {
 
 export const executeAnalysisStream = async (
   body: AnalysisRequest,
-  token: string
+  token: string,
+  teamId?: string
 ): Promise<Response> => {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+
+  // Add team ID header if available
+  if (teamId) {
+    headers['X-Team-Id'] = teamId;
+  }
+
   const response = await fetch(`${_config.API_BASE_URL}/api/analysis/execute`, {
     method: "POST",
     body: JSON.stringify(body),
     credentials: "include",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
+    headers,
   });
 
   if (!response.ok) {

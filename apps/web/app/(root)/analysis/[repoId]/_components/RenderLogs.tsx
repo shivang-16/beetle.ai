@@ -47,6 +47,7 @@ const RenderLogs = ({
   const searchParams = useSearchParams();
   const [logs, setLogs] = useState<LogItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadedFromDb, setIsLoadedFromDb] = useState(false);
   const { getToken } = useAuth();
 
   const abortControllerRef = useRef<AbortController>(null);
@@ -58,6 +59,7 @@ const RenderLogs = ({
       const signal = abortControllerRef.current.signal;
       setLogs([]);
       setIsLoading(true);
+      setIsLoadedFromDb(false);
 
       const token = await getToken();
       if (!token) {
@@ -77,7 +79,7 @@ const RenderLogs = ({
         analysisId: targetAnalysisId // Pass the pre-created analysis ID
       };
 
-      const res = await executeAnalysisStream(body, token);
+      const res = await executeAnalysisStream(body, token, teamId);
 
       if (!res.ok) {
         toast.error(`HTTP error! status: ${res.status}`);
@@ -231,6 +233,7 @@ const RenderLogs = ({
         const result = parseFullLogText(logsText);
         // console.log("🔄 Loading result from db: ", result);
         setLogs(result.logs.map((l) => ({ ...l, messages: [...l.messages] })));
+        setIsLoadedFromDb(true);
       } catch (e) {
         const message =
           e instanceof Error ? e.message : "Failed to load analysis";
@@ -319,7 +322,7 @@ const RenderLogs = ({
             Cancel Logs
           </Button>
         </div>
-        <div className="flex-1 px-4 pb-3 max-w-2xl w-full mx-auto overflow-hidden">
+        <div className="flex-1 px-4 pb-3 max-w-4xl w-full mx-auto overflow-hidden">
           <div className="w-full h-full py-3 overflow-y-auto output-scrollbar">
             {/* Show start analysis button when no logs exist and not loading */}
             {processedLogs.length === 0 && !isLoading && analysisId && (
@@ -347,7 +350,7 @@ const RenderLogs = ({
                   <React.Fragment key={i}>
                     {log.type === "LLM_RESPONSE" && log.segments ? (
                       <div className="w-full p-3 break-words text-sm m-0">
-                        <RenderLLMSegments segments={log.segments} repoId={repoId} analysisId={analysisId} />
+                        <RenderLLMSegments segments={log.segments} repoId={repoId} analysisId={analysisId} isLoadedFromDb={isLoadedFromDb} />
                       </div>
                     ) : log.type === "TOOL_CALL" ? (
                       <div className="w-full p-3 whitespace-pre-wrap text-sm m-0">

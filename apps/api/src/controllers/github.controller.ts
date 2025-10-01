@@ -196,6 +196,7 @@ export const openIssue = async (
   try {
     const { github_repositoryId, analysisId, title, body, labels, assignees, segmentIssueId } = req.body;
 
+    console.log(req.body, "here is req.body in openIssue")
     // Validate required fields
     if (!github_repositoryId || !title || !segmentIssueId) {
       throw new CustomError("github_repositoryId, title, and segmentIssueId are required", 400);

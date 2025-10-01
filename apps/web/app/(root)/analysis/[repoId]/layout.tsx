@@ -15,7 +15,7 @@ export default async function AnalysisLayout({
     <div className="h-screen">
       <Suspense>
         <ResizablePanelGroup direction="horizontal" className="h-full">
-          <ResizablePanel defaultSize={20} minSize={4} maxSize={36}>
+          <ResizablePanel defaultSize={20} minSize={4} maxSize={25}>
             <AnalysisSidebar repoId={repoId} />
           </ResizablePanel>
           <ResizableHandle withHandle />
