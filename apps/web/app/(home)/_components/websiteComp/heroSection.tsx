@@ -55,19 +55,18 @@ const heroSection = () => {
                 ensuring your code is always a step ahead.
               </p>
 
-              <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex flex-row gap-4">
                 <SignUpButton>
                   <Button
                     size={"lg"}
-                    className="h-12 rounded-md cursor-pointer">
+                    className="h-9 sm:h-12 px-2.5 sm:px-8 text-xs sm:text-sm rounded-md cursor-pointer text-black ">
                     Start Analyzing Now <ArrowUpRight />
                   </Button>
                 </SignUpButton>
 
                 <Button
                   size={"lg"}
-                  variant={"secondary"}
-                  className="h-12 rounded-md cursor-pointer">
+                  className="h-9 sm:h-12 px-2.5 sm:px-8 text-xs sm:text-sm rounded-md cursor-pointer bg-neutral-900 hover:bg-neutral-800">
                   Explore and More
                 </Button>
               </div>

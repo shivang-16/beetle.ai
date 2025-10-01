@@ -28,7 +28,7 @@ export default function Navbar() {
             <SignInButton>
               <Button
                 variant={"ghost"}
-                className="cursor-pointer border bg-white text-black hover:text-white/80">
+                className="cursor-pointer border hidden md:inline-flex bg-white text-black hover:text-white/80">
                 Launch Agent <ArrowUpRight />
               </Button>
             </SignInButton>
