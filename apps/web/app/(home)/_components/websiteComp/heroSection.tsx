@@ -66,7 +66,7 @@ const heroSection = () => {
 
                 <Button
                   size={"lg"}
-                  className="h-9 sm:h-12 px-2.5 sm:px-8 text-xs sm:text-sm rounded-md cursor-pointer bg-neutral-900 hover:bg-neutral-800">
+                  className="h-9 sm:h-12 px-2.5 sm:px-8 text-white text-xs sm:text-sm rounded-md cursor-pointer bg-neutral-900 hover:bg-neutral-800">
                   Explore and More
                 </Button>
               </div>
