@@ -29,6 +29,7 @@ import { useAuth } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createAnalysisRecord } from "../_actions/createAnalysis";
 import { triggerAnalysisListRefresh } from "@/lib/utils/analysisEvents";
+import { IconSandbox } from "@tabler/icons-react";
 
 const RenderLogs = ({
   repoId,
@@ -353,19 +354,20 @@ const RenderLogs = ({
                         <RenderLLMSegments segments={log.segments} repoId={repoId} analysisId={analysisId} isLoadedFromDb={isLoadedFromDb} />
                       </div>
                     ) : log.type === "TOOL_CALL" ? (
-                      <div className="w-full p-3 whitespace-pre-wrap text-sm m-0">
+                      <div className="w-full whitespace-pre-wrap text-sm m-0">
                         <RenderToolCall log={log} />
                       </div>
                     ) : log.type === "INITIALISATION" ? (
-                      <div className="w-full p-3 whitespace-pre-wrap dark:text-neutral-200 text-neutral-800 text-sm leading-7 m-0">
+                      <div className="w-full px-2 whitespace-pre-wrap dark:text-neutral-200 text-neutral-800 text-sm leading-7 m-0">
                         <Accordion
                           type="single"
                           collapsible
-                          defaultValue="item-1">
+                          >
                           <AccordionItem value="item-1" className="border-none">
-                            <AccordionTrigger className="px-3 border border-input rounded-t-md data-[state=closed]:rounded-b-md cursor-pointer">
-                              Bootstrapping Beetle AI Sandbox
-                            </AccordionTrigger>
+          <AccordionTrigger className=" p-2 border bg-neutral-800 border-input rounded-t-md data-[state=closed]:rounded-b-md hover:no-underline cursor-pointer">
+<span className="text-gray-400">
+            <IconSandbox className="inline-block w-4 h-4 mr-1"/> Bootstrapping Beetle AI Sandbox
+        </span>                               </AccordionTrigger>
                             <AccordionContent className="border border-input rounded-b-md bg-card p-3">
                               <div>{log.messages.join("\n")}</div>
                             </AccordionContent>
