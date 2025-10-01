@@ -8,10 +8,49 @@ export default clerkMiddleware(async (auth, req) => {
     await auth.protect();
   }
 
-  const { isAuthenticated } = await auth();
+  const { isAuthenticated, sessionClaims } = await auth();
 
   if (isAuthenticated && isPublicRoute(req)) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+    // Get the active organization from session claims
+    const activeOrgSlug = (sessionClaims as any)?.o?.slg as string | undefined;
+    
+    if (activeOrgSlug) {
+      // Redirect to team dashboard if organization is active
+      return NextResponse.redirect(new URL(`/${activeOrgSlug}/dashboard`, req.url));
+    } else {
+      // Redirect to personal dashboard if no organization
+      return NextResponse.redirect(new URL("/dashboard", req.url));
+    }
+  }
+
+  // Handle team slug routing for authenticated users
+  if (isAuthenticated) {
+    const url = req.nextUrl.clone();
+    const pathname = url.pathname;
+    const activeOrgSlug = (sessionClaims as any)?.o?.slg as string | undefined;
+
+    // Define routes that should have team context
+    const teamRoutes = ['/dashboard', '/analysis', '/agents'];
+    const isTeamRoute = teamRoutes.some(route => pathname === route || pathname.startsWith(route + '/'));
+    
+    // Check if we're on a team route without slug but have an active organization
+    if (isTeamRoute && activeOrgSlug && !pathname.startsWith(`/${activeOrgSlug}`)) {
+      url.pathname = `/${activeOrgSlug}${pathname}`;
+      return NextResponse.redirect(url);
+    }
+    
+    // Check if we're on a team route with slug but no active organization
+    const pathSegments = pathname.split('/').filter(Boolean);
+    if (pathSegments.length > 1 && !activeOrgSlug) {
+      const potentialSlug = pathSegments[0];
+      const remainingPath = '/' + pathSegments.slice(1).join('/');
+      
+      // If the first segment looks like a team slug and we have no active org, redirect to personal
+      if (teamRoutes.some(route => remainingPath === route || remainingPath.startsWith(route + '/'))) {
+        url.pathname = remainingPath;
+        return NextResponse.redirect(url);
+      }
+    }
   }
 });
 

@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@clerk/nextjs";
 import { toast } from "sonner";
 import { _config } from "@/lib/_config";
+import { createGithubIssue } from "../_actions/github-actions";
 
 const GithubIssueDialog = dynamic(() => import("./GithubIssueDialog"));
 
@@ -37,10 +38,12 @@ export function RenderLLMSegments({
   segments,
   repoId,
   analysisId,
+  isLoadedFromDb = false,
 }: {
   segments: LLMResponseSegment[];
   repoId: string;
   analysisId?: string;
+  isLoadedFromDb?: boolean;
 }) {
   const { resolvedTheme } = useTheme();
   const { getToken } = useAuth();
@@ -166,6 +169,9 @@ export function RenderLLMSegments({
 
   // Save GitHub issue to database during streaming
   const saveGithubIssueToDb = async (segment: LLMResponseSegment, segmentIndex: number) => {
+    // Skip saving if data is loaded from database
+    if (isLoadedFromDb) return;
+    
     try {
       const token = await getToken();
       if (!token) return;
@@ -202,6 +208,9 @@ export function RenderLLMSegments({
 
   // Save patch to database during streaming
   const savePatchToDb = async (segment: LLMResponseSegment, segmentIndex: number) => {
+    // Skip saving if data is loaded from database
+    if (isLoadedFromDb) return;
+    
     try {
       const token = await getToken();
       if (!token) return;
@@ -240,42 +249,22 @@ export function RenderLLMSegments({
 
   const openGithubIssue = async (segment: LLMResponseSegment) => {
     try {
-      const token = await getToken();
-      if (!token) {
-        toast.error("Authentication token not available");
-        return;
-      }
-
       const { title, description, issueId } = extractTitleAndDescription(segment.content);
       console.log("title ====> ", title, issueId); 
       const finalIssueId = issueId || `segment-${segments.indexOf(segment)}`;
       
       console.log("issueId ====> ", finalIssueId);
-      const response = await fetch(`${_config.API_BASE_URL}/api/github/issue`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          github_repositoryId: repoId,
-          analysisId,
-          title: title || "Issue from Analysis",
-          body: description || segment.content,
-          labels: ["analysis", "automated"],
-          segmentIssueId: finalIssueId,
-        }),
+      
+      const result = await createGithubIssue({
+        repoId,
+        analysisId,
+        title: title || "Issue from Analysis",
+        body: description || segment.content,
+        labels: ["analysis", "automated"],
+        segmentIssueId: finalIssueId,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log(data, "here is teh dat")
-      
-      if (data.success && data.data?.html_url) {
+      if (result.success && result.data) {
         toast.success("GitHub issue created successfully!");
         
         // Update local state to reflect the opened issue
@@ -283,16 +272,16 @@ export function RenderLLMSegments({
           ...prev,
           [finalIssueId]: {
             state: 'open',
-            githubUrl: data.data.html_url,
-            githubId: data.data.id,
-            issueNumber: data.data.number,
+            githubUrl: result.data!.html_url,
+            githubId: result.data!.id,
+            issueNumber: result.data!.number,
           }
         }));
         
-        // Open the GitHub issue in a new tab
-        window.open(data.data.html_url, "_blank");
+        // Open the issue in a new tab
+        window.open(result.data.html_url, "_blank");
       } else {
-        throw new Error("Failed to create GitHub issue");
+        toast.error(result.error || "Failed to create GitHub issue");
       }
     } catch (error) {
       console.error("Error creating GitHub issue:", error);

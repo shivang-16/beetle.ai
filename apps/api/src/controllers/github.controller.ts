@@ -14,7 +14,11 @@ import { randomUUID } from "crypto";
 
 export const getRepoTree = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { github_repositoryId, teamId, branch } = req.query as { github_repositoryId: string, teamId: string, branch?: string };
+    const { github_repositoryId, teamId: queryTeamId, branch } = req.query as { github_repositoryId: string, teamId: string, branch?: string };
+    
+    // Use teamId from query or fallback to header context
+    const teamId = req.team?.id;
+    console.log(teamId, "here is team Id")
  
     logger.debug("Getting repo tree", { github_repositoryId, teamId, branch });
 
@@ -192,6 +196,7 @@ export const openIssue = async (
   try {
     const { github_repositoryId, analysisId, title, body, labels, assignees, segmentIssueId } = req.body;
 
+    console.log(req.body, "here is req.body in openIssue")
     // Validate required fields
     if (!github_repositoryId || !title || !segmentIssueId) {
       throw new CustomError("github_repositoryId, title, and segmentIssueId are required", 400);
@@ -687,7 +692,10 @@ export const getBranches = async (
   next: NextFunction
 ) => {
   try {
-    const { github_repositoryId, teamId } = req.query as { github_repositoryId: string, teamId: string };
+    const { github_repositoryId, teamId: queryTeamId } = req.query as { github_repositoryId: string, teamId: string };
+    
+    // Use teamId from query or fallback to header context
+    const teamId = queryTeamId || req.team?.id;
 
     logger.debug("Getting branches", { github_repositoryId, teamId });
 

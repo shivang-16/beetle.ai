@@ -22,12 +22,15 @@ export const createAnalysis = async (
     const {
       github_repositoryId,
       branch,
-      teamId,
+      teamId: bodyTeamId,
       model = "gemini-2.0-flash",
       prompt = "Analyze this codebase for security vulnerabilities and code quality",
       analysis_type = "full_repo_analysis",
       status = "draft"
     } = req.body;
+    
+    // Use teamId from body or fallback to header context
+    const teamId = req.team?.id;
 
     const github_repository = await Github_Repository.findById(github_repositoryId);
 
@@ -125,11 +128,14 @@ export const startAnalysis = async (
     const {
       github_repositoryId,
       branch,
-      teamId,
+      teamId: bodyTeamId,
       analysisId, // Optional pre-created analysis ID
       model = "gemini-2.0-flash",
       prompt = "Analyze this codebase for security vulnerabilities and code quality",
     } = req.body;
+    
+    // Use teamId from body or fallback to header context
+    const teamId = bodyTeamId || req.team?.id;
 
     const github_repository = await Github_Repository.findById(github_repositoryId);
 

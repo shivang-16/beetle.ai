@@ -5,6 +5,7 @@ import {
   getOrCreateCurrentOrgTeam,
   getTeamRepositories,
   getMyTeams,
+  addReposInTeam,
 } from '../controllers/team.controller.js';
 
 
@@ -14,7 +15,8 @@ router.use(checkAuth);
 
 router.get('/current', getOrCreateCurrentOrgTeam);
 router.get('/mine', getMyTeams);
-router.get('/:teamId/repositories', getTeamRepositories);
+router.get('/repositories', getTeamRepositories);
+router.post('/repositories/add', addReposInTeam);
 
 // router.get('/:teamId', getTeam);
 // router.put('/:teamId',  updateTeam);

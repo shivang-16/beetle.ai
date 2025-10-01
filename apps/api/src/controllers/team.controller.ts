@@ -54,7 +54,14 @@ export const getOrCreateCurrentOrgTeam = async (req: Request, res: Response, nex
 
 export const getTeamRepositories = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { teamId } = req.params as { teamId: string };
+  
+    // Use team ID from header context (set by middleware) or fallback to params
+    const teamId = req.team?.id || req.params.teamId;
+        console.log("teamId", teamId)
+
+    if (!teamId) {
+      return next(new CustomError('Team context required', 400));
+    }
 
     const team = await Team.findById(teamId);
     if (!team) return next(new CustomError('Team not found', 404));
@@ -62,17 +69,12 @@ export const getTeamRepositories = async (req: Request, res: Response, next: Nex
     const member = ensureMember(team, req.user._id);
     if (!member) return next(new CustomError('Forbidden: not a team member', 403));
 
-
-    const installations = await Github_Installation.find({ userId: team.ownerId }).select('_id');
-    const installationIds = installations.map((ins) => ins._id);
-
-    if (installationIds.length === 0) {
-      return res.status(200).json({ success: true, data: [] });
-    }
-
-    const repos = await Github_Repository.find({ github_installationId: { $in: installationIds } })
+    // Find repositories where the teamId exists in the teams array
+    const repos = await Github_Repository.find({ teams: teamId })
       .sort({ fullName: 1 })
       .lean();
+
+      console.log("repos", repos)
 
     return res.status(200).json({ success: true, data: repos });
   } catch (err) {
@@ -98,5 +100,64 @@ export const getMyTeams = async (req: Request, res: Response, next: NextFunction
   } catch (err) {
     logger.error(`getMyTeams error: ${err}`);
     return next(new CustomError('Failed to fetch user teams', 500));
+  }
+};
+
+// Add repositories into a team
+export const addReposInTeam = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // Use team ID from header context (set by middleware) or fallback to params
+    const teamId = req.team?.id 
+    console.log("teamId", teamId)
+    
+    if (!teamId) {
+      return next(new CustomError('Team context required', 400));
+    }
+
+    const { repoIds } = req.body as { repoIds: number[] };
+
+    if (!Array.isArray(repoIds) || repoIds.length === 0) {
+      return next(new CustomError('repoIds must be a non-empty array of repositoryId numbers', 400));
+    }
+
+    const team = await Team.findById(teamId);
+    if (!team) return next(new CustomError('Team not found', 404));
+
+    // Only admins can add repositories to a team
+    const member = ensureMember(team, req.user._id);
+    if (!member || member.role !== 'admin') {
+      return next(new CustomError('Forbidden: admin role required', 403));
+    }
+
+    // Ensure these repos belong to installations owned by team owner (same visibility scope as getTeamRepositories)
+    const installations = await Github_Installation.find({ userId: team.ownerId }).select('_id');
+    const installationIds = installations.map((ins) => ins._id);
+
+    if (installationIds.length === 0) {
+      return res.status(200).json({ success: true, data: [], message: 'No installations available for this team owner' });
+    }
+
+    // Update repositories: add teamId to teams array if not already present
+    const result = await Github_Repository.updateMany(
+      { repositoryId: { $in: repoIds }, github_installationId: { $in: installationIds } },
+      { $addToSet: { teams: teamId } }
+    );
+
+    // Optionally fetch updated repos to return
+    const updatedRepos = await Github_Repository.find({ repositoryId: { $in: repoIds } })
+      .select('_id repositoryId fullName teams')
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        matchedCount: result.matchedCount ?? (result as any).n, // Mongoose version compatible
+        modifiedCount: result.modifiedCount ?? (result as any).nModified,
+        repos: updatedRepos,
+      },
+    });
+  } catch (err) {
+    logger.error(`addReposInTeam error: ${err}`);
+    return next(new CustomError('Failed to add repositories to team', 500));
   }
 };

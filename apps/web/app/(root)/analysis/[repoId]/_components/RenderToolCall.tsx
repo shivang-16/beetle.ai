@@ -15,21 +15,20 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { BoxSelect, Eye, Import, SearchCode } from "lucide-react";
 
 export const RenderToolCall = ({ log }: { log: LogItem }) => {
   const { resolvedTheme } = useTheme();
 
   const result = parseToolCall(log.messages.join("\n"));
+  // console.log(result?.type, result,"here is read file");
 
   if (result?.type === "READ_FILE") {
     return (
       <div className="w-full whitespace-pre-wrap break-words">
-        <p>
-          <span className="px-2 py-1.5 border border-input font-medium rounded">
-            Read File
-          </span>{" "}
-          {extractPath(result.result.file_path)}
-        </p>
+        <span>
+            {/* <Eye className="inline-block w-4 h-4 mr-1"/> {extractPath(result.result.file_path)} <span className="text-sm text-slate-500">{result.result.start_line ?? 0}-{result.result.end_line ?? 0}</span>  */}
+        </span>
       </div>
     );
   }
@@ -38,19 +37,16 @@ export const RenderToolCall = ({ log }: { log: LogItem }) => {
     const language = detectLanguage(result.result.file_path);
 
     return (
-      <Accordion type="single" collapsible className="w-full">
+      <Accordion type="single" collapsible className="inline-block px-2 rounded mb-2">
         <AccordionItem
           value={result.result.file_path ?? "item-1"}
           className="border-none">
-          <AccordionTrigger className="w-full border border-input rounded-t-md data-[state=closed]:rounded-b-md py-3.5 px-2.5 hover:no-underline cursor-pointer">
-            <span>
-              <span className="border border-input rounded px-2 py-1">
-                Read File Result
-              </span>{" "}
-              {extractPath(result.result.file_path)}
-            </span>
+          <AccordionTrigger className=" py-0 rounded-t-md data-[state=closed]:rounded-b-md hover:no-underline cursor-pointer">
+ <span className="text-gray-400">
+            <Eye className="inline-block w-4 h-4 mr-1"/> {extractPath(result.result.file_path)}  <span className="text-sm text-slate-500">{result.result?.current_range?.start_line ?? 0}-{result.result?.current_range?.end_line ?? 0}{" "}</span> 
+        </span>        
           </AccordionTrigger>
-          <AccordionContent className="w-full border border-input rounded-b-md py-3.5 px-2.5 bg-card overflow-x-auto output-scrollbar text-xs text-muted-foreground leading-6">
+          <AccordionContent className="w-full bg-card p-2 border border-input rounded-md overflow-x-auto output-scrollbar text-xs text-muted-foreground leading-6">
             <Markdown
               components={{
                 code(props) {
@@ -93,41 +89,40 @@ export const RenderToolCall = ({ log }: { log: LogItem }) => {
   if (result?.type === "EXTRACT_IMPORTS") {
     return (
       <div className="w-full whitespace-pre-wrap break-words">
-        <p>
-          <span className="px-2 py-1.5 border border-input font-medium rounded">
+        {/* <p>
+          <span className="px-2 py-1 border border-input font-medium rounded">
             Extract Imports
           </span>{" "}
           {extractPath(result.result.file_path)}
-        </p>
+        </p> */}
       </div>
     );
   }
 
   if (result?.type === "EXTRACT_IMPORTS_RESULT") {
+    // Don't display anything if there are no imports
+    if (!result.result || result.result.length === 0) {
+      return null;
+    }
+
     const id = String(Math.floor(Math.random() * 100));
 
     return (
-      <Accordion type="single" collapsible className="w-full">
+      <Accordion type="single" collapsible className="inline-block px-2 rounded mb-3">
         <AccordionItem value={`item-${id}`} className="border-none">
-          <AccordionTrigger className="w-full border border-input rounded-t-md data-[state=closed]:rounded-b-md py-3.5 px-2.5 hover:no-underline cursor-pointer">
-            <span className="border border-input rounded px-2 py-1">
-              Extract Imports Result
-            </span>
-          </AccordionTrigger>
-
-          <AccordionContent className="w-full border border-input rounded-b-md py-3.5 px-2.5 bg-card space-y-2 overflow-x-auto output-scrollbar text-xs text-muted-foreground leading-6">
-            {result.result && result.result.length > 0 ? (
-              result.result.map((item: string, i: number) => {
-                const language = detectLanguage(item);
-                return (
-                  <div key={i} className="flex items-center gap-1">
-                    <Icon icon={language?.icon || ""} /> {extractPath(item)}
-                  </div>
-                );
-              })
-            ) : (
-              <div>No imports found</div>
-            )}
+           <AccordionTrigger className=" py-0 rounded-t-md data-[state=closed]:rounded-b-md hover:no-underline cursor-pointer">
+ <span className="text-gray-400">
+            <Import className="inline-block w-4 h-4 mr-1"/> Extract {" "} {result.result?.file_path && extractPath(result.result?.file_path)}{" "} 
+        </span>            </AccordionTrigger>
+          <AccordionContent className="w-full bg-card p-2 border border-input rounded-md overflow-x-auto output-scrollbar text-xs text-muted-foreground leading-6">
+            {result.result.map((item: string, i: number) => {
+              const language = detectLanguage(item);
+              return (
+                <div key={i} className="flex items-center gap-1">
+                  <Icon icon={language?.icon || ""} /> {extractPath(item)}
+                </div>
+              );
+            })}
           </AccordionContent>
         </AccordionItem>
       </Accordion>
@@ -137,29 +132,32 @@ export const RenderToolCall = ({ log }: { log: LogItem }) => {
   if (result?.type === "SELECT_FILES") {
     return (
       <div className="w-full whitespace-pre-wrap break-words">
-        <p>
+        {/* <p>
           <span className="px-2 py-1.5 border border-input font-medium rounded">
             Select Files
           </span>{" "}
           {result.result}
-        </p>
+        </p> */}
       </div>
     );
   }
 
   if (result?.type === "SELECT_FILES_RESULT") {
+    // Don't display anything if there are no files
+    if (!result.result || result.result.length === 0) {
+      return null;
+    }
+
     const id = String(Math.floor(Math.random() * 100));
 
     return (
-      <Accordion type="single" collapsible className="w-full">
+      <Accordion type="single" collapsible className="inline-block px-2 rounded mb-2">
         <AccordionItem value={`item-${id}`} className="border-none">
-          <AccordionTrigger className="w-full border border-input rounded-t-md data-[state=closed]:rounded-b-md py-3.5 px-2.5">
-            <span className="border border-input rounded px-2 py-1">
-              Select Files Result
-            </span>
-          </AccordionTrigger>
-
-          <AccordionContent className="w-full border border-input rounded-b-md py-3.5 px-2.5 bg-card space-y-2 overflow-x-auto output-scrollbar">
+            <AccordionTrigger className=" py-0 rounded-t-md data-[state=closed]:rounded-b-md hover:no-underline cursor-pointer">
+ <span className="text-gray-400">
+            <BoxSelect className="inline-block w-4 h-4 mr-1"/> Select {" "} <span className="text-sm text-slate-500">{result.result?.file_path && extractPath(result.result?.file_path)}{" "}</span>
+        </span>            </AccordionTrigger>
+          <AccordionContent className="w-full bg-card p-2 border border-input rounded-md overflow-x-auto output-scrollbar text-xs text-muted-foreground leading-6">
             {result.result && result.result.length > 0 ? (
               result.result.map((item: string, i: number) => {
                 const language = detectLanguage(item);
@@ -181,7 +179,7 @@ export const RenderToolCall = ({ log }: { log: LogItem }) => {
   if (result?.type === "GREP_FILE_CONTENT") {
     return (
       <div className="w-full whitespace-pre-wrap break-words">
-        <div className="border border-b-0 border-input py-3 px-1.5 rounded-t-md">
+        {/* <div className="border border-b-0 border-input py-3 px-1.5 rounded-t-md">
           <span className="px-2 py-1.5 border border-input font-medium rounded">
             Grep File
           </span>
@@ -190,7 +188,7 @@ export const RenderToolCall = ({ log }: { log: LogItem }) => {
         <div className="border border-input p-3 rounded-b-md bg-card space-y-2">
           <p>Target string: {result.result.target_string}</p>
           <p>Repo name: {result.result.repo_name}</p>
-        </div>
+        </div> */}
       </div>
     );
   }
@@ -199,15 +197,14 @@ export const RenderToolCall = ({ log }: { log: LogItem }) => {
     const id = String(Math.floor(Math.random() * 100));
 
     return (
-      <Accordion type="single" collapsible className="w-full">
+      <Accordion type="single" collapsible className="inline-block px-2 rounded mb-2">
         <AccordionItem value={`item-${id}`} className="border-none">
-          <AccordionTrigger className="w-full border border-input rounded-t-md data-[state=closed]:rounded-b-md py-3.5 px-2.5">
-            <span className="border border-input rounded px-2 py-1">
-              Grep File Result
-            </span>
-          </AccordionTrigger>
+            <AccordionTrigger className=" py-0 rounded-t-md data-[state=closed]:rounded-b-md hover:no-underline cursor-pointer">
+ <span className="text-gray-400">
+            <SearchCode className="inline-block w-4 h-4 mr-1"/> Searching Codebase {" "} <span className="text-sm text-slate-500">{result.result?.search_query}</span>{" "} 
+        </span>            </AccordionTrigger>
 
-          <AccordionContent className="w-full border border-input rounded-b-md py-3.5 px-2.5 bg-card space-y-2 overflow-x-auto output-scrollbar">
+          <AccordionContent className="w-full bg-card p-2 border border-input rounded-md overflow-x-auto output-scrollbar text-xs text-muted-foreground leading-6">
             <p>Files searched: {result.result.search_summary.files_searched}</p>
             <p>
               Total files with matches:{" "}

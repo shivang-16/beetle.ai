@@ -1,21 +1,27 @@
 import React, { Suspense } from "react";
-import AnalysisSidebar from "./_components/analysis-sidebar";
+import AnalysisSidebar from "../../../analysis/[repoId]/_components/analysis-sidebar";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 
-export default async function AnalysisLayout({
+interface LayoutProps {
+  children: React.ReactNode;
+  params: Promise<{ 
+    teamSlug: string;
+    repoId: string;
+  }>;
+}
+
+export default async function TeamAnalysisLayout({
   children,
   params,
-}: {
-  children: React.ReactNode;
-  params: Promise<{ repoId: string }>;
-}) {
-  const { repoId } = await params;
+}: LayoutProps) {
+  const resolvedParams = await params;
+  const { teamSlug, repoId } = resolvedParams;
 
   return (
     <div className="h-screen">
       <Suspense>
         <ResizablePanelGroup direction="horizontal" className="h-full">
-          <ResizablePanel defaultSize={20} minSize={4} maxSize={25}>
+          <ResizablePanel defaultSize={20} minSize={4} maxSize={36}>
             <AnalysisSidebar repoId={repoId} />
           </ResizablePanel>
           <ResizableHandle withHandle />

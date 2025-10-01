@@ -29,6 +29,7 @@ import { useAuth } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createAnalysisRecord } from "../_actions/createAnalysis";
 import { triggerAnalysisListRefresh } from "@/lib/utils/analysisEvents";
+import { IconSandbox } from "@tabler/icons-react";
 
 const RenderLogs = ({
   repoId,
@@ -47,6 +48,7 @@ const RenderLogs = ({
   const searchParams = useSearchParams();
   const [logs, setLogs] = useState<LogItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadedFromDb, setIsLoadedFromDb] = useState(false);
   const { getToken } = useAuth();
 
   const abortControllerRef = useRef<AbortController>(null);
@@ -58,6 +60,7 @@ const RenderLogs = ({
       const signal = abortControllerRef.current.signal;
       setLogs([]);
       setIsLoading(true);
+      setIsLoadedFromDb(false);
 
       const token = await getToken();
       if (!token) {
@@ -77,7 +80,7 @@ const RenderLogs = ({
         analysisId: targetAnalysisId // Pass the pre-created analysis ID
       };
 
-      const res = await executeAnalysisStream(body, token);
+      const res = await executeAnalysisStream(body, token, teamId);
 
       if (!res.ok) {
         toast.error(`HTTP error! status: ${res.status}`);
@@ -231,6 +234,7 @@ const RenderLogs = ({
         const result = parseFullLogText(logsText);
         // console.log("🔄 Loading result from db: ", result);
         setLogs(result.logs.map((l) => ({ ...l, messages: [...l.messages] })));
+        setIsLoadedFromDb(true);
       } catch (e) {
         const message =
           e instanceof Error ? e.message : "Failed to load analysis";
@@ -319,7 +323,7 @@ const RenderLogs = ({
             Cancel Logs
           </Button>
         </div>
-        <div className="flex-1 px-4 pb-3 max-w-2xl w-full mx-auto overflow-hidden">
+        <div className="flex-1 px-4 pb-3 max-w-4xl w-full mx-auto overflow-hidden">
           <div className="w-full h-full py-3 overflow-y-auto output-scrollbar">
             {/* Show start analysis button when no logs exist and not loading */}
             {processedLogs.length === 0 && !isLoading && analysisId && (
@@ -347,22 +351,23 @@ const RenderLogs = ({
                   <React.Fragment key={i}>
                     {log.type === "LLM_RESPONSE" && log.segments ? (
                       <div className="w-full p-3 break-words text-sm m-0">
-                        <RenderLLMSegments segments={log.segments} repoId={repoId} analysisId={analysisId} />
+                        <RenderLLMSegments segments={log.segments} repoId={repoId} analysisId={analysisId} isLoadedFromDb={isLoadedFromDb} />
                       </div>
                     ) : log.type === "TOOL_CALL" ? (
-                      <div className="w-full p-3 whitespace-pre-wrap text-sm m-0">
+                      <div className="w-full whitespace-pre-wrap text-sm m-0">
                         <RenderToolCall log={log} />
                       </div>
                     ) : log.type === "INITIALISATION" ? (
-                      <div className="w-full p-3 whitespace-pre-wrap dark:text-neutral-200 text-neutral-800 text-sm leading-7 m-0">
+                      <div className="w-full px-2 whitespace-pre-wrap dark:text-neutral-200 text-neutral-800 text-sm leading-7 m-0">
                         <Accordion
                           type="single"
                           collapsible
-                          defaultValue="item-1">
+                          >
                           <AccordionItem value="item-1" className="border-none">
-                            <AccordionTrigger className="px-3 border border-input rounded-t-md data-[state=closed]:rounded-b-md cursor-pointer">
-                              Bootstrapping Beetle AI Sandbox
-                            </AccordionTrigger>
+          <AccordionTrigger className=" p-2 border bg-neutral-800 border-input rounded-t-md data-[state=closed]:rounded-b-md hover:no-underline cursor-pointer">
+<span className="text-gray-400">
+            <IconSandbox className="inline-block w-4 h-4 mr-1"/> Bootstrapping Beetle AI Sandbox
+        </span>                               </AccordionTrigger>
                             <AccordionContent className="border border-input rounded-b-md bg-card p-3">
                               <div>{log.messages.join("\n")}</div>
                             </AccordionContent>
