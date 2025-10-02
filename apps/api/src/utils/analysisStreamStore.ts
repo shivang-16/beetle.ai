@@ -25,6 +25,12 @@ export async function appendToRedisBuffer(_id: string, data: string): Promise<vo
   // console.log(`[Redis][append] key=${key} bytes+=${appendedLen}`);
 }
 
+export async function getRedisBuffer(_id: string): Promise<string> {
+  const key = getAnalysisRedisKey(_id);
+  const buffer = await redis.get(key);
+  return buffer || "";
+}
+
 type FinalizeStatus = "completed" | "interrupted" | "error";
 
 export interface FinalizeParams {

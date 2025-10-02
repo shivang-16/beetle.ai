@@ -187,6 +187,7 @@ export const executeAnalysis = async (
       onStdout: async (data) => {
         // Strip ANSI color codes for cleaner client output
         const cleanData = data.replace(/\x1b\[[0-9;]*m/g, "");
+        console.log("data comming")
 
         // Buffer to Redis
         try {

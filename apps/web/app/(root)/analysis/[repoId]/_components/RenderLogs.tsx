@@ -24,7 +24,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { executeAnalysisStream, updateAnalysisStatus } from "@/lib/api/analysis";
+import { executeAnalysisStream, updateAnalysisStatus, streamAnalysisLogs } from "@/lib/api/analysis";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createAnalysisRecord } from "../_actions/createAnalysis";
@@ -49,10 +49,82 @@ const RenderLogs = ({
   const [logs, setLogs] = useState<LogItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadedFromDb, setIsLoadedFromDb] = useState(false);
+  const [analysisStatus, setAnalysisStatus] = useState<string | null>("running");
   const { getToken } = useAuth();
 
   const abortControllerRef = useRef<AbortController>(null);
   const parserStateRef = useRef<ParserState>(createParserState());
+
+  const fetchAnalysisStatus = async (retryCount = 0) => {
+    if (!analysisId) return null;
+    
+    const maxRetries = 3;
+    const retryDelay = 1000 * (retryCount + 1); // Exponential backoff: 1s, 2s, 3s
+    
+    try {
+      const token = await getToken();
+      if (!token) {
+        console.error("No authentication token available");
+        return null;
+      }
+
+      const response = await fetch(
+        `${_config.API_BASE_URL}/api/analysis/${encodeURIComponent(analysisId)}/status`,
+        {
+          method: "GET",
+          credentials: "include",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "x-team-id": teamId || "",
+            "Content-Type": "application/json"
+          }
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          const status = data.data.status;
+          setAnalysisStatus(status);
+          console.log("Analysis status fetched successfully:", status);
+          return status;
+        } else {
+          console.error("Invalid response format:", data);
+          return null;
+        }
+      } else if (response.status === 401) {
+        console.error("Unauthorized access to analysis");
+        toast.error("You don't have permission to access this analysis");
+        return null;
+      } else if (response.status === 404) {
+        console.error("Analysis not found");
+        toast.error("Analysis not found");
+        return null;
+      } else if (response.status >= 500 && retryCount < maxRetries) {
+        // Server error - retry
+        console.warn(`Server error (${response.status}), retrying in ${retryDelay}ms... (attempt ${retryCount + 1}/${maxRetries + 1})`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        return fetchAnalysisStatus(retryCount + 1);
+      } else {
+        console.error("Failed to fetch analysis status:", response.status, response.statusText);
+        if (retryCount === 0) {
+          toast.error(`Failed to fetch analysis status: ${response.status}`);
+        }
+        return null;
+      }
+    } catch (error) {
+      console.error("Error fetching analysis status:", error);
+      
+      if (retryCount < maxRetries) {
+        console.warn(`Network error, retrying in ${retryDelay}ms... (attempt ${retryCount + 1}/${maxRetries + 1})`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        return fetchAnalysisStatus(retryCount + 1);
+      } else {
+        toast.error("Failed to fetch analysis status due to network error");
+        return null;
+      }
+    }
+  };
 
   const streamAnalysis = async (targetAnalysisId: string) => {
     try {
@@ -70,17 +142,8 @@ const RenderLogs = ({
 
       console.log("Starting analysis stream for:", targetAnalysisId);
       
-      // Start the actual analysis with the pre-created ID
-      const body = {
-        github_repositoryId: repoId,
-        branch: branch,
-        teamId: teamId,
-        model: "gemini-2.0-flash",
-        prompt: "Analyze this codebase for security vulnerabilities and code quality",
-        analysisId: targetAnalysisId // Pass the pre-created analysis ID
-      };
-
-      const res = await executeAnalysisStream(body, token, teamId);
+      // Use the new streaming endpoint to get logs
+      const res = await streamAnalysisLogs(targetAnalysisId, token, teamId);
 
       if (!res.ok) {
         toast.error(`HTTP error! status: ${res.status}`);
@@ -161,6 +224,7 @@ const RenderLogs = ({
       if (!analysisResult.success) {
         throw new Error(analysisResult.error || "Failed to create analysis record");
       }
+      setAnalysisStatus("draft");
 
       const newAnalysisId = analysisResult.analysisId;
       
@@ -182,8 +246,14 @@ const RenderLogs = ({
     }
   };
 
+
   useEffect(() => {
+   
     const loadFromDb = async () => {
+          const status = await fetchAnalysisStatus()
+
+      if(status === "running") return
+
       try {
         setIsLoading(true);
         setLogs([]);
@@ -219,6 +289,11 @@ const RenderLogs = ({
 
         const json = await res.json();
         // console.log("🔄 Loading analysis from db: ", json);
+        
+        // Set the analysis status
+        const status = json?.data?.status;
+        setAnalysisStatus(status);
+        
         let logsText: string = "";
         const bufJson = json?.data?.logsCompressed;
         const binary = bufferJSONToUint8Array(bufJson);
@@ -247,6 +322,20 @@ const RenderLogs = ({
     loadFromDb();
   }, [analysisId]);
 
+  // Auto-start streaming when analysis is running
+  useEffect(() => {
+
+    const autoStartStreaming = async () => {
+      const status = await fetchAnalysisStatus()
+            console.log(status, "here is tatus")
+
+      if (!analysisId || status !== "running") return;
+          streamAnalysis(analysisId);
+    };
+
+    autoStartStreaming();
+  }, [analysisId]);
+
 
 
   // console.log("State Logs ====> ", logs);
@@ -262,13 +351,13 @@ const RenderLogs = ({
     if (!analysisId) return;
     
     try {
-      // First, update the analysis status from 'draft' to 'running'
       const token = await getToken();
       if (!token) {
         toast.error("Authentication token not available");
         return;
       }
 
+      // First, update the analysis status from 'draft' to 'running'
       const statusUpdateResult = await updateAnalysisStatus(analysisId, "running", token);
       if (!statusUpdateResult.success) {
         toast.error(statusUpdateResult.error || "Failed to update analysis status");
@@ -278,7 +367,27 @@ const RenderLogs = ({
       // Trigger analysis list refresh to show the updated status
       triggerAnalysisListRefresh();
 
-      // Then start the analysis stream
+      // Start the actual analysis execution using the new /execute endpoint
+      const body = {
+        github_repositoryId: repoId,
+        branch: branch,
+        teamId: teamId,
+        model: "gemini-2.0-flash",
+        prompt: "Analyze this codebase for security vulnerabilities and code quality",
+        analysisId: analysisId // Pass the pre-created analysis ID
+      };
+
+      const executeResponse = await executeAnalysisStream(body, token, teamId);
+      setAnalysisStatus("running");
+      if (!executeResponse.ok) {
+        toast.error(`Failed to start analysis: ${executeResponse.status}`);
+        return;
+      }
+
+      const executeResult = await executeResponse.json();
+      console.log("Analysis execution started:", executeResult);
+
+      // Then start streaming the logs
       await streamAnalysis(analysisId);
     } catch (error) {
       console.error("Error starting analysis:", error);

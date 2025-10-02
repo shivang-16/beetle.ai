@@ -74,3 +74,31 @@ export const updateAnalysisStatus = async (
     };
   }
 };
+
+export const streamAnalysisLogs = async (
+  analysisId: string,
+  token: string,
+  teamId?: string
+): Promise<Response> => {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+  };
+
+  // Add team ID header if available
+  if (teamId) {
+    headers['X-Team-Id'] = teamId;
+  }
+
+  console.log(analysisId, "here is the anlaysis id ..")
+  const response = await fetch(`${_config.API_BASE_URL}/api/analysis/${analysisId}/stream`, {
+    method: "GET",
+    credentials: "include",
+    headers,
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  return response;
+};

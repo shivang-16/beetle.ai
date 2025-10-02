@@ -6,6 +6,10 @@ import { executeAnalysis, StreamingCallbacks } from "../services/sandbox/execute
 import { logger } from "../utils/logger.js";
 import mongoose from "mongoose";
 import Team from "../models/team.model.js";
+import { getRedisBuffer } from "../utils/analysisStreamStore.js";
+import redis from "../config/redis.js";
+import Sandbox from "@e2b/code-interpreter";
+import { connectSandbox } from "../config/sandbox.js";
 
 export const createAnalysis = async (
   req: Request,
@@ -112,12 +116,6 @@ export const startAnalysis = async (
   res: Response,
   next: NextFunction
 ) => {
-   // Hoisted context for streaming persistence
-  let clientAborted = false;
-  let userId!: string;
-  let repoUrl: string = "";
-  let exitCode: number | null = null;
-
   try {
     logger.info("Starting code analysis", { 
       userId: req.user?._id, 
@@ -150,63 +148,8 @@ export const startAnalysis = async (
     }
 
     const branchForAnalysis = branch || github_repository.defaultBranch;
-    repoUrl = `https://github.com/${github_repository.fullName}`;
-    userId = req.user._id;
-
-    // Set response headers for streaming
-    res.setHeader("Content-Type", "text/plain");
-    res.setHeader("Transfer-Encoding", "chunked");
-    res.setHeader("Cache-Control", "no-cache");
-    res.setHeader("Connection", "keep-alive");
-
-    // Detect client interruption
-    req.on("aborted", () => {
-      clientAborted = true;
-    });
-    res.on("close", () => {
-      if (!res.writableEnded) clientAborted = true;
-    });
-
-    // Function to stream data to client
-    const streamToClient = async (data: string) => {
-      console.log("[CLIENT STREAMING]", data);
-      
-      // Create a preview for Better Stack while keeping full data for local logs
-      const dataPreview = data.length > 100 ? data.substring(0, 100) + "..." : data;
-      
-      logger.debug(dataPreview, { 
-        dataPreview,
-        fullDataLength: data.length,
-        userId,
-        dataType: typeof data,
-        timestamp: new Date().toISOString(),
-        isLongContent: data.length > 100
-      });
-      
-      res.write(data + "\n");
-    };
-  
-
-    // Initial streaming messages
-    await streamToClient("🧠 CodeDetector - Intelligent Code Analysis");
-    await streamToClient("=".repeat(50));
-    await streamToClient(`📁 Repository: ${repoUrl}`);
-    await streamToClient(`🤖 Model: ${model}`);
-    await streamToClient(`💭 Prompt: ${prompt}`);
-    await streamToClient("=".repeat(50));
-
-    // Define streaming callbacks
-    const callbacks: StreamingCallbacks = {
-      onStdout: async (data: string) => {
-        await streamToClient(data);
-      },
-      onStderr: async (data: string) => {
-        await streamToClient(data);
-      },
-      onProgress: async (message: string) => {
-        await streamToClient(message);
-      },
-    };
+    const repoUrl = `https://github.com/${github_repository.fullName}`;
+    const userId = req.user._id;
 
     logger.debug("Team ID for analysis", { teamId, userId });
     logger.info("Starting analysis execution", {
@@ -221,7 +164,7 @@ export const startAnalysis = async (
       teamId
     });
 
-    // Call the refactored service function
+    // Start analysis without streaming callbacks (fire and forget)
     const result = await executeAnalysis(
       github_repositoryId,
       repoUrl,
@@ -230,56 +173,259 @@ export const startAnalysis = async (
       model,
       prompt,
       "full_repo_analysis", // analysisType
-      callbacks,
+      undefined, // No streaming callbacks
       undefined, // data parameter
       req.user?.email, // userEmail parameter
       teamId,
       analysisId // Pass the optional pre-created analysis ID
     );
 
-    exitCode = result.exitCode;
-
-    logger.info("Analysis execution completed", {
-      success: result.success,
-      exitCode: result.exitCode,
+    logger.info("Analysis execution started", {
+      analysisId: result._id,
       userId,
-      github_repositoryId,
-      duration: Date.now() - Date.now() // This would need proper timing implementation
+      github_repositoryId
     });
 
-    if (result.success) {
-      await streamToClient("🎉 Analysis finished successfully!");
-      logger.info("Analysis finished successfully", { userId, github_repositoryId });
-    } else {
-      await streamToClient("⚠️ Analysis completed with warnings or errors");
-      logger.warn("Analysis completed with warnings or errors", { 
-        userId, 
-        github_repositoryId, 
-        exitCode: result.exitCode 
-      });
-      if (result.error) {
-        await streamToClient(`Error: ${result.error}`);
+    // Return analysis ID immediately
+    res.json({
+      success: true,
+      message: "Analysis started successfully",
+      data: {
+        analysisId: result._id,
+        sandboxId: result.sandboxId
+      }
+    });
+
+  } catch (error: any) {
+    logger.error("Error starting analysis", { 
+      error: error instanceof Error ? error.message : error, 
+      userId: req.user?._id, 
+      github_repositoryId: req.body.github_repositoryId
+    });
+
+    next(new CustomError(error.message || "Failed to start analysis", 500));
+  } 
+};
+
+export const streamAnalysisLogs = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { analysisId } = req.params;
+
+    if (!analysisId) {
+      return next(new CustomError("Analysis ID is required", 400));
+    }
+
+    // Verify analysis exists and user has access
+    const analysis = await Analysis.findById(analysisId);
+    if (!analysis) {
+      return next(new CustomError("Analysis not found", 404));
+    }
+
+    console.log(analysis.sandboxId, "sandboxId")
+
+    // Check if user owns this analysis or is part of the team
+    if (analysis.userId !== req.user._id) {
+      const team = await Team.findOne({ ownerId: analysis.userId });
+      if (!team || !team.members?.includes(req.user._id)) {
+        return next(new CustomError("Unauthorized to access this analysis", 403));
       }
     }
 
-    await streamToClient("=".repeat(50));
-    res.end();
+    // Set response headers for streaming
+    res.setHeader("Content-Type", "text/plain");
+    res.setHeader("Transfer-Encoding", "chunked");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
+    let clientAborted = false;
+    let sandbox: any = null;
+
+    // Detect client interruption
+    req.on("aborted", () => {
+      clientAborted = true;
+    });
+    res.on("close", () => {
+      if (!res.writableEnded) clientAborted = true;
+    });
+
+    // Function to stream data to client
+    const streamToClient = async (data: string) => {
+      if (clientAborted) return;
+      
+      logger.debug("Streaming log data", { 
+        analysisId,
+        dataLength: data.length,
+        userId: req.user._id
+      });
+      
+      res.write(data + "\n");
+    };
+
+    // First, send any buffered logs from Redis
+    try {
+      const bufferedLogs = await getRedisBuffer(analysisId);
+      if (bufferedLogs) {
+        await streamToClient("=== Buffered Logs ===");
+        await streamToClient(bufferedLogs);
+        await streamToClient("=== Live Logs ===");
+      }
+    } catch (error) {
+      logger.error("Error fetching buffered logs", { analysisId, error });
+      await streamToClient("⚠️ Warning: Could not fetch buffered logs");
+    }
+
+    // If analysis is completed, send completion message and end
+    if (analysis.status === "completed" || analysis.status === "error") {
+      await streamToClient(`Analysis ${analysis.status}. No more logs expected.`);
+      res.end();
+      return;
+    }
+
+    // For running analyses, connect to the sandbox and stream logs directly
+    if (!analysis.sandboxId) {
+      await streamToClient("⚠️ Warning: No sandbox ID found for this analysis");
+      res.end();
+      return;
+    }
+
+    try {
+      // Connect to the running sandbox to verify it's still active
+      await streamToClient(`🔌 Attempting to connect to sandbox: ${analysis.sandboxId}`);
+      logger.info("Connecting to sandbox", { 
+        analysisId, 
+        sandboxId: analysis.sandboxId,
+        analysisStatus: analysis.status 
+      });
+      
+      sandbox = await connectSandbox(analysis.sandboxId);
+      await streamToClient("✅ Connected to running sandbox");
+      logger.info("Successfully connected to sandbox", { analysisId, sandboxId: analysis.sandboxId });
+
+      // Stream logs from Redis buffer where executeAnalysis.ts is storing them
+      await streamToClient("📡 Starting live log streaming from Redis buffer...");
+      
+      const redisKey = `analysis:${analysisId}:buffer`;
+      let lastPosition = 0;
+      let noNewDataCount = 0;
+      const maxNoDataIterations = 30; // 30 seconds of no new data before checking status
+      
+      // Poll Redis buffer for new log data
+      const streamInterval = setInterval(async () => {
+        try {
+          if (clientAborted) {
+            clearInterval(streamInterval);
+            return;
+          }
+          
+          // Get the current buffer content
+          const currentBuffer = await redis.get(redisKey);
+          
+          if (currentBuffer && currentBuffer.length > lastPosition) {
+            // New data available - extract only the new part
+            const newData = currentBuffer.substring(lastPosition);
+            lastPosition = currentBuffer.length;
+            noNewDataCount = 0;
+            
+            // Stream the new data to client
+            await streamToClient(newData);
+          } else {
+            noNewDataCount++;
+            
+            // If no new data for a while, check if analysis is still running
+            if (noNewDataCount >= maxNoDataIterations) {
+              const updatedAnalysis = await Analysis.findById(analysisId);
+              if (updatedAnalysis && (updatedAnalysis.status === "completed" || updatedAnalysis.status === "error")) {
+                await streamToClient(`\n🏁 Analysis ${updatedAnalysis.status}. Stream ending.`);
+                clearInterval(streamInterval);
+                res.end();
+                return;
+              }
+              noNewDataCount = 0; // Reset counter
+            }
+          }
+        } catch (error: any) {
+          logger.error("Error during Redis streaming", { analysisId, error });
+          clearInterval(streamInterval);
+          if (!res.headersSent) {
+            await streamToClient(`⚠️ Error during streaming: ${error.message}`);
+          }
+          res.end();
+        }
+      }, 1000); // Check every second
+      
+      // Clean up interval when client disconnects
+      req.on('close', () => {
+        clearInterval(streamInterval);
+        clientAborted = true;
+      });
+
+    } catch (sandboxError: any) {
+      logger.error("Error connecting to sandbox", { 
+        analysisId, 
+        sandboxId: analysis.sandboxId, 
+        error: sandboxError.message,
+        stack: sandboxError.stack,
+        analysisStatus: analysis.status
+      });
+      
+      await streamToClient(`❌ Failed to connect to sandbox: ${analysis.sandboxId}`);
+      await streamToClient(`🔍 Error details: ${sandboxError.message}`);
+      
+      // Provide specific guidance based on error type
+      if (sandboxError.message?.includes('not found') || sandboxError.message?.includes('404')) {
+        await streamToClient("💡 This usually means the sandbox has expired or been terminated");
+        await streamToClient("🔄 The analysis may need to be restarted with a new sandbox");
+      } else if (sandboxError.message?.includes('unauthorized') || sandboxError.message?.includes('401')) {
+        await streamToClient("🔑 Authentication issue - check E2B API key configuration");
+      } else if (sandboxError.message?.includes('timeout')) {
+        await streamToClient("⏱️ Connection timeout - the sandbox may be overloaded or unresponsive");
+      }
+      
+      await streamToClient("📊 Falling back to status polling...");
+      
+      // Fallback: Just poll for status updates
+      const statusCheckInterval = setInterval(async () => {
+        if (clientAborted) {
+          clearInterval(statusCheckInterval);
+          return;
+        }
+
+        try {
+          const updatedAnalysis = await Analysis.findById(analysisId);
+          if (updatedAnalysis && (updatedAnalysis.status === "completed" || updatedAnalysis.status === "error")) {
+            await streamToClient(`Analysis ${updatedAnalysis.status}.`);
+            clearInterval(statusCheckInterval);
+            res.end();
+          }
+        } catch (error) {
+          logger.error("Error checking analysis status", { analysisId, error });
+        }
+      }, 5000);
+
+      req.on("close", () => {
+        clientAborted = true;
+        clearInterval(statusCheckInterval);
+      });
+    }
 
   } catch (error: any) {
-    logger.error("Error executing analysis", { 
+    logger.error("Error streaming analysis logs", { 
       error: error instanceof Error ? error.message : error, 
-      userId, 
-      repoUrl, 
-      exitCode 
+      analysisId: req.params.analysisId,
+      userId: req.user?._id
     });
 
     if (!res.headersSent) {
-      next(new CustomError(error.message || "Failed to execute analysis", 500));
+      next(new CustomError(error.message || "Failed to stream analysis logs", 500));
     } else {
-      res.write(`\n❌ Error: ${error.message || "Analysis failed"}\n`);
+      res.write(`\n❌ Error: ${error.message || "Log streaming failed"}\n`);
       res.end();
     }
-  } 
+  }
 };
 
 export const getAnalysisStatus = async (
@@ -300,6 +446,59 @@ export const getAnalysisStatus = async (
     });
     next(
       new CustomError(error.message || "Failed to check analysis status", 500)
+    );
+  }
+};
+
+export const getIndividualAnalysisStatus = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { analysisId } = req.params;
+
+    if (!analysisId) {
+      return next(new CustomError("Analysis ID is required", 400));
+    }
+
+    // Find the analysis
+    const analysis = await Analysis.findById(analysisId);
+    if (!analysis) {
+      return next(new CustomError("Analysis not found", 404));
+    }
+
+    // Check if user owns this analysis or is part of the team
+    if (analysis.userId !== req.user._id) {
+      const team = await Team.findOne({ ownerId: analysis.userId });
+      if (!team || !team.members?.includes(req.user._id)) {
+        return next(new CustomError("Unauthorized to access this analysis", 403));
+      }
+    }
+
+    logger.debug("Fetching analysis status", { analysisId, status: analysis.status });
+
+    res.json({
+      success: true,
+      data: {
+        analysisId: analysis._id,
+        status: analysis.status,
+        sandboxId: analysis.sandboxId,
+        exitCode: analysis.exitCode,
+        createdAt: analysis.createdAt,
+        updatedAt: analysis.updatedAt,
+        model: analysis.model,
+        prompt: analysis.prompt
+      },
+      message: "Analysis status retrieved successfully"
+    });
+  } catch (error: any) {
+    logger.error("Error fetching individual analysis status", { 
+      error: error instanceof Error ? error.message : error,
+      analysisId: req.params.analysisId 
+    });
+    next(
+      new CustomError(error.message || "Failed to fetch analysis status", 500)
     );
   }
 };
