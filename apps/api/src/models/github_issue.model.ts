@@ -1,7 +1,7 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IGithubIssue extends Document {
-  issueNumber: number;
+  githubIssueNumber: number;
   issueId: string;
   title: string;
   body?: string;
@@ -26,7 +26,7 @@ export interface IGithubIssue extends Document {
 
 const GithubIssueSchema = new Schema<IGithubIssue>(
   {
-    issueNumber: {
+    githubIssueNumber: {
       type: Number,
     //   required: true,
     },

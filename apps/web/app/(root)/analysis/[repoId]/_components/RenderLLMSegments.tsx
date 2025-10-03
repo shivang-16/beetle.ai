@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import Markdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@clerk/nextjs";
 import { toast } from "sonner";
 import { _config } from "@/lib/_config";
-import { createGithubIssue } from "../_actions/github-actions";
+import { createGithubIssue, createGithubPullRequest } from "../_actions/github-actions";
 
 const GithubIssueDialog = dynamic(() => import("./GithubIssueDialog"));
 
@@ -34,7 +34,14 @@ interface IssueState {
   issueNumber?: number;
 }
 
-export function RenderLLMSegments({
+interface PullRequestState {
+  state: 'draft' | 'open' | 'closed' | 'merged';
+  githubUrl?: string;
+  githubId?: number;
+  pullRequestNumber?: number;
+}
+
+export const RenderLLMSegments = React.memo(function RenderLLMSegments({
   segments,
   repoId,
   analysisId,
@@ -52,6 +59,12 @@ export function RenderLLMSegments({
   const [issueStates, setIssueStates] = useState<Record<string, IssueState>>({});
   const [isLoadingStates, setIsLoadingStates] = useState(false);
   const [statesFetched, setStatesFetched] = useState(false);
+  const fetchInitiatedRef = useRef(false);
+
+  // State management for GitHub pull requests
+  const [pullRequestStates, setPullRequestStates] = useState<Record<string, PullRequestState>>({});
+  const [isLoadingPRStates, setIsLoadingPRStates] = useState(false);
+  const [prStatesFetched, setPRStatesFetched] = useState(false);
 
   // Memoize GitHub issue segments and their issueIds
   const githubIssueSegments = useMemo(() => {
@@ -67,6 +80,20 @@ export function RenderLLMSegments({
     });
   }, [githubIssueSegments]);
 
+  // Memoize GitHub pull request segments and their pullRequestIds
+  const githubPullRequestSegments = useMemo(() => {
+    return segments
+      .map((seg, index) => ({ seg, index }))
+      .filter(({ seg }) => seg.kind === "githubPullRequest");
+  }, [segments]);
+
+  const pullRequestIds = useMemo(() => {
+    return githubPullRequestSegments.map(({ seg, index }) => {
+      const { issueId } = extractTitleAndDescription(seg.content);
+      return issueId || `pr-segment-${index}`;
+    });
+  }, [githubPullRequestSegments]);
+
   // Performance optimization: Only fetch states for a reasonable number of issues at once
   const prioritizedIssueIds = useMemo(() => {
     const MAX_INITIAL_FETCH = 20; // Fetch states for first 20 issues immediately
@@ -75,11 +102,12 @@ export function RenderLLMSegments({
 
   // Batch fetch GitHub issue states with debouncing and chunking for large datasets
   const fetchIssueStates = useCallback(async () => {
-    if (issueIds.length === 0 || statesFetched || isLoadingStates) {
+    if (issueIds.length === 0 || statesFetched || isLoadingStates || fetchInitiatedRef.current) {
       return;
     }
 
     try {
+      fetchInitiatedRef.current = true;
       setIsLoadingStates(true);
       const token = await getToken();
       if (!token) return;
@@ -124,6 +152,7 @@ export function RenderLLMSegments({
       console.error("Error fetching GitHub issue states:", error);
     } finally {
       setIsLoadingStates(false);
+      fetchInitiatedRef.current = false;
     }
   }, [issueIds, statesFetched, isLoadingStates, getToken, repoId, analysisId]);
 
@@ -131,11 +160,18 @@ export function RenderLLMSegments({
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
     
-    if (prioritizedIssueIds.length > 0) {
-      // Debounce the fetch to avoid excessive API calls
-      timeoutId = setTimeout(() => {
-        fetchIssueStates();
-      }, 300);
+    if (prioritizedIssueIds.length > 0 && !statesFetched && !isLoadingStates) {
+      // Check if we already have states for these IDs
+      const needsFetch = prioritizedIssueIds.some(id => !issueStates[id]);
+      
+      if (needsFetch) {
+        // Debounce the fetch to avoid excessive API calls
+        timeoutId = setTimeout(() => {
+          if (!isLoadingStates && !statesFetched) {
+            fetchIssueStates();
+          }
+        }, 300);
+      }
     }
 
     return () => {
@@ -143,20 +179,27 @@ export function RenderLLMSegments({
         clearTimeout(timeoutId);
       }
     };
-  }, [prioritizedIssueIds, fetchIssueStates]);
+  }, [prioritizedIssueIds.length, statesFetched, isLoadingStates]); // Removed fetchIssueStates dependency
 
   // Lazy load remaining issue states after initial render
   useEffect(() => {
-    if (issueIds.length > 20 && statesFetched) {
+    if (issueIds.length > 20 && statesFetched && !isLoadingStates) {
       const remainingIds = issueIds.slice(20);
-      const timeoutId = setTimeout(() => {
-        // Fetch remaining states in background
-        fetchIssueStates();
-      }, 1000); // Delay to prioritize initial render
+      // Check if we already have states for remaining IDs
+      const needsFetch = remainingIds.some(id => !issueStates[id]);
+      
+      if (needsFetch) {
+        const timeoutId = setTimeout(() => {
+          // Only fetch if we still need the data and aren't already loading
+          if (!isLoadingStates) {
+            fetchIssueStates();
+          }
+        }, 1000); // Delay to prioritize initial render
 
-      return () => clearTimeout(timeoutId);
+        return () => clearTimeout(timeoutId);
+      }
     }
-  }, [issueIds, statesFetched, fetchIssueStates]);
+  }, [issueIds.length, statesFetched, isLoadingStates]); // Removed fetchIssueStates dependency
 
   // Cleanup effect to prevent memory leaks with large datasets
   useEffect(() => {
@@ -168,6 +211,8 @@ export function RenderLLMSegments({
   }, []);
 
   // Save GitHub issue to database during streaming
+  
+  
   const saveGithubIssueToDb = async (segment: LLMResponseSegment, segmentIndex: number) => {
     // Skip saving if data is loaded from database
     if (isLoadedFromDb) return;
@@ -206,7 +251,6 @@ export function RenderLLMSegments({
     }
   };
 
-  // Save patch to database during streaming
   const savePatchToDb = async (segment: LLMResponseSegment, segmentIndex: number) => {
     // Skip saving if data is loaded from database
     if (isLoadedFromDb) return;
@@ -288,6 +332,67 @@ export function RenderLLMSegments({
       toast.error(error instanceof Error ? error.message : "Failed to create GitHub issue");
     }
   };
+
+  const openGithubPullRequest = async (segment: LLMResponseSegment) => {
+    try {
+
+      const token = await getToken();
+      if (!token) return;
+
+      const patch = parsePatchString(segment.content);
+      const before = extractFencedContent(patch.before).code;
+      const after = extractFencedContent(patch.after).code;
+      const patchId = patch.patchId ;
+      const issueId = patch.issueId || `segment-${segments.indexOf(segment)}`;
+      const title = `Patch for ${extractPath(patch.file || "")}`;
+      const body = patch.explanation || "Automated patch suggestion";
+
+      console.log("PR title ====> ", title, issueId); 
+      const finalPRId = issueId || `pr-segment-${segments.indexOf(segment)}`;
+      
+      console.log("pullRequestId ====> ", finalPRId);
+      
+      const result = await createGithubPullRequest({
+        repoId,
+        analysisId,
+        title: title || "Pull Request from Analysis",
+        body: body,
+        filePath: extractPath(patch.file || "") as string, // Default file for analysis-based PRs
+        before,
+        after,
+        issueId: finalPRId,
+        patchId
+      });
+
+      console.log(result, "result");
+
+      if (result.success && result.data) {
+        toast.success("GitHub pull request created successfully!");
+        
+        // Update local state to reflect the opened pull request
+        setPullRequestStates(prev => ({
+          ...prev,
+          [finalPRId]: {
+            state: 'open',
+            githubUrl: result.data!.html_url,
+            githubId: result.data!.id,
+            pullRequestNumber: result.data!.number,
+          }
+        }));
+
+        console.log(result.data.html_url, "result.data.html_url");
+        
+        // Open the pull request in a new tab
+        window.open(result.data.html_url, "_blank");
+      } else {
+        toast.error(result.error || "Failed to create GitHub pull request");
+      }
+    } catch (error) {
+      console.error("Error creating GitHub pull request:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to create GitHub pull request");
+    }
+  };
+
   const [expandedWarnings, setExpandedWarnings] = useState<Set<number>>(
     new Set()
   );
@@ -484,10 +589,10 @@ export function RenderLLMSegments({
             </div>
           )}
           <div className="flex items-center justify-end gap-2 pb-4">
-            <Button variant="secondary" size="sm" disabled>
+            {/* <Button variant="secondary" size="sm" disabled>
               Add suggestion to batch
-            </Button>
-            <Button size="sm" disabled>
+            </Button> */}
+            <Button size="sm" onClick={() => openGithubPullRequest(seg)}>
               Commit suggestion
             </Button>
           </div>
@@ -698,4 +803,4 @@ export function RenderLLMSegments({
     }
     return null;
   });
-}
+});

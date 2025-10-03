@@ -196,7 +196,6 @@ export const openIssue = async (
   try {
     const { github_repositoryId, analysisId, title, body, labels, assignees, segmentIssueId } = req.body;
 
-    console.log(req.body, "here is req.body in openIssue")
     // Validate required fields
     if (!github_repositoryId || !title || !segmentIssueId) {
       throw new CustomError("github_repositoryId, title, and segmentIssueId are required", 400);
@@ -354,6 +353,7 @@ export const openIssue = async (
           state: issue.state as 'open' | 'closed',
           githubUrl: issue.html_url,
           githubId: issue.id,
+          githubIssueNumber: issue.number,
           labels: issue.labels?.map((label: any) => typeof label === 'string' ? label : label.name) || [],
           assignees: issue.assignees?.map((assignee: any) => assignee.login) || [],
           githubUpdatedAt: new Date(issue.updated_at),
@@ -774,7 +774,7 @@ export const getBranches = async (
   }
 };
 
-export const createPullRequest = async (
+export const openPullRequest = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -788,17 +788,142 @@ export const createPullRequest = async (
       title, 
       body, 
       branchName,
-      issueNumber 
+      issueId,
+      patchId 
     } = req.body;
+
+    // Get user ID for authentication
+    const userId = req.user?._id;
+    if (!userId) {
+      throw new CustomError("User authentication required", 401);
+    }
 
     // Validate required fields
     if (!github_repositoryId || !filePath || !before || !after || !title) {
       throw new CustomError("repoUrl, filePath, before, after, and title are required", 400);
     }
 
+    
+
+    console.log(before, issueId)
     const github_repository = await Github_Repository.findById(github_repositoryId);
     if (!github_repository) {
       return next(new CustomError("Github repository not found", 404));
+    }
+
+       // Check if pull request already exists in database
+    let githubPullRequest = null;
+    if (patchId) {
+      githubPullRequest = await GithubPullRequest.findOne({ patchId: patchId });
+      
+      if (githubPullRequest) {
+        logger.info("Found existing pull request in database", { 
+          patchId, 
+          prId: githubPullRequest._id,
+          state: githubPullRequest.state,
+          githubUrl: githubPullRequest.githubUrl 
+        });
+        
+        // If PR already exists on GitHub, return the existing data
+        if (githubPullRequest.githubUrl && githubPullRequest.githubPullRequestNumber) {
+          logger.info("Pull request already exists on GitHub", { 
+            githubUrl: githubPullRequest.githubUrl,
+            prNumber: githubPullRequest.githubPullRequestNumber 
+          });
+          
+          return res.json({
+            success: true,
+            data: {
+              pull_request_number: githubPullRequest.githubPullRequestNumber,
+              title: githubPullRequest.title,
+              body: githubPullRequest.body,
+              state: githubPullRequest.state,
+              url: githubPullRequest.githubUrl,
+              created_at: githubPullRequest.githubCreatedAt,
+              updated_at: githubPullRequest.githubUpdatedAt,
+              branch: {
+                head: githubPullRequest.branchName,
+                base: githubPullRequest.baseBranch,
+              },
+              file_changes: {
+                file_path: githubPullRequest.patch.filePath,
+                before_length: githubPullRequest.patch.before.length,
+                after_length: githubPullRequest.patch.after.length,
+              },
+              repository: {
+                owner: githubPullRequest.repository.owner,
+                repo: githubPullRequest.repository.repo,
+                full_name: githubPullRequest.repository.fullName,
+              },
+              issueId: githubPullRequest.issueId || null,
+            },
+            message: "Pull request already exists"
+          });
+        }
+      } else {
+        // Create new pull request record in database
+        logger.info("Creating new pull request record in database", { patchId, title, filePath, userId });
+        
+        githubPullRequest = new GithubPullRequest({
+          patchId: patchId,
+          issueId: issueId,
+          title: title,
+          body: body || "",
+          state: 'draft',
+          createdBy: userId,
+          github_repositoryId: github_repositoryId,
+          repository: {
+            owner: github_repository.fullName.split('/')[0],
+            repo: github_repository.fullName.split('/')[1],
+            fullName: github_repository.fullName,
+          },
+          patch: {
+            filePath: filePath,
+            before: before,
+            after: after,
+            explanation: body || "",
+          },
+          baseBranch: github_repository.defaultBranch || 'main',
+        });
+
+        await githubPullRequest.save();
+        logger.info("Pull request record created in database", { 
+          prId: githubPullRequest._id, 
+          patchId: githubPullRequest.patchId 
+        });
+      }
+    }
+
+    if(githubPullRequest.state !== 'draft') {
+      return next(new CustomError("Pull request is not in draft state", 400));
+    }
+
+    // Look up associated issue if issueNumber is provided
+    let associatedIssue = null;
+    if (issueId) {
+      try {
+        // Look up the issue by issueId (which corresponds to issueNumber in the request)
+        associatedIssue = await GithubIssue.findOne({
+          issueId: issueId,
+        });
+        
+        if (associatedIssue) {
+          logger.info("Found associated issue", { 
+            issueId: associatedIssue.issueId, 
+            issueState: associatedIssue.state,
+            githubIssueNumber: associatedIssue.issueNumber 
+          });
+        } else {
+          logger.warn("Associated issue not found in database", { issueId, github_repositoryId });
+        }
+      } catch (error) {
+        logger.error("Error looking up associated issue", { 
+          error: error instanceof Error ? error.message : error,
+          issueId,
+          github_repositoryId 
+        });
+        // Continue with PR creation even if issue lookup fails
+      }
     }
 
     const repoUrl = `https://github.com/${github_repository.fullName}`;
@@ -807,6 +932,7 @@ export const createPullRequest = async (
     const githubUrlMatch = repoUrl.match(
       /github\.com\/([^\/]+)\/([^\/]+?)(?:\.git)?$/
     );
+
     if (!githubUrlMatch) {
       throw new CustomError("Invalid GitHub repository URL", 400);
     }
@@ -816,7 +942,6 @@ export const createPullRequest = async (
     logger.info("Creating pull request", { owner, repo, filePath, title });
 
     // Get GitHub token for authenticated user
-    const userId = req.user?._id;
     let githubToken: string | undefined = process.env.GITHUB_TOKEN;
 
     if (userId) {
@@ -860,6 +985,7 @@ export const createPullRequest = async (
         logger.warn("Could not generate GitHub token for PR, using fallback", { error: error instanceof Error ? error.message : error });
       }
     }
+
 
     // GitHub token is required for creating pull requests
     if (!githubToken) {
@@ -930,16 +1056,72 @@ export const createPullRequest = async (
       throw error;
     }
 
-    // Check if the 'before' content exists in the file
-    if (!currentContent.includes(before)) {
-      throw new CustomError(
-        `The specified 'before' content was not found in the file ${filePath}`,
-        400
-      );
+    // Normalize whitespace for more flexible matching
+    const normalizeWhitespace = (str: string) => {
+      return str.replace(/\s+/g, ' ').trim();
+    };
+
+    const normalizedBefore = normalizeWhitespace(before);
+    const normalizedCurrent = normalizeWhitespace(currentContent);
+
+    // Check if the 'before' content exists in the file (with flexible whitespace matching)
+    if (!normalizedCurrent.includes(normalizedBefore)) {
+      // Try exact match as fallback
+      if (!currentContent.includes(before)) {
+        logger.error("Content matching failed", {
+           filePath,
+           beforeContentLength: before.length,
+           currentContentLength: currentContent.length,
+           beforePreview: before.substring(0, 200),
+           currentPreview: currentContent.substring(0, 200),
+           normalizedBeforePreview: normalizedBefore.substring(0, 200),
+           normalizedCurrentPreview: normalizedCurrent.substring(0, 200),
+           beforeLines: before.split('\n').length,
+           currentLines: currentContent.split('\n').length
+         });
+        
+        throw new CustomError(
+          `The specified 'before' content was not found in the file ${filePath}. Please check the content formatting and whitespace.`,
+          400
+        );
+      }
     }
 
-    // Replace the content
-    const newContent = currentContent.replace(before, after);
+    // Replace the content (try normalized match first, then exact match)
+    let newContent: string;
+    if (normalizedCurrent.includes(normalizedBefore)) {
+      // For normalized matching, we need to find the actual content in the original file
+      // This is more complex, so let's use a different approach
+      const beforeLines = before.split('\n').map((line: any) => line.trim()).filter((line: any) => line.length > 0);
+      const currentLines = currentContent.split('\n');
+      
+      // Find the starting line that matches the first non-empty line of 'before'
+      let startIndex = -1;
+      for (let i = 0; i < currentLines.length; i++) {
+        if (currentLines[i].trim() === beforeLines[0]) {
+          startIndex = i;
+          break;
+        }
+      }
+      
+      if (startIndex !== -1) {
+        // Replace line by line
+        const beforeLinesCount = before.split('\n').length;
+        const afterLines = after.split('\n');
+        
+        newContent = [
+          ...currentLines.slice(0, startIndex),
+          ...afterLines,
+          ...currentLines.slice(startIndex + beforeLinesCount)
+        ].join('\n');
+      } else {
+        // Fallback to exact replacement
+        newContent = currentContent.replace(before, after);
+      }
+    } else {
+      // Use exact replacement
+      newContent = currentContent.replace(before, after);
+    }
     logger.debug("Content replacement completed", { filePath, beforeLength: before.length, afterLength: after.length });
 
     // Create the commit
@@ -961,9 +1143,16 @@ export const createPullRequest = async (
     prBody += `- Replaced: \`${before.substring(0, 100)}${before.length > 100 ? '...' : ''}\`\n`;
     prBody += `- With: \`${after.substring(0, 100)}${after.length > 100 ? '...' : ''}\`\n\n`;
     
-    // Link to issue if provided
-    if (issueNumber) {
-      prBody += `**Related Issue:** #${issueNumber}\n\n`;
+    // Link to issue if it exists and is open
+    if (associatedIssue && associatedIssue.state === 'open') {
+      prBody += `**Closes:** #${associatedIssue.githubIssueNumber}\n\n`;
+      logger.info("Linking PR to open issue", { 
+        issueNumber: associatedIssue.githubIssueNumber, 
+        issueId: associatedIssue.issueId 
+      });
+    } else if (issueId) {
+      // If issueNumber provided but no open issue found, just reference it
+      prBody += `**Related Issue:** #${issueId}\n\n`;
     }
     
     prBody += `**File:** \`${filePath}\`\n`;
@@ -987,6 +1176,36 @@ export const createPullRequest = async (
       repo
     });
 
+    // Update the database record with GitHub PR details
+    if (githubPullRequest) {
+      try {
+        githubPullRequest.githubUrl = pullRequest.html_url;
+        githubPullRequest.githubPullRequestNumber = pullRequest.number;
+        githubPullRequest.githubId = pullRequest.id;
+        githubPullRequest.state = pullRequest.state as 'draft' | 'open' | 'closed' | 'merged';
+        githubPullRequest.branchName = newBranchName;
+        githubPullRequest.baseBranch = defaultBranch;
+        githubPullRequest.githubCreatedAt = new Date(pullRequest.created_at);
+        githubPullRequest.githubUpdatedAt = new Date(pullRequest.updated_at);
+
+        await githubPullRequest.save();
+        
+        logger.info("Database record updated with GitHub PR details", {
+          prId: githubPullRequest._id,
+          githubPrNumber: pullRequest.number,
+          githubUrl: pullRequest.html_url,
+          state: pullRequest.state
+        });
+      } catch (dbError) {
+        logger.error("Failed to update database with GitHub PR details", { 
+          error: dbError instanceof Error ? dbError.message : dbError,
+          prId: githubPullRequest._id,
+          githubPrNumber: pullRequest.number
+        });
+        // Don't fail the request if database update fails
+      }
+    }
+
     res.json({
       success: true,
       data: {
@@ -994,7 +1213,7 @@ export const createPullRequest = async (
         title: pullRequest.title,
         body: pullRequest.body,
         state: pullRequest.state,
-        url: pullRequest.html_url,
+        html_url: pullRequest.html_url,
         created_at: pullRequest.created_at,
         updated_at: pullRequest.updated_at,
         branch: {
@@ -1011,27 +1230,13 @@ export const createPullRequest = async (
           repo,
           full_name: `${owner}/${repo}`,
         },
-        issue_number: issueNumber || null,
+        issueId: issueId || null,
       },
     });
   } catch (error: any) {
     logger.error("Error creating pull request", { error: error instanceof Error ? error.message : error });
-
-    if (error.status === 404) {
-      next(new CustomError("Repository or file not found", 404));
-    } else if (error.status === 401) {
-      next(new CustomError("GitHub authentication failed", 401));
-    } else if (error.status === 403) {
-      next(new CustomError("Repository access forbidden", 403));
-    } else if (error.status === 422) {
-      next(new CustomError("Invalid pull request data or repository configuration", 422));
-    } else {
-      next(
-        new CustomError(error.message || "Failed to create pull request", 500)
-      );
-    }
-  }
-};
+   console.log(error)
+}};
 
 export const getIssueStates = async (
   req: Request,

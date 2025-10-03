@@ -1,7 +1,7 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IGithubPullRequest extends Document {
-  pullRequestNumber?: number; // GitHub PR number (when actually created)
+  githubPullRequestNumber?: number; // GitHub PR number (when actually created)
   patchId: string; // Unique identifier for the patch
   issueId: string;
   title: string;
@@ -35,7 +35,7 @@ export interface IGithubPullRequest extends Document {
 
 const GithubPullRequestSchema = new Schema<IGithubPullRequest>(
   {
-    pullRequestNumber: {
+    githubPullRequestNumber: {
       type: Number,
       index: true,
     },
