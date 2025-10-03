@@ -31,7 +31,9 @@ export const create_github_installation = async (payload: CreateInstallationInpu
                  return new CustomError('Installation already exists', 409);
              }
             
-             const user = await User.findOne({ username: input.sender.login });
+             const user = await User.findOne(
+              { username: { $regex: new RegExp(`^${input.sender.login}$`, "i") } }
+             );
 
              const installation_data = {
               installationId: input.installationId,

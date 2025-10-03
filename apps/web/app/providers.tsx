@@ -7,6 +7,10 @@ const Providers = ({ children }: { children: React.ReactNode }) => {
     <ClerkProvider
       appearance={{
         cssLayerName: "clerk",
+      }}
+      localization={{
+        formFieldLabel__username: "GitHub Username",
+        formFieldInputPlaceholder__username: "Enter your GitHub username"
       }}>
       <ThemeProvider
         enableSystem
