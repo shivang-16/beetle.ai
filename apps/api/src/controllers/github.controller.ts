@@ -625,7 +625,7 @@ export const getGithubIssuesWithPullRequests = async (
     // Build query filter
     const issueFilter: any = { 
       github_repositoryId: github_repositoryId,
-      createdBy: userId 
+      // createdBy: userId 
     };
     
     if (analysisId) {
@@ -645,7 +645,7 @@ export const getGithubIssuesWithPullRequests = async (
         const pullRequests = await GithubPullRequest.find({
           issueId: issue.issueId,
           github_repositoryId: github_repositoryId,
-          createdBy: userId
+          // createdBy: userId
         })
         .sort({ createdAt: -1 })
         .lean();
@@ -1245,17 +1245,26 @@ export const getIssueStates = async (
   next: NextFunction
 ) => {
   try {
-    const { github_repositoryId, analysisId, issueIds } = req.body;
+    const { github_repositoryId, analysisId, issueIds, patchIds } = req.body;
 
-    // Validate required fields
-    if (!github_repositoryId || !issueIds || !Array.isArray(issueIds)) {
-      throw new CustomError("github_repositoryId and issueIds array are required", 400);
+    // Validate required fields - at least one of issueIds or patchIds must be provided
+    if (!github_repositoryId || (!issueIds && !patchIds)) {
+      throw new CustomError("github_repositoryId and at least one of issueIds or patchIds array are required", 400);
     }
 
-    // Limit the number of issueIds to prevent performance issues
-    const MAX_ISSUE_IDS = 100;
-    if (issueIds.length > MAX_ISSUE_IDS) {
-      throw new CustomError(`Too many issueIds. Maximum allowed: ${MAX_ISSUE_IDS}`, 400);
+    // Validate arrays if provided
+    if (issueIds && !Array.isArray(issueIds)) {
+      throw new CustomError("issueIds must be an array", 400);
+    }
+    if (patchIds && !Array.isArray(patchIds)) {
+      throw new CustomError("patchIds must be an array", 400);
+    }
+
+    // Limit the number of IDs to prevent performance issues
+    const MAX_IDS = 100;
+    const totalIds = (issueIds?.length || 0) + (patchIds?.length || 0);
+    if (totalIds > MAX_IDS) {
+      throw new CustomError(`Too many IDs. Maximum allowed: ${MAX_IDS}`, 400);
     }
 
     const userId = req.user?._id;
@@ -1263,10 +1272,11 @@ export const getIssueStates = async (
       throw new CustomError("User authentication required", 401);
     }
 
-    logger.info("Getting GitHub issue states", { 
+    logger.info("Getting GitHub issue and PR states", { 
       github_repositoryId, 
       analysisId, 
-      issueIds: issueIds.length,
+      issueIds: issueIds?.length || 0,
+      patchIds: patchIds?.length || 0,
       userId 
     });
 
@@ -1276,58 +1286,103 @@ export const getIssueStates = async (
       throw new CustomError("Github repository not found", 404);
     }
 
-    // Build query filter
-    const issueFilter: any = { 
-      github_repositoryId: github_repositoryId,
-      createdBy: userId,
-      issueId: { $in: issueIds }
-    };
-    
-    if (analysisId) {
-      issueFilter.analysisId = analysisId;
-    }
-
-    // Get GitHub issues with only necessary fields for performance
-    const githubIssues = await GithubIssue.find(issueFilter)
-      .select('issueId state githubUrl githubId issueNumber')
-      .lean();
-
-    logger.debug("Found GitHub issues", { count: githubIssues.length });
-
-    // Create a map for efficient lookup
-    const issueStatesMap: Record<string, {
+    // Create combined states map
+    const statesMap: Record<string, {
       state: string;
       githubUrl?: string;
       githubId?: number;
       issueNumber?: number;
+      pullRequestNumber?: number;
+      type: 'issue' | 'pullRequest';
     }> = {};
 
-    githubIssues.forEach(issue => {
-      if (issue.issueId) {
-        issueStatesMap[issue.issueId] = {
-          state: issue.state,
-          githubUrl: issue.githubUrl,
-          githubId: issue.githubId,
-          issueNumber: issue.issueNumber
-        };
+    // Get GitHub issues if issueIds provided
+    if (issueIds && issueIds.length > 0) {
+      const issueFilter: any = { 
+        github_repositoryId: github_repositoryId,
+        issueId: { $in: issueIds }
+      };
+      
+      if (analysisId) {
+        issueFilter.analysisId = analysisId;
       }
-    });
 
-    // Fill in missing issueIds with default state
-    issueIds.forEach((issueId: string) => {
-      if (!issueStatesMap[issueId]) {
-        issueStatesMap[issueId] = {
-          state: 'draft'
-        };
+      const githubIssues = await GithubIssue.find(issueFilter)
+        .select('issueId state githubUrl githubId issueNumber')
+        .lean();
+
+      logger.debug("Found GitHub issues", { count: githubIssues.length });
+
+      githubIssues.forEach(issue => {
+        if (issue.issueId) {
+          statesMap[issue.issueId] = {
+            state: issue.state,
+            githubUrl: issue.githubUrl,
+            githubId: issue.githubId,
+            issueNumber: issue.issueNumber,
+            type: 'issue'
+          };
+        }
+      });
+
+      // Fill in missing issueIds with default state
+      issueIds.forEach((issueId: string) => {
+        if (!statesMap[issueId]) {
+          statesMap[issueId] = {
+            state: 'draft',
+            type: 'issue'
+          };
+        }
+      });
+    }
+
+    // Get GitHub pull requests if patchIds provided
+    if (patchIds && patchIds.length > 0) {
+      const prFilter: any = { 
+        github_repositoryId: github_repositoryId,
+        patchId: { $in: patchIds }
+      };
+      
+      if (analysisId) {
+        prFilter.analysisId = analysisId;
       }
+
+      const githubPullRequests = await GithubPullRequest.find(prFilter)
+        .select('patchId state githubUrl githubId githubPullRequestNumber')
+        .lean();
+
+      logger.debug("Found GitHub pull requests", { count: githubPullRequests.length });
+
+      githubPullRequests.forEach(pr => {
+        if (pr.patchId) {
+          statesMap[pr.patchId] = {
+            state: pr.state,
+            githubUrl: pr.githubUrl,
+            githubId: pr.githubId,
+            pullRequestNumber: pr.githubPullRequestNumber,
+            type: 'pullRequest'
+          };
+        }
+      });
+
+      // Fill in missing patchIds with default state
+      patchIds.forEach((patchId: string) => {
+        if (!statesMap[patchId]) {
+          statesMap[patchId] = {
+            state: 'draft',
+            type: 'pullRequest'
+          };
+        }
+      });
+    }
+
+    logger.info("Successfully retrieved states", { 
+      requestedIssueIds: issueIds?.length || 0,
+      requestedPatchIds: patchIds?.length || 0,
+      totalStates: Object.keys(statesMap).length
     });
 
-    logger.info("Successfully retrieved issue states", { 
-      requestedCount: issueIds.length,
-      foundCount: githubIssues.length,
-      totalStates: Object.keys(issueStatesMap).length
-    });
-
+    console.log(statesMap, "ere is the statemap")
     res.json({
       success: true,
       data: {
@@ -1335,17 +1390,17 @@ export const getIssueStates = async (
           id: github_repository._id,
           fullName: github_repository.fullName
         },
-        issueStates: issueStatesMap
+        issueStates: statesMap
       }
     });
 
   } catch (error: any) {
-    logger.error("Error getting GitHub issue states", { 
+    logger.error("Error getting GitHub states", { 
       error: error instanceof Error ? error.message : error,
       github_repositoryId: req.body.github_repositoryId,
       analysisId: req.body.analysisId
     });
-    next(new CustomError(error.message || "Failed to get GitHub issue states", error.status || 500));
+    next(new CustomError(error.message || "Failed to get GitHub states", error.status || 500));
   }
 };
 

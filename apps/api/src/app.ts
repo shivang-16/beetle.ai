@@ -24,7 +24,7 @@ export function createApp(): Application {
   app.use(
     expressWinston.logger({
       winstonInstance: winstonLogger,
-      meta: true,
+      meta: false,
       expressFormat: true,
       colorize: true,
     })
