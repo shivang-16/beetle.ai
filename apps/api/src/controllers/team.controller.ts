@@ -123,10 +123,10 @@ export const addReposInTeam = async (req: Request, res: Response, next: NextFunc
     const team = await Team.findById(teamId);
     if (!team) return next(new CustomError('Team not found', 404));
 
-    // Only admins can add repositories to a team
+    // Admin role check is now handled by checkTeamRole middleware
     const member = ensureMember(team, req.user._id);
-    if (!member || member.role !== 'admin') {
-      return next(new CustomError('Forbidden: admin role required', 403));
+    if (!member) {
+      return next(new CustomError('Forbidden: not a team member', 403));
     }
 
     // Ensure these repos belong to installations owned by team owner (same visibility scope as getTeamRepositories)
