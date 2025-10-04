@@ -385,12 +385,12 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
       const before = extractFencedContent(patch.before).code;
       const after = extractFencedContent(patch.after).code;
       const patchId = patch.patchId ;
-      const issueId = patch.issueId || `segment-${segments.indexOf(segment)}`;
+      const issueId = patch.issueId ;
       const title = `Patch for ${extractPath(patch.file || "")}`;
       const body = patch.explanation || "Automated patch suggestion";
 
       console.log("PR title ====> ", title, issueId); 
-      const finalPRId = issueId || `pr-segment-${segments.indexOf(segment)}`;
+      const finalPRId = issueId as string;
       
       console.log("pullRequestId ====> ", finalPRId);
       
@@ -413,7 +413,7 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
         
         // Update local state to reflect the opened pull request
         // Use patchId for the state key since that's what the patch rendering section looks for
-        const statePatchId = patchId || `patch-${segments.indexOf(segment)}`;
+        const statePatchId = patchId as string;
         setCombinedStates(prev => ({
           ...prev,
           [statePatchId]: {

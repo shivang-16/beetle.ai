@@ -319,6 +319,7 @@ export const getRepositoryAnalysis = async (
     try {
       doc = await Analysis.find({
         github_repositoryId: github_repositoryId,
+        analysis_type: "full_repo_analysis",
       }).sort({ createdAt: -1 });
       // logger.debug("Analysis documents found", { docCount: doc?.length });
     } catch (_) {
