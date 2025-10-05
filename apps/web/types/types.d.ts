@@ -105,6 +105,11 @@ export interface GitHubIssueSegment {
   content: string;
 }
 
+export interface GitHubPullRequestSegment {
+  kind: "githubPullRequest";
+  content: string;
+}
+
 export interface PatchSegment {
   kind: "patch";
   content: string;
@@ -122,6 +127,7 @@ export interface FileStatusSegment {
 export type LLMResponseSegment =
   | TextSegment
   | GitHubIssueSegment
+  | GitHubPullRequestSegment
   | PatchSegment
   | WarningSegment
   | FileStatusSegment;

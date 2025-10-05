@@ -280,17 +280,15 @@ const GithubIssuesSlider: React.FC<GithubIssuesSliderProps> = ({
                   </span>
                 </div>
               ))}
-                     <div className="flex items-center justify-end gap-2 py-2">
-            <Button variant="secondary" size="sm" disabled>
-              Add suggestion to batch
-            </Button>
-            <Button size="sm" disabled>
-              Commit suggestion
-            </Button>
-          </div>
+               
             </pre>
           </div>
         </div>
+                  <div className="flex items-center justify-end gap-2 pb-4">
+            <Button size="sm">
+              Commit suggestion
+            </Button>
+          </div>
         {explanation && (
           <div className="text-xs text-muted-foreground p-2">
             {explanation}

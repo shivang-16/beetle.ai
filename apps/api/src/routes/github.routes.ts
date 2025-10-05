@@ -1,6 +1,6 @@
 import express, { Router } from "express";
 import { checkAuth } from "../middlewares/checkAuth.js";
-import { getRepoTree, getRepoInfo, openIssue, createPullRequest, getBranches, saveGithubIssue, savePatch, getGithubIssuesWithPullRequests, getIssueStates } from "../controllers/github.controller.js";
+import { getRepoTree, getRepoInfo, openIssue, openPullRequest, getBranches, saveGithubIssue, savePatch, getGithubIssuesWithPullRequests, getIssueStates, syncRepositories } from "../controllers/github.controller.js";
 import { getAllUserInstallations } from "../queries/github.queries.js";
 import { updateRepoSettings, getRepoSettings } from "../controllers/repository.controller.js";
 
@@ -15,7 +15,7 @@ router.post("/issue-states", checkAuth, getIssueStates);
 
 // Protected routes (auth required)
 router.post("/issue", checkAuth, openIssue);
-router.post("/pull-request", checkAuth, createPullRequest);
+router.post("/pull-request", checkAuth, openPullRequest);
 
 // Save routes for streaming (auth required)
 router.post("/save-issue", checkAuth, saveGithubIssue);
@@ -24,6 +24,9 @@ router.post("/save-patch", checkAuth, savePatch);
 // Repository settings routes (auth required)
 router.get("/repository/:repoId/settings", checkAuth, getRepoSettings);
 router.put("/repository/:repoId/settings", checkAuth, updateRepoSettings);
+
+// Sync repositories route (auth required) - syncs all user installations
+router.post("/sync", checkAuth, syncRepositories);
 
 // Debug endpoint to check installations
 router.get("/installations", checkAuth, async (req, res) => {

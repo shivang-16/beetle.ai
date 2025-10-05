@@ -92,3 +92,75 @@ export async function createGithubIssue(params: CreateGithubIssueParams): Promis
     };
   }
 }
+
+export interface CreateGithubPullRequestParams {
+  repoId: string;
+  analysisId?: string;
+  title?: string;
+  body?: string;
+  filePath: string;
+  before: string;
+  after: string;
+  branchName?: string;
+  issueId?: string;
+  patchId?: string;
+}
+
+export interface CreateGithubPullRequestResult {
+  success: boolean;
+  data?: {
+    html_url: string;
+    id: number;
+    number: number;
+  };
+  error?: string;
+}
+
+export async function createGithubPullRequest(params: CreateGithubPullRequestParams): Promise<CreateGithubPullRequestResult> {
+  try {
+    const {
+      repoId,
+      analysisId,
+      title,
+      body,
+      filePath,
+      before,
+      after,
+      branchName,
+      issueId,
+      patchId,
+    } = params;
+
+   
+    const response = await apiPost("/api/github/pull-request", {
+      github_repositoryId: repoId,
+      analysisId,
+      title,
+      body,
+      filePath,
+      before,
+      after,
+      branchName,
+      issueId,
+      patchId
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return {
+        success: false,
+        error: errorData.message || `HTTP error! status: ${response.status}`
+      };
+    }
+
+    const data = await response.json();
+    
+   return data
+  } catch (error) {
+    console.error("Error creating GitHub pull request:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to create GitHub pull request"
+    };
+  }
+}
