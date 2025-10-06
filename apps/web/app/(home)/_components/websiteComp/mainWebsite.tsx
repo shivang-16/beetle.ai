@@ -9,7 +9,7 @@ import OverviewSection from "./OverviewSection";
 const MainWebsite = () => {
   return (
     
-    <main className="min-h-screen bg-[#010010]">
+    <main className="min-h-screen bg-[#010010] px-2 sm:px-5">
       {/* Navbar - Fixed at top */}
       <NavbarWeb />
       <HeroSection />

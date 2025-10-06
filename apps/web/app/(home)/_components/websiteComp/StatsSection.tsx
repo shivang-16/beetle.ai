@@ -2,7 +2,7 @@ import React from "react";
 
 const StatsSection = () => {
   return (
-    <section className="">
+    <section>
       <div className="flex container mx-auto items-center gap-8  w-full xl:max-w-[87.25rem] xl:p-0">
         <div className="flex flex-col max-w-[45%] self-stretch justify-center md:basis-1/2-gap-6 p-8 w-full rounded-[1.25rem] bg-pink-400 dark:bg-neutral-900 border border-pink-400 dark:border-neutral-900 shadow-pink-400 dark:shadow-neutral-900">
           <h2

@@ -13,8 +13,8 @@ import Link from "next/link";
 
 export default function IntegrationsSection() {
   return (
-    <section className="px-5 border-b border-[#333333]">
-      <div className="mx-auto max-w-[1563px] py-24 md:py-32 px-6 border border-t-0 border-b-0 border-[#333333]">
+    <section className="border-b border-[#333333]">
+      <div className="mx-auto max-w-[1563px] py-24 md:py-32 px-6 md:border-l md:border-r border-[#333333]">
         <div className="mx-auto max-w-5xl px-6">
           <div className="aspect-16/10 group relative mx-auto flex max-w-[22rem] items-center justify-between sm:max-w-sm">
             <div

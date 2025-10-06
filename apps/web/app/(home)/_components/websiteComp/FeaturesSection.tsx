@@ -37,8 +37,8 @@ const loadingStates = [
 
 export default function Features() {
   return (
-    <section className="px-5 border-b border-[#333333]">
-      <div className="relative mx-auto max-w-[1563px] md:p-14 p-6  border border-t-0 border-b-0 border-[#333333]">
+    <section className="border-b border-[#333333]">
+      <div className="relative mx-auto max-w-[1563px] md:p-14 p-6 md:border-l md:border-r border-[#333333]">
         {/* Dark White Dotted Grid Background */}
         <div
           className="absolute inset-0 z-0"
@@ -55,7 +55,7 @@ export default function Features() {
         {/* Hero Text Section */}
         <div className="relative z-10 py-2 pb-48">
             {/* Main Heading */}
-            <div className="space-y-1 text-white text-4xl sm:text-3xl md:text-4xl lg:text-5xl font-medium leading-tight">
+            <div className="space-y-1 text-white text-3xl md:text-4xl lg:text-5xl font-medium leading-tight">
               <div>
                 We're not just static reviewer. We're
               </div>
@@ -71,7 +71,7 @@ export default function Features() {
             <div className="space-y-6 text-white/80 text-lg leading-relaxed flex pt-72">
               <div className="w-[50%]">
               </div>
-              <div className="text-[1rem] w-[50%]">
+              <div className="text-[1rem] w-[100%] sm:w-[50%]">
               <p className="mb-5">
                 At <span className="text-primary">Beetle AI</span>, we believe intelligence isn't just about generating answers—it's about understanding context, reasoning through complexity, and acting with intent.
               </p>

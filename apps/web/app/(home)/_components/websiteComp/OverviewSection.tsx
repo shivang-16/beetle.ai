@@ -7,7 +7,7 @@ import { MacbookScroll } from "@/components/ui/macbook-scroll";
 
 const OverviewSection = () => {
   return (
-    <section className="px-5 pt-10">
+    <section className="pt-10">
       <div className="py-14 md:px-6 max-w-[1563px] w-full mx-auto border border-t-0 border-b-0 border-[#333333]">
         <div className="px-4 flex flex-col lg:flex-row gap-3 items-center justify-between">
           <div className="flex-1">

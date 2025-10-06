@@ -6,9 +6,9 @@ import { ArrowUpRight } from "lucide-react";
 
 const heroSection = () => {
   return (
-    <section className="px-5">
+    <section>
       {/* Hero Section */}
-      <div className="max-w-[1563px] w-full mx-auto md:px-6 pt-[15%] md:pt-[4%] pb-6 border border-t-0 border-b-0 border-[#333333]">
+      <div className="max-w-[1563px] w-full mx-auto md:px-6 pt-[15%] md:pt-[4%] pb-6 md:border-l md:border-r border-[#333333]">
         <div className="relative z-10 font-geist-sans py-10 flex md:aspect-[1440/700]">
           {/* <div
             className="absolute inset-0 z-0 mask-radial-[100%_100%] mask-radial-from-[5%] mask-radial-at-right"
@@ -19,6 +19,14 @@ const heroSection = () => {
               backgroundRepeat: "no-repeat",
             }}
           /> */}
+          {/* Image for smaller screens (below lg) */}
+          <img
+            src="/smoke.png"
+            alt="Background smoke effect"
+            className="lg:hidden absolute inset-0 z-0 h-full w-full object-cover mask-radial-[100%_100%] mask-radial-from-[5%] mask-radial-at-right"
+          />
+          
+          {/* Video for larger screens (lg and above) */}
           <video
             className="hidden lg:block absolute inset-0 z-0 h-full w-full object-cover mask-radial-[100%_100%] mask-radial-from-[5%] mask-radial-at-right"
             autoPlay
