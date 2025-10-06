@@ -53,7 +53,7 @@ export const getUserInstallations = async (req: Request, res: Response, next: Ne
 
 export const getUserRepositories = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { orgSlug } = req.query;
+      const { orgSlug, search } = req.query;
       
       // Find all installations for the user
       let installations;
@@ -65,7 +65,7 @@ export const getUserRepositories = async (req: Request, res: Response, next: Nex
         installations = await Github_Installation.find({
           userId: req.user._id,
           'account.login': { $regex: new RegExp(`^${orgSlug}$`, 'i') }
-        }).sort({ installedAt: -1 });
+        }).sort({ installedAt: -1 });   
       }
   
       if (!installations || installations.length === 0) {
@@ -76,10 +76,21 @@ export const getUserRepositories = async (req: Request, res: Response, next: Nex
       const allRepositories: any[] = [];
   
       for (const installation of installations) {
-        // Get repositories for this installation
-        const repositories = await Github_Repository.find({
+        // Build query for repositories with optional search filtering
+        const repoQuery: any = {
           github_installationId: installation._id
-        });
+        };
+        
+        // Add search filter if search query is provided
+        if (search && typeof search === 'string' && search.trim()) {
+          repoQuery.$or = [
+            { name: { $regex: search.trim(), $options: 'i' } },
+            { fullName: { $regex: search.trim(), $options: 'i' } }
+          ];
+        }
+        
+        // Get repositories for this installation with optional search filter
+        const repositories = await Github_Repository.find(repoQuery);
         
         allRepositories.push(...repositories);
       }

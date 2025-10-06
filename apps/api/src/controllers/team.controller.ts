@@ -54,7 +54,7 @@ export const getOrCreateCurrentOrgTeam = async (req: Request, res: Response, nex
 
 export const getTeamRepositories = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { orgSlug } = req.query;
+    const { orgSlug, search } = req.query;
   
     // Use team ID from header context (set by middleware) or fallback to params
     const teamId = req.team?.id || req.params.teamId;
@@ -77,6 +77,25 @@ export const getTeamRepositories = async (req: Request, res: Response, next: Nex
     if (orgSlug && orgSlug !== 'undefined' && orgSlug !== 'all' && typeof orgSlug === 'string') {
       console.log("orgSlug", orgSlug)
       query['owner.login'] = { $regex: new RegExp(`^${orgSlug}$`, 'i') };
+    }
+
+    // Add search filter if search query is provided
+    if (search && typeof search === 'string' && search.trim()) {
+      const searchConditions = [
+        { name: { $regex: search.trim(), $options: 'i' } },
+        { fullName: { $regex: search.trim(), $options: 'i' } }
+      ];
+      
+      // If query already has $or conditions, combine them
+      if (query.$or) {
+        query.$and = [
+          { $or: query.$or },
+          { $or: searchConditions }
+        ];
+        delete query.$or;
+      } else {
+        query.$or = searchConditions;
+      }
     }
 
     // Find repositories based on the query
