@@ -23,20 +23,48 @@ export const getUser = async (req: Request, res: Response, next: NextFunction) =
     }
 }
 
+export const getUserInstallations = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        // Find all installations for the user
+        const installations = await Github_Installation.find({userId: req.user._id}).sort({ installedAt: -1 });
+
+        if (!installations || installations.length === 0) {
+            return next(new CustomError('No installations found', 404));
+        }
+
+        // Extract account information
+        const accounts = installations.map(installation => ({
+            id: installation._id,
+            login: installation.account.login,
+            type: installation.account.type || 'Organization',
+            avatarUrl: installation.account.avatarUrl || null
+        }));
+
+        res.status(200).json({
+            success: true,
+            data: accounts
+        });
+        
+    } catch (error) {
+        console.error('Error getting user installations:', error);
+        next(new CustomError('Failed to get user installations', 500));
+    }
+}
+
 export const getUserRepositories = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { account } = req.query;
+      const { orgSlug } = req.query;
       
       // Find all installations for the user
       let installations;
-      if (account === 'all' || !account) {
+      if (!orgSlug || orgSlug ==='undefined' || orgSlug === 'all') {
         // Get all installations for the user
         installations = await Github_Installation.find({userId: req.user._id}).sort({ installedAt: -1 });
       } else {
         // Get specific installation by account name
         installations = await Github_Installation.find({
           userId: req.user._id,
-          'account.login': account
+          'account.login': { $regex: new RegExp(`^${orgSlug}$`, 'i') }
         }).sort({ installedAt: -1 });
       }
   
@@ -44,27 +72,21 @@ export const getUserRepositories = async (req: Request, res: Response, next: Nex
         return next(new CustomError('No installations found', 404));
       }
   
-      // Group repositories by account name
-      const repositoriesByAccount: Record<string, any[]> = {};
+      // Collect all repositories in a flat array
+      const allRepositories: any[] = [];
   
       for (const installation of installations) {
-        const accountName = installation.account.login;
-        
         // Get repositories for this installation
         const repositories = await Github_Repository.find({
           github_installationId: installation._id
         });
-  
-        if (!repositoriesByAccount[accountName]) {
-          repositoriesByAccount[accountName] = [];
-        }
         
-        repositoriesByAccount[accountName].push(...repositories);
+        allRepositories.push(...repositories);
       }
   
       res.status(200).json({
         success: true,
-        data: repositoriesByAccount
+        data: allRepositories
       });
       
     } catch (error) {

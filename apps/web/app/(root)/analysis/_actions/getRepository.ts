@@ -7,12 +7,13 @@ import { logger } from "@/lib/logger";
 export const getRepository = async (
   query: string,
   scope: "user" | "team" = "team",
-  teamIdFromClient?: string
+  teamIdFromClient?: string,
+  orgSlug?: string
 ) => {
   try {
     if (scope === "user") {
       const userRes = await apiGet(
-        `/api/user/repositories?search=${query}`,
+        `/api/user/repositories?orgSlug=${orgSlug}&search=${query}`,
         {
           includeTeamId: false,
           cache: "force-cache",
@@ -20,18 +21,13 @@ export const getRepository = async (
         }
       );
 
-      const grouped: { success: boolean; data: Record<string, GithubRepository[]> } =
-        await userRes.json();
-
-      const flat: GithubRepository[] = Object.values(grouped.data || {}).flat();
-      return { success: true, data: flat };
+      const data: { success: boolean; data: GithubRepository[] } = await userRes.json();
+      return data;
     }
 
     // Team scope - now the backend will get teamId from headers automatically
-
-
     const repoRes = await apiGet(
-      `/api/team/repositories?search=${query}`,
+      `/api/team/repositories?orgSlug=${orgSlug}&search=${query}`,
       {
         cache: "force-cache",
         next: { tags: ["repository_list"] },

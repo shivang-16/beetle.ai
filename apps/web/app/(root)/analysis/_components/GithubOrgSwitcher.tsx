@@ -4,51 +4,46 @@ import React, { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ChevronsUpDown } from "lucide-react";
-import { getMyTeams, getUser } from "@/_actions/user-actions";
+import { getUserInstallations } from "@/_actions/user-actions";
 
-const TeamSwitcher = () => {
+const GithubOrgSwitcher = () => {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  type TeamItem = { _id: string; name: string; role: string };
-  type DbUser = { username?: string; firstName?: string } | undefined;
-  const [dbUser, setDbUser] = useState<DbUser>();
-  const [teams, setTeams] = useState<TeamItem[]>([]);
+  type InstallationItem = { id: string; login: string; type: string; avatar_url?: string };
+  const [installations, setInstallations] = useState<InstallationItem[]>([]);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
     const load = async () => {
-      const user = await getUser();
-      setDbUser(user);
-
-      const teams = await getMyTeams();
-      setTeams(teams);
+      const installationsData = await getUserInstallations();
+      setInstallations(installationsData);
     };
     load();
   }, []);
 
-  const scope = (searchParams.get("scope") as "user" | "team") || "team";
-  const teamId = searchParams.get("teamId") || undefined;
+  const orgSlug = searchParams.get("orgSlug") || "all";
 
-  const selectedTeam: TeamItem | undefined = useMemo(
-    () => teams.find((t) => t._id === teamId),
-    [teams, teamId]
+  const selectedInstallation: InstallationItem | undefined = useMemo(
+    () => installations.find((inst) => inst.login === orgSlug),
+    [installations, orgSlug]
   );
-  const selectedLabel = scope === "team" && selectedTeam
-    ? selectedTeam.name
-    : (dbUser?.username || dbUser?.firstName || "Select");
+  
+  const selectedLabel = orgSlug === "all" 
+    ? "All" 
+    : selectedInstallation?.login || "Select Organization";
 
-  const sortedTeams = useMemo(() => {
-    if (!teamId) return teams;
-    const arr = [...teams];
-    const idx = arr.findIndex((t) => t._id === teamId);
+  const sortedInstallations = useMemo(() => {
+    if (orgSlug === "all") return installations;
+    const arr = [...installations];
+    const idx = arr.findIndex((inst) => inst.login === orgSlug);
     if (idx > 0) {
-      const sel = arr[idx] as TeamItem;
+      const sel = arr[idx] as InstallationItem;
       arr.splice(idx, 1);
       arr.unshift(sel);
     }
     return arr;
-  }, [teams, teamId]);
+  }, [installations, orgSlug]);
 
   const replaceParams = (next: Record<string, string | undefined>) => {
     const params = new URLSearchParams(searchParams as any);
@@ -70,24 +65,24 @@ const TeamSwitcher = () => {
         {open && (
         <div className="absolute right-0 mt-2 w-56 max-h-64 overflow-y-auto bg-popover border rounded-md shadow-md z-50">
           <button
-            key="__user__"
+            key="__all__"
             onClick={() => {
-              replaceParams({ scope: "user", teamId: undefined });
+              replaceParams({ orgSlug: "all" });
               setOpen(false);
             }}
             className="w-full text-left px-3 py-2 hover:bg-accent text-sm">
-            {dbUser?.username || dbUser?.firstName || "My repositories"}
+            All
           </button>
           <div className="border-t my-1" />
-          {sortedTeams?.map((t) => (
+          {sortedInstallations?.map((installation) => (
             <button
-              key={t._id}
+              key={installation.id}
               onClick={() => {
-                replaceParams({ scope: "team", teamId: t._id });
+                replaceParams({ orgSlug: installation.login });
                 setOpen(false);
               }}
               className="w-full text-left px-3 py-2 hover:bg-accent text-sm">
-              {t.name}
+              {installation.login}
             </button>
           ))}
         </div>
@@ -97,6 +92,6 @@ const TeamSwitcher = () => {
   );
 };
 
-export default TeamSwitcher;
+export default GithubOrgSwitcher;
 
 

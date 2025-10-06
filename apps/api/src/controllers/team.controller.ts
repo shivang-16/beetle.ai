@@ -54,6 +54,7 @@ export const getOrCreateCurrentOrgTeam = async (req: Request, res: Response, nex
 
 export const getTeamRepositories = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const { orgSlug } = req.query;
   
     // Use team ID from header context (set by middleware) or fallback to params
     const teamId = req.team?.id || req.params.teamId;
@@ -69,8 +70,17 @@ export const getTeamRepositories = async (req: Request, res: Response, next: Nex
     const member = ensureMember(team, req.user._id);
     if (!member) return next(new CustomError('Forbidden: not a team member', 403));
 
-    // Find repositories where the teamId exists in the teams array
-    const repos = await Github_Repository.find({ teams: teamId })
+    // Build query for repositories where the teamId exists in the teams array
+    let query: any = { teams: teamId };
+    
+    // If orgSlug is provided and not 'all', filter by organization
+    if (orgSlug && orgSlug !== 'undefined' && orgSlug !== 'all' && typeof orgSlug === 'string') {
+      console.log("orgSlug", orgSlug)
+      query['owner.login'] = { $regex: new RegExp(`^${orgSlug}$`, 'i') };
+    }
+
+    // Find repositories based on the query
+    const repos = await Github_Repository.find(query)
       .sort({ fullName: 1 })
       .lean();
 

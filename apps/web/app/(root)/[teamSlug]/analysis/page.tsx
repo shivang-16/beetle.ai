@@ -3,9 +3,9 @@ import SearchRepositories from "../../analysis/_components/SearchRepositories";
 import RepositoryList from "../../analysis/_components/RepositoryList";
 import RepositoryListSkeleton from "../../analysis/_components/RepositoryListSkeleton";
 import SyncRepositoriesButton from "../../analysis/_components/SyncRepositoriesButton";
-import TeamSwitcher from "../../analysis/_components/TeamSwitcher";
 import { AddRepositoriesModal } from "./_components/add-repositories-modal";
 import { logger } from "@/lib/logger";
+import GithubOrgSwitcher from "../../analysis/_components/GithubOrgSwitcher";
 
 type RepoScope = "user" | "team";
 
@@ -17,12 +17,14 @@ interface PageProps {
     query?: string;
     scope?: RepoScope;
     teamId?: string;
+    orgSlug?: string;
   }>;
 }
 
 const Page = async (props: PageProps) => {
   const params = await props.params;
   const searchParams = await props.searchParams;
+  const orgSlug = searchParams?.orgSlug || "all"
   const query = searchParams?.query || "";
   const scope = (searchParams?.scope as RepoScope) || "team"; // Default to team scope for team routes
   const teamId = searchParams?.teamId;
@@ -40,7 +42,7 @@ const Page = async (props: PageProps) => {
           </div>
 
           <div className="flex-1 flex justify-end gap-3">
-            <TeamSwitcher />
+            {/* <GithubOrgSwitcher /> */}
             <SearchRepositories />
 
             <SyncRepositoriesButton />
@@ -50,7 +52,7 @@ const Page = async (props: PageProps) => {
         </div>
 
         <Suspense fallback={<RepositoryListSkeleton />}>
-          <RepositoryList query={query} scope={scope} teamId={teamId} />
+          <RepositoryList query={query} scope={scope} teamId={teamId} orgSlug={orgSlug} />
         </Suspense>
       </div>
     </div>

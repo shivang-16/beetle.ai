@@ -11,15 +11,17 @@ const RepositoryList = async ({
   query,
   scope,
   teamId,
+  orgSlug
 }: {
   query: string;
   scope: RepoScope;
   teamId?: string;
+  orgSlug?: string;
 }) => {
   let data: GithubRepository[] | undefined;
 
   try {
-    const res = await getRepository(query, scope, teamId);
+    const res = await getRepository(query, scope, teamId, orgSlug);
     data = (res?.data || []).reverse();
   } catch (error) {
     logger.error("Failed to fetch repositories in RepositoryList", { 
