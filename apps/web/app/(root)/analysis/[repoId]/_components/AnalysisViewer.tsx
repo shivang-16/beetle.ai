@@ -3,7 +3,7 @@
 import React from "react";
 import { _config } from "@/lib/_config";
 import RenderLogs from "./RenderLogs";
-import GithubIssuesSlider from "./GithubIssuesSlider";
+
 import { RepoTree } from "@/types/types";
 import { useParams } from "next/navigation";
 
@@ -22,7 +22,7 @@ const AnalysisViewer = ({
 
   return (
     <div className="h-screen w-full flex relative overflow-hidden">
-      <div className="flex-1 h-full overflow-hidden">
+      <div className="flex-1 h-full overflow-hidden ">
         <RenderLogs
           repoId={repoId}
           analysisId={analysisId || undefined}
@@ -33,12 +33,7 @@ const AnalysisViewer = ({
       </div>
       
       {/* GitHub Issues Slider positioned in top-right */}
-      <div className="absolute top-4 right-4 z-10">
-        <GithubIssuesSlider 
-          repoId={repoId} 
-          analysisId={analysisId || undefined} 
-        />
-      </div>
+  
     </div>
   );
 };

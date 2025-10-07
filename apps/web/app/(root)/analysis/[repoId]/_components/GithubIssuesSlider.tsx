@@ -301,10 +301,14 @@ const GithubIssuesSlider: React.FC<GithubIssuesSliderProps> = ({
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2 mt-12">
+
+           <Button 
+           variant="outline"
+            className="cursor-pointer"
+          >
           <GitBranch className="h-4 w-4" />
           GitHub Issues
-        </Button>
+          </Button>
       </SheetTrigger>
       <SheetContent
         side="right"
