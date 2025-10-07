@@ -2,7 +2,8 @@ import { NextFunction, Request, Response } from "express";
 import { getAuth, clerkClient } from '@clerk/express';
 import User from "../models/user.model.js";
 import Team from "../models/team.model.js";
-import { createUser } from "../queries/user.queries.js";
+import SubscriptionPlan from "../models/subscription_plan.model.js";
+import { createUser, CreateUserData } from "../queries/user.queries.js";
 import mongoose from "mongoose";
 import { logger } from "../utils/logger.js";
 
@@ -13,6 +14,20 @@ declare global {
       isServerRequest?: boolean;
       org?: { id: string; role?: string; slug?: string };
       team?: { id: string; role?: string; slug?: string };
+      sub?: {
+        planId: string;
+        planName: 'free' | 'lite' | 'advance' | 'custom';
+        status: 'active' | 'inactive' | 'cancelled' | 'free';
+        features: {
+          maxProjects: number;
+          maxTeams: number;
+          maxTeamMembers: number;
+          maxAnalysisPerMonth: number;
+          prioritySupport: boolean;
+        };
+        startDate?: Date;
+        endDate?: Date;
+      };
     }
   }
 }
@@ -33,19 +48,103 @@ export const checkAuth = async (req: Request, res: Response, next: NextFunction)
     let user = await User.findById(userId);
     if (!user) {
       logger.warn(`User not found in DB for clerkId: ${userId}. Creating new user.`);
-      const fieldsForDB = {
-        _id: clerkUser.id,
-        email: clerkUser.primaryEmailAddress?.emailAddress,
-        firstName: clerkUser.firstName || clerkUser.username || clerkUser.primaryEmailAddress?.emailAddress.split("@")[0],
-        lastName: clerkUser.lastName,
-        username: clerkUser.username || clerkUser.externalAccounts?.[0]?.username || clerkUser.id.split("_")[1],
-        avatarUrl: clerkUser.imageUrl,
+
+      // Fetch the free subscription plan
+      const freePlan = await SubscriptionPlan.findOne({ name: 'free', isActive: true });
+      if (!freePlan) {
+        logger.error('Free subscription plan not found in database');
+        return res.status(500).json({ message: 'System configuration error: Free plan not available' });
       }
 
-      user = await createUser(fieldsForDB);
-      logger.info(`New user created with username: ${user.username}`);
+      const userData: CreateUserData = {
+        _id: clerkUser.id,
+        email: clerkUser.primaryEmailAddress?.emailAddress,
+        firstName: clerkUser.firstName || clerkUser.username || clerkUser.primaryEmailAddress?.emailAddress.split("@")[0] || 'User',
+        lastName: clerkUser.lastName || "",
+        username: clerkUser.username || clerkUser.externalAccounts?.[0]?.username || clerkUser.id.split("_")[1],
+        avatarUrl: clerkUser.imageUrl,
+        subscriptionPlanId: freePlan._id,
+        subscriptionStatus: 'free' as const,
+        subscriptionStartDate: new Date(),
+        // subscriptionEndDate is not set for free plan (unlimited)
+      };
+
+      user = await createUser(userData);
+      logger.info(`New user created with username: ${user.username} and free subscription plan`);
     } else {
       logger.info(`User found in DB: ${user.username}`);
+      
+      // Check if existing user has subscription data, if not assign free plan
+      if (!user.subscriptionPlanId || !user.subscriptionStatus) {
+        logger.warn(`User ${user.username} missing subscription data. Assigning free plan.`);
+        
+        const freePlan = await SubscriptionPlan.findOne({ name: 'free', isActive: true });
+        if (!freePlan) {
+          logger.error('Free subscription plan not found in database');
+          return res.status(500).json({ message: 'System configuration error: Free plan not available' });
+        }
+
+        // Update user with free subscription plan
+        user.subscriptionPlanId = freePlan._id as any;
+        user.subscriptionStatus = 'free';
+        user.subscriptionStartDate = new Date();
+        // subscriptionEndDate remains undefined for free plan
+        
+        await user.save();
+        logger.info(`Updated user ${user.username} with free subscription plan`);
+      } else {
+        logger.debug("Attaching subscription data", { 
+          subscriptionPlanId: user.subscriptionPlanId?.toString(),
+          subscriptionStatus: user.subscriptionStatus 
+        });
+        
+        try {
+          // Handle case where subscriptionPlanId might be invalid or 'free' string
+          let subscriptionPlan;
+          
+          if (user.subscriptionPlanId) {
+            subscriptionPlan = await SubscriptionPlan.findById(new mongoose.Types.ObjectId(user.subscriptionPlanId.toString()));
+          }
+          
+          // If no valid subscription plan found, assign free plan
+          if (!subscriptionPlan) {
+            logger.warn(`Invalid subscription plan ID for user ${user.username}. Assigning free plan.`);
+            subscriptionPlan = await SubscriptionPlan.findOne({ name: 'free', isActive: true });
+            
+            if (subscriptionPlan) {
+              // Update user with correct free plan ObjectId
+              user.subscriptionPlanId = subscriptionPlan._id as any;
+              user.subscriptionStatus = 'free';
+              user.subscriptionStartDate = new Date();
+              await user.save();
+              logger.info(`Updated user ${user.username} with correct free subscription plan ObjectId`);
+            }
+          }
+          
+          if (subscriptionPlan) {
+            req.sub = {
+              planId: subscriptionPlan._id,
+              planName: subscriptionPlan.name,
+              status: user.subscriptionStatus || 'free',
+              features: {
+                maxProjects: subscriptionPlan.features.maxProjects,
+                maxTeams: subscriptionPlan.features.maxTeams,
+                maxTeamMembers: subscriptionPlan.features.maxTeamMembers,
+                maxAnalysisPerMonth: subscriptionPlan.features.maxAnalysisPerMonth,
+                prioritySupport: subscriptionPlan.features.prioritySupport,
+              },
+              startDate: user.subscriptionStartDate,
+              endDate: user.subscriptionEndDate,
+            };
+            logger.debug(`Subscription data attached: ${subscriptionPlan.name} plan`);
+          } else {
+            logger.error('No subscription plan found, including free plan');
+          }
+        } catch (error) {
+          logger.error(`Error fetching subscription plan: ${error}`);
+          // Continue without subscription data if there's an error
+        }
+      }
     }
  
     req.user = user; // attach full user object for downstream handlers
@@ -117,6 +216,8 @@ export const checkAuth = async (req: Request, res: Response, next: NextFunction)
         logger.warn(`Team ${teamIdFromHeader} not found`);
       }
     }
+
+ 
     logger.info(`User authenticated successfully: ${user.email}`);
     next();
   } catch (err) {
@@ -151,46 +252,4 @@ export const checkSandboxAuth = async (req: Request, res: Response, next: NextFu
   }
 }
 
-/**
- * Middleware to check if user has required role in the team context
- * Should be used after checkAuth middleware
- */
-export const checkTeamRole = (requiredRole: 'admin' | 'member' = 'admin') => {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    logger.debug(`checkTeamRole middleware execution started for role: ${requiredRole}`);
-    
-    try {
-      // Ensure user is authenticated
-      if (!req.user) {
-        logger.error("checkTeamRole: User not found in request. Ensure checkAuth middleware runs first.");
-        return res.status(401).json({ message: 'Authentication required' });
-      }
 
-      // Get team context from request (set by checkAuth middleware)
-      const teamId = req.team?.id;
-      if (!teamId) {
-        logger.error("checkTeamRole: Team context required but not found in request");
-        return res.status(400).json({ message: 'Team context required' });
-      }
-
-      // Get user's role in the team
-      const userRole = req.team?.role;
-      if (!userRole) {
-        logger.error(`checkTeamRole: User ${req.user._id} has no role in team ${teamId}`);
-        return res.status(403).json({ message: 'Access denied: No role in team' });
-      }
-
-      // Check if user has required role
-      if (requiredRole === 'admin' && userRole !== 'admin') {
-        logger.warn(`checkTeamRole: User ${req.user._id} attempted admin action with role ${userRole} in team ${teamId}`);
-        return res.status(403).json({ message: 'Access denied: Admin role required' });
-      }
-
-      logger.debug(`checkTeamRole: User ${req.user._id} has ${userRole} role in team ${teamId} - access granted`);
-      next();
-    } catch (err) {
-      logger.error(`checkTeamRole error: ${err}`);
-      res.status(500).json({ message: 'Internal server error during role check' });
-    }
-  };
-};

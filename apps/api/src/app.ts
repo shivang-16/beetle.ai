@@ -11,6 +11,7 @@ import UserRoutes from "./routes/user.routes.js";
 import AnalysisRoutes from "./routes/analysis.routes.js";
 import TeamRoutes from "./routes/team.routes.js";
 import SandboxRoutes from "./routes/sandbox.routes.js";
+import SubscriptionRoutes from "./routes/subscription.routes.js";
 import { config } from "dotenv";
 import { logger, winstonLogger } from "./utils/logger.js";
 
@@ -77,6 +78,7 @@ export function createApp(): Application {
   app.use("/api/analysis", AnalysisRoutes);
   app.use("/api/team", TeamRoutes);
   app.use("/api/sandbox", SandboxRoutes);
+  app.use("/api/subscription", SubscriptionRoutes);
 
   // 404 handler
   app.use((req: Request, res: Response) => {

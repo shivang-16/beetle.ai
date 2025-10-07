@@ -1,7 +1,21 @@
 import { Github_Installation } from "../models/github_installations.model.js";
 import User from "../models/user.model.js";
+import mongoose from "mongoose";
 
-export const createUser = async (data: any) => {
+export interface CreateUserData {
+  _id: string;
+  email?: string;
+  firstName: string;
+  lastName?: string;
+  username: string;
+  avatarUrl?: string;
+  subscriptionPlanId?: mongoose.Schema.Types.ObjectId | string;
+  subscriptionStatus?: 'active' | 'inactive' | 'cancelled' | 'free';
+  subscriptionStartDate?: Date;
+  subscriptionEndDate?: Date;
+}
+
+export const createUser = async (data: CreateUserData) => {
     try {
         const user = await User.create(data);
 
