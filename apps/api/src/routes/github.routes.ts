@@ -1,35 +1,37 @@
 import express, { Router } from "express";
-import { checkAuth } from "../middlewares/checkAuth.js";
+import { baseAuth, checkAuth, teamAuth } from "../middlewares/checkAuth.js";
 import { getRepoTree, getRepoInfo, openIssue, openPullRequest, getBranches, saveGithubIssue, savePatch, getGithubIssuesWithPullRequests, getIssueStates, syncRepositories } from "../controllers/github.controller.js";
 import { getAllUserInstallations } from "../queries/github.queries.js";
 import { updateRepoSettings, getRepoSettings } from "../controllers/repository.controller.js";
 
 const router: Router = express.Router();
 
+router.use(baseAuth)
+
 // Public routes (no auth required)
-router.get("/tree", checkAuth, getRepoTree);
-router.get("/branches", checkAuth, getBranches);
-router.post("/info", checkAuth, getRepoInfo);
-router.get("/issues", checkAuth, getGithubIssuesWithPullRequests);
-router.post("/issue-states", checkAuth, getIssueStates);
+router.get("/tree", teamAuth, getRepoTree);
+router.get("/branches", teamAuth, getBranches);
+router.post("/info", getRepoInfo);
+router.get("/issues", getGithubIssuesWithPullRequests);
+router.post("/issue-states", getIssueStates);
 
 // Protected routes (auth required)
-router.post("/issue", checkAuth, openIssue);
-router.post("/pull-request", checkAuth, openPullRequest);
+router.post("/issue", openIssue);
+router.post("/pull-request", openPullRequest);
 
 // Save routes for streaming (auth required)
-router.post("/save-issue", checkAuth, saveGithubIssue);
-router.post("/save-patch", checkAuth, savePatch);
+router.post("/save-issue", saveGithubIssue);
+router.post("/save-patch", savePatch);
 
 // Repository settings routes (auth required)
-router.get("/repository/:repoId/settings", checkAuth, getRepoSettings);
-router.put("/repository/:repoId/settings", checkAuth, updateRepoSettings);
+router.get("/repository/:repoId/settings", getRepoSettings);
+router.put("/repository/:repoId/settings", updateRepoSettings);
 
 // Sync repositories route (auth required) - syncs all user installations
-router.post("/sync", checkAuth, syncRepositories);
+router.post("/sync", syncRepositories);
 
 // Debug endpoint to check installations
-router.get("/installations", checkAuth, async (req, res) => {
+router.get("/installations", async (req, res) => {
   try {
     const userId = req.user?._id;
     if (!userId) {
