@@ -1,3 +1,24 @@
+/**
+ * Modular Authentication Middleware System
+ * 
+ * This file provides a modular authentication system with the following middleware functions:
+ * 
+ * 1. baseAuth - Core user authentication via Clerk, creates user if not exists
+ * 2. subscriptionAuth - Handles subscription plan data (requires baseAuth first)
+ * 3. teamAuth - Handles team/organization context (requires baseAuth first)
+ * 
+ * Convenience combinations:
+ * - checkAuth - baseAuth + subscriptionAuth + teamAuth (full auth)
+ * - authWithSubscription - baseAuth + subscriptionAuth
+ * - authWithTeam - baseAuth + teamAuth
+ * 
+ * Usage examples:
+ * - For routes that only need user auth: use baseAuth
+ * - For routes that need user + subscription: use authWithSubscription
+ * - For routes that need user + team context: use authWithTeam
+ * - For routes that need everything: use checkAuth
+ */
+
 import { NextFunction, Request, Response } from "express";
 import { getAuth, clerkClient } from '@clerk/express';
 import User from "../models/user.model.js";
@@ -32,11 +53,15 @@ declare global {
   }
 }
 
-export const checkAuth = async (req: Request, res: Response, next: NextFunction) => {
-  logger.info("checkAuth middleware execution started");
+/**
+ * Base authentication middleware that handles user authentication via Clerk
+ * and ensures user exists in database. Creates new user if not found.
+ */
+export const baseAuth = async (req: Request, res: Response, next: NextFunction) => {
+  logger.info("baseAuth middleware execution started");
   try {
-    const { userId, orgId, orgRole, orgSlug } = getAuth(req);
-    logger.debug("Auth context extracted", { userId, orgId, orgRole, orgSlug });
+    const { userId } = getAuth(req);
+    logger.debug("Auth context extracted", { userId });
 
     if (!userId) {
       logger.error("Authentication failed: No userId found in request.");
@@ -73,87 +98,130 @@ export const checkAuth = async (req: Request, res: Response, next: NextFunction)
       logger.info(`New user created with username: ${user.username} and free subscription plan`);
     } else {
       logger.info(`User found in DB: ${user.username}`);
-      
-      // Check if existing user has subscription data, if not assign free plan
-      if (!user.subscriptionPlanId || !user.subscriptionStatus) {
-        logger.warn(`User ${user.username} missing subscription data. Assigning free plan.`);
-        
-        const freePlan = await SubscriptionPlan.findOne({ name: 'free', isActive: true });
-        if (!freePlan) {
-          logger.error('Free subscription plan not found in database');
-          return res.status(500).json({ message: 'System configuration error: Free plan not available' });
-        }
+    }
 
-        // Update user with free subscription plan
-        user.subscriptionPlanId = freePlan._id as any;
-        user.subscriptionStatus = 'free';
-        user.subscriptionStartDate = new Date();
-        // subscriptionEndDate remains undefined for free plan
+    req.user = user; // attach full user object for downstream handlers
+    logger.info(`User authenticated successfully: ${user.email}`);
+    next();
+  } catch (err) {
+    logger.error(`Base auth error: ${err}`);
+    res.status(401).json({ message: 'Unauthorized' });
+  }
+};
+
+/**
+ * Subscription authentication middleware that handles subscription plan data.
+ * Requires baseAuth to be run first to ensure req.user is available.
+ */
+export const subscriptionAuth = async (req: Request, res: Response, next: NextFunction) => {
+  logger.info("subscriptionAuth middleware execution started");
+  try {
+    const user = req.user;
+    if (!user) {
+      logger.error("subscriptionAuth: No user found in request. baseAuth must be run first.");
+      return res.status(500).json({ message: 'Internal error: User context missing' });
+    }
+
+    // Check if existing user has subscription data, if not assign free plan
+    if (!user.subscriptionPlanId || !user.subscriptionStatus) {
+      logger.warn(`User ${user.username} missing subscription data. Assigning free plan.`);
+      
+      const freePlan = await SubscriptionPlan.findOne({ name: 'free', isActive: true });
+      if (!freePlan) {
+        logger.error('Free subscription plan not found in database');
+        return res.status(500).json({ message: 'System configuration error: Free plan not available' });
+      }
+
+      // Update user with free subscription plan
+      user.subscriptionPlanId = freePlan._id as any;
+      user.subscriptionStatus = 'free';
+      user.subscriptionStartDate = new Date();
+      // subscriptionEndDate remains undefined for free plan
+      
+      await user.save();
+      logger.info(`Updated user ${user.username} with free subscription plan`);
+    } else {
+      logger.debug("Attaching subscription data", { 
+        subscriptionPlanId: user.subscriptionPlanId?.toString(),
+        subscriptionStatus: user.subscriptionStatus 
+      });
+      
+      try {
+        // Handle case where subscriptionPlanId might be invalid or 'free' string
+        let subscriptionPlan;
         
-        await user.save();
-        logger.info(`Updated user ${user.username} with free subscription plan`);
-      } else {
-        logger.debug("Attaching subscription data", { 
-          subscriptionPlanId: user.subscriptionPlanId?.toString(),
-          subscriptionStatus: user.subscriptionStatus 
-        });
+        if (user.subscriptionPlanId) {
+          subscriptionPlan = await SubscriptionPlan.findById(new mongoose.Types.ObjectId(user.subscriptionPlanId.toString()));
+        }
         
-        try {
-          // Handle case where subscriptionPlanId might be invalid or 'free' string
-          let subscriptionPlan;
-          
-          if (user.subscriptionPlanId) {
-            subscriptionPlan = await SubscriptionPlan.findById(new mongoose.Types.ObjectId(user.subscriptionPlanId.toString()));
-          }
-          
-          // If no valid subscription plan found, assign free plan
-          if (!subscriptionPlan) {
-            logger.warn(`Invalid subscription plan ID for user ${user.username}. Assigning free plan.`);
-            subscriptionPlan = await SubscriptionPlan.findOne({ name: 'free', isActive: true });
-            
-            if (subscriptionPlan) {
-              // Update user with correct free plan ObjectId
-              user.subscriptionPlanId = subscriptionPlan._id as any;
-              user.subscriptionStatus = 'free';
-              user.subscriptionStartDate = new Date();
-              await user.save();
-              logger.info(`Updated user ${user.username} with correct free subscription plan ObjectId`);
-            }
-          }
+        // If no valid subscription plan found, assign free plan
+        if (!subscriptionPlan) {
+          logger.warn(`Invalid subscription plan ID for user ${user.username}. Assigning free plan.`);
+          subscriptionPlan = await SubscriptionPlan.findOne({ name: 'free', isActive: true });
           
           if (subscriptionPlan) {
-            req.sub = {
-              planId: subscriptionPlan._id,
-              planName: subscriptionPlan.name,
-              status: user.subscriptionStatus || 'free',
-              features: {
-                maxProjects: subscriptionPlan.features.maxProjects,
-                maxTeams: subscriptionPlan.features.maxTeams,
-                maxTeamMembers: subscriptionPlan.features.maxTeamMembers,
-                maxAnalysisPerMonth: subscriptionPlan.features.maxAnalysisPerMonth,
-                prioritySupport: subscriptionPlan.features.prioritySupport,
-              },
-              startDate: user.subscriptionStartDate,
-              endDate: user.subscriptionEndDate,
-            };
-            logger.debug(`Subscription data attached: ${subscriptionPlan.name} plan`);
-          } else {
-            logger.error('No subscription plan found, including free plan');
+            // Update user with correct free plan ObjectId
+            user.subscriptionPlanId = subscriptionPlan._id as any;
+            user.subscriptionStatus = 'free';
+            user.subscriptionStartDate = new Date();
+            await user.save();
+            logger.info(`Updated user ${user.username} with correct free subscription plan ObjectId`);
           }
-        } catch (error) {
-          logger.error(`Error fetching subscription plan: ${error}`);
-          // Continue without subscription data if there's an error
         }
+        
+        if (subscriptionPlan) {
+          req.sub = {
+            planId: subscriptionPlan._id,
+            planName: subscriptionPlan.name,
+            status: user.subscriptionStatus || 'free',
+            features: {
+              maxProjects: subscriptionPlan.features.maxProjects,
+              maxTeams: subscriptionPlan.features.maxTeams,
+              maxTeamMembers: subscriptionPlan.features.maxTeamMembers,
+              maxAnalysisPerMonth: subscriptionPlan.features.maxAnalysisPerMonth,
+              prioritySupport: subscriptionPlan.features.prioritySupport,
+            },
+            startDate: user.subscriptionStartDate,
+            endDate: user.subscriptionEndDate,
+          };
+          logger.debug(`Subscription data attached: ${subscriptionPlan.name} plan`);
+        } else {
+          logger.error('No subscription plan found, including free plan');
+        }
+      } catch (error) {
+        logger.error(`Error fetching subscription plan: ${error}`);
+        // Continue without subscription data if there's an error
       }
     }
- 
-    req.user = user; // attach full user object for downstream handlers
+
+    logger.info(`Subscription auth completed for user: ${user.email}`);
+    next();
+  } catch (err) {
+    logger.error(`Subscription auth error: ${err}`);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+/**
+ * Team authentication middleware that handles team context and membership.
+ * Requires baseAuth to be run first to ensure req.user is available.
+ * Handles both organization context from Clerk and team context from headers.
+ */
+export const teamAuth = async (req: Request, res: Response, next: NextFunction) => {
+  logger.info("teamAuth middleware execution started");
+  try {
+    const user = req.user;
+    if (!user) {
+      logger.error("teamAuth: No user found in request. baseAuth must be run first.");
+      return res.status(500).json({ message: 'Internal error: User context missing' });
+    }
+
+    const { orgId, orgRole, orgSlug } = getAuth(req);
+    logger.debug("Team auth context extracted", { orgId, orgRole, orgSlug });
 
     // Attach active organization context if present
     if (orgId) {
       req.org = { id: orgId, role: orgRole as string | undefined, slug: orgSlug as string | undefined };
-      // Persist organizationId on user if changed
-
 
       // Ensure Team exists and membership is synced
       let team = await Team.findById(orgId);
@@ -191,6 +259,8 @@ export const checkAuth = async (req: Request, res: Response, next: NextFunction)
           { $push: { teams: { _id: orgId, role } } }
         );
       }
+
+      logger.debug(`Organization context set: ${team.name} (${role})`);
     }
 
     // Handle team context from X-Team-Id header
@@ -217,12 +287,159 @@ export const checkAuth = async (req: Request, res: Response, next: NextFunction)
       }
     }
 
- 
-    logger.info(`User authenticated successfully: ${user.email}`);
+    logger.info(`Team auth completed for user: ${user.email}`);
     next();
   } catch (err) {
-    logger.error(`Auth error: ${err}`);
-    res.status(401).json({ message: 'Unauthorized' });
+    logger.error(`Team auth error: ${err}`);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+/**
+ * Complete authentication middleware that combines all auth layers.
+ * This is equivalent to running baseAuth + subscriptionAuth + teamAuth in sequence.
+ * Use this for routes that need full authentication context.
+ */
+export const checkAuth = async (req: Request, res: Response, next: NextFunction) => {
+  logger.info("checkAuth middleware execution started");
+  
+  try {
+    // Run base authentication first
+    await new Promise<void>((resolve, reject) => {
+      baseAuth(req, res, (err) => {
+        if (err) {
+          reject(err);
+        } else if (res.headersSent) {
+          // If response was already sent (error case), reject
+          reject(new Error('Response already sent'));
+        } else {
+          resolve();
+        }
+      });
+    });
+
+    // Run subscription authentication
+    await new Promise<void>((resolve, reject) => {
+      subscriptionAuth(req, res, (err) => {
+        if (err) {
+          reject(err);
+        } else if (res.headersSent) {
+          reject(new Error('Response already sent'));
+        } else {
+          resolve();
+        }
+      });
+    });
+
+    // Run team authentication
+    await new Promise<void>((resolve, reject) => {
+      teamAuth(req, res, (err) => {
+        if (err) {
+          reject(err);
+        } else if (res.headersSent) {
+          reject(new Error('Response already sent'));
+        } else {
+          resolve();
+        }
+      });
+    });
+
+    logger.info("checkAuth middleware completed successfully");
+    next();
+  } catch (err) {
+    // If response wasn't already sent, send error response
+    if (!res.headersSent) {
+      logger.error(`checkAuth middleware error: ${err}`);
+      res.status(500).json({ message: 'Authentication error' });
+    }
+  }
+};
+
+/**
+ * Convenience middleware that combines baseAuth + subscriptionAuth.
+ * Use this for routes that need user authentication and subscription data but not team context.
+ */
+export const authWithSubscription = async (req: Request, res: Response, next: NextFunction) => {
+  logger.info("authWithSubscription middleware execution started");
+  
+  try {
+    // Run base authentication first
+    await new Promise<void>((resolve, reject) => {
+      baseAuth(req, res, (err) => {
+        if (err) {
+          reject(err);
+        } else if (res.headersSent) {
+          reject(new Error('Response already sent'));
+        } else {
+          resolve();
+        }
+      });
+    });
+
+    // Run subscription authentication
+    await new Promise<void>((resolve, reject) => {
+      subscriptionAuth(req, res, (err) => {
+        if (err) {
+          reject(err);
+        } else if (res.headersSent) {
+          reject(new Error('Response already sent'));
+        } else {
+          resolve();
+        }
+      });
+    });
+
+    logger.info("authWithSubscription middleware completed successfully");
+    next();
+  } catch (err) {
+    if (!res.headersSent) {
+      logger.error(`authWithSubscription middleware error: ${err}`);
+      res.status(500).json({ message: 'Authentication error' });
+    }
+  }
+};
+
+/**
+ * Convenience middleware that combines baseAuth + teamAuth.
+ * Use this for routes that need user authentication and team context but not subscription data.
+ */
+export const authWithTeam = async (req: Request, res: Response, next: NextFunction) => {
+  logger.info("authWithTeam middleware execution started");
+  
+  try {
+    // Run base authentication first
+    await new Promise<void>((resolve, reject) => {
+      baseAuth(req, res, (err) => {
+        if (err) {
+          reject(err);
+        } else if (res.headersSent) {
+          reject(new Error('Response already sent'));
+        } else {
+          resolve();
+        }
+      });
+    });
+
+    // Run team authentication
+    await new Promise<void>((resolve, reject) => {
+      teamAuth(req, res, (err) => {
+        if (err) {
+          reject(err);
+        } else if (res.headersSent) {
+          reject(new Error('Response already sent'));
+        } else {
+          resolve();
+        }
+      });
+    });
+
+    logger.info("authWithTeam middleware completed successfully");
+    next();
+  } catch (err) {
+    if (!res.headersSent) {
+      logger.error(`authWithTeam middleware error: ${err}`);
+      res.status(500).json({ message: 'Authentication error' });
+    }
   }
 };
 
