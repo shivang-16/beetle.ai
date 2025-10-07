@@ -27,7 +27,7 @@ const RepoFileTree = ({ repoTree }: { repoTree: RepoTree }) => {
   return (
     <TreeProvider
       onSelectionChange={(ids) => logger.debug("Tree selection changed", { selectedIds: ids })}
-      className="max-w-56 overflow-y-auto output-scrollbar">
+      className="max-w-56 overflow-y-auto output-scrollbar border-r ">
       <TreeView className="!p-0">
         {repoTree && repoTree.repository && repoTree.repository.repo && (
           <Button

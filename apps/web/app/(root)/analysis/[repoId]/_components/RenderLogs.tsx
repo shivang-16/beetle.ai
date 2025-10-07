@@ -18,6 +18,7 @@ import { RenderLLMSegments } from "./RenderLLMSegments";
 import { RenderToolCall } from "./RenderToolCall";
 import RepoFileTree from "./RepoFileTree";
 import { refreshAnalysisList } from "../_actions/getAnalysiswithId";
+import GithubIssuesSlider from "./GithubIssuesSlider";
 import {
   Accordion,
   AccordionContent,
@@ -304,11 +305,16 @@ const RenderLogs = ({
   }, [logs]);
 
   return (
-    <main className="flex w-full h-full">
+    <main className=" flex w-full h-full">
       <RepoFileTree repoTree={repoTree} />
 
-      <div className="h-full w-full flex flex-col overflow-hidden">
+      <div className="h-full w-full flex flex-col overflow-hidden ">
+            
         <div className="px-4 py-3 flex justify-end-safe gap-3 flex-shrink-0">
+          <GithubIssuesSlider 
+            repoId={repoId} 
+            analysisId={analysisId || undefined} 
+          />
           <Button 
             onClick={() => analyzeRepo()} 
             className="cursor-pointer"
