@@ -13,7 +13,10 @@ export interface IUser extends Document {
     role: 'admin' | 'member';
   }>;
   password?: string;
-  github_installations: Schema.Types.ObjectId[];
+  subscriptionPlanId: mongoose.Schema.Types.ObjectId;
+  subscriptionStatus?: 'active' | 'inactive' | 'cancelled' | 'free';
+  subscriptionStartDate?: Date;
+  subscriptionEndDate?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -63,6 +66,23 @@ const userSchema = new Schema<IUser>(
     },
     password: {
       type: String,
+    },
+    subscriptionPlanId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SubscriptionPlan',
+      required: true,
+      index: true,
+    },
+    subscriptionStatus: {
+      type: String,
+      enum: ['active', 'inactive', 'cancelled', 'free'],
+      default: 'free',
+    },
+    subscriptionStartDate: {
+      type: Date,
+    },
+    subscriptionEndDate: {
+      type: Date,
     }
   },
   {
