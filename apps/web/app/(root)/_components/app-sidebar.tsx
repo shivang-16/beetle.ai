@@ -164,7 +164,7 @@ const AppSidebar = () => {
                   elements: {
                     organizationSwitcherTrigger: cn(
                       "cursor-pointer",
-                      open ? "p-1" : "p-0 w-7 h-7 overflow-hidden"
+                      open ? "p-1 " : "ml-1 w-7 h-7 overflow-hidden"
                     ),
                   },
                 }}

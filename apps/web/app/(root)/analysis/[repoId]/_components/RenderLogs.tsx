@@ -186,7 +186,7 @@ const RenderLogs = ({
   useEffect(() => {
     const loadFromDb = async () => {
       try {
-        setIsLoading(true);
+        // setIsLoading(true);
         setLogs([]);
 
         if (!analysisId) {
@@ -205,7 +205,7 @@ const RenderLogs = ({
             method: "GET",
             credentials: "include",
             headers: {
-              "Authorization": `Bearer ${token}`  
+              "Authorization": `Bearer ${token}`
             }
           }
         );
@@ -352,7 +352,7 @@ const RenderLogs = ({
 
             {/* Show logs when they exist */}
             {processedLogs.length > 0 && (
-              <div className="w-full flex flex-col items-start gap-3.5">
+              <div className="w-full flex flex-col items-start gap-3.5 ">
                 {processedLogs.map((log, i) => (
                   <React.Fragment key={i}>
                     {log.type === "LLM_RESPONSE" && log.segments ? (
@@ -386,11 +386,11 @@ const RenderLogs = ({
               </div>
             )}
 
-            {/* Show loading indicator */}
+            {/* Show analyzing indicator */}
             {isLoading && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 py-4 ml-2">
                 <RefreshCcwDotIcon className="size-5 animate-spin text-primary" />
-                <span className="italic text-secondary text-sm">
+                <span className="italic  text-gray-400 text-sm">
                   Analyzing...
                 </span>
               </div>
