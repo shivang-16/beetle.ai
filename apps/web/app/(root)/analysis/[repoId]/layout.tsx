@@ -20,7 +20,7 @@ export default async function AnalysisLayout({
             {analysisList && analysisList.length > 0 && (
               <>
                 <ResizablePanel defaultSize={20} minSize={4} maxSize={25}>
-                  <AnalysisSidebar repoId={repoId} />
+                  <AnalysisSidebar repoId={repoId} analysisList={analysisList} />
                 </ResizablePanel>
                 <ResizableHandle withHandle />
               </>)}

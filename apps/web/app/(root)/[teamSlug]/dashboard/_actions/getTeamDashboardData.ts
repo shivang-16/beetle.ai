@@ -6,7 +6,7 @@ import { logger } from "@/lib/logger";
 
 export const getTeamDashboardData = async () => {
   try {
-    const response = await apiGet("/api/user/team/dashboard", {
+    const response = await apiGet("/api/team/dashboard", {
       cache: "no-store", // Dashboard data should be fresh
     });
 

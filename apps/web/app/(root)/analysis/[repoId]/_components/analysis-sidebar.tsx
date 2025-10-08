@@ -1,11 +1,8 @@
 import React from "react";
-import { getAnalysisWithId } from "../_actions/getAnalysiswithId";
 import AnalysisContent from "./AnalysisContent";
+import { AnalysisItem } from "@/types/types";
 
-
-const AnalysisSidebar = async ({ repoId }: { repoId: string }) => {
-  const analysisList = await getAnalysisWithId(repoId);
-
+const AnalysisSidebar = async ({ repoId, analysisList }: { repoId: string, analysisList: AnalysisItem[] }) => {
   return (
     <>
       {analysisList && analysisList.length > 0 && (

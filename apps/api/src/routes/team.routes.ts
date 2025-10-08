@@ -1,22 +1,25 @@
 // apps/api/src/routes/team.routes.ts
 import express, { Router } from 'express';
-import { checkAuth, checkTeamRole } from '../middlewares/checkAuth.js';
+import { authWithTeam, checkAuth, teamAuth } from '../middlewares/checkAuth.js';
 import {
   getOrCreateCurrentOrgTeam,
   getTeamRepositories,
   getMyTeams,
   addReposInTeam,
+  getTeamDashboardInfo,
 } from '../controllers/team.controller.js';
+import { checkTeamMemberRole } from '../middlewares/checkRole.js';
 
 
 const router: Router = express.Router();
 
-router.use(checkAuth);
+router.use(authWithTeam);
 
 router.get('/current', getOrCreateCurrentOrgTeam);
 router.get('/mine', getMyTeams);
 router.get('/repositories', getTeamRepositories);
-router.post('/repositories/add', checkTeamRole('admin'), addReposInTeam);
+router.post('/repositories/add', checkTeamMemberRole('admin'), addReposInTeam);
+router.get("/dashboard", getTeamDashboardInfo)
 
 // router.get('/:teamId', getTeam);
 // router.put('/:teamId',  updateTeam);
