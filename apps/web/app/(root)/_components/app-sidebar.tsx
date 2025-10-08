@@ -4,7 +4,7 @@ import { UserButton, OrganizationSwitcher } from "@clerk/nextjs";
 import { ScanTextIcon, StarsIcon, BotIcon } from "lucide-react";
 import Link from "next/link";
 import React from "react";
-import CodetectorLogo from "@/components/shared/codetector-logo";
+import CodetectorLogo from "@/components/shared/beetle-logo";
 import ThemeToggle from "@/components/shared/theme-toggle";
 import {
   Sidebar,

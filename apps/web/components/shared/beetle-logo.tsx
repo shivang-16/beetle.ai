@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import Image from "next/image";
 import React from "react";
 
-const CodetectorLogo = ({ className }: { className?: string }) => {
+const BeetleLogo = ({ className }: { className?: string }) => {
   return (
     <Image
       src="/beetle.png"
@@ -15,4 +15,4 @@ const CodetectorLogo = ({ className }: { className?: string }) => {
   );
 };
 
-export default CodetectorLogo;
+export default BeetleLogo;
