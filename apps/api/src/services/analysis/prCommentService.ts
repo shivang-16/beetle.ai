@@ -31,37 +31,38 @@ export class PRCommentService {
   }
 
   /**
-   * Remove line number annotations from code (e.g., "1|", "2|", etc.)
+   * Comprehensive method to process comment content for GitHub posting
+   * Handles both metadata removal and line number annotation cleaning
    */
-  private removeLineNumberAnnotations(code: string): string {
-    return code.replace(/^\s*\d+\|\s*/gm, '');
-  }
-
-  /**
-   * Clean comment body by removing metadata fields and keeping only essential content
-   */
-  private cleanCommentBody(content: string): string {
-    // Remove the header section with metadata (everything before "### Problem")
+  private processCommentForGitHub(content: string, suggestionCode?: string): string {
+    // Step 1: Remove the header section with metadata (everything before "### Problem")
     const problemMatch = content.match(/(### Problem[\s\S]*)/);
-    if (!problemMatch) {
-      // If no "### Problem" section found, return the original content
-      return content;
+    let processedContent = problemMatch ? problemMatch[1] : content;
+    
+    // Step 2: Remove any remaining metadata lines that might appear anywhere
+    processedContent = processedContent.replace(/^(\*\*(File|Line_Start|Line_End|Severity)\*\*:.*|##\s*\[.*?\]:.*)$/gm, '');
+    
+    // Step 3: Remove line number annotations from ALL code blocks (not just suggestion blocks)
+    processedContent = processedContent.replace(/```[\s\S]*?```/g, (match) => {
+      return match.replace(/^\s*\d+\|\s*/gm, '');
+    });
+    
+    // Step 4: If we have suggestion code, clean it and replace the suggestion block content
+    if (suggestionCode) {
+      const cleanSuggestionCode = suggestionCode.replace(/^\s*\d+\|\s*/gm, '').trim();
+      processedContent = processedContent.replace(
+        /```suggestion\s*\n([\s\S]*?)\n```/,
+        '```suggestion\n' + cleanSuggestionCode + '\n```'
+      );
     }
     
-    let cleanedContent = problemMatch[1];
+    // Step 5: Clean up any extra whitespace
+    processedContent = processedContent.replace(/\n\s*\n\s*\n/g, '\n\n').trim();
     
-    // Remove any remaining metadata lines that might appear after the sections
-    cleanedContent = cleanedContent.replace(/^\*\*File\*\*:.*$/gm, '');
-    cleanedContent = cleanedContent.replace(/^\*\*Line_Start\*\*:.*$/gm, '');
-    cleanedContent = cleanedContent.replace(/^\*\*Line_End\*\*:.*$/gm, '');
-    cleanedContent = cleanedContent.replace(/^\*\*Severity\*\*:.*$/gm, '');
-    cleanedContent = cleanedContent.replace(/^##\s*\[.*?\]:.*$/gm, '');
-    
-    // Clean up any extra whitespace
-    cleanedContent = cleanedContent.replace(/\n\s*\n\s*\n/g, '\n\n').trim();
-    
-    return cleanedContent;
+    return processedContent;
   }
+
+
 
   /**
    * Parse PR comment format to extract suggestion data
@@ -83,11 +84,11 @@ export class PRCommentService {
       const lineStart = parseInt(lineStartMatch[1]);
       const lineEnd = lineEndMatch ? parseInt(lineEndMatch[1]) : undefined;
       
-      // Extract suggestion code
+      // Extract suggestion code (raw - will be cleaned later by processCommentForGitHub)
       const suggestionMatch = content.match(/```suggestion\s*\n([\s\S]*?)\n```/);
       if (!suggestionMatch) return null;
       
-      const suggestionCode = this.removeLineNumberAnnotations(suggestionMatch[1]);
+      const suggestionCode = suggestionMatch[1].trim();
       
       // Extract optional fields
       const severityMatch = content.match(/\*\*Severity\*\*:\s*([^\n]+)/);
@@ -118,11 +119,8 @@ export class PRCommentService {
         return false;
       }
 
-      // Create a cleaned comment body with only essential content
-      let reviewBody = this.cleanCommentBody(suggestion.originalComment);
-      
-      // Ensure the suggestion code is clean (without line number annotations)
-      reviewBody = reviewBody.replace(/```suggestion\s*\n([\s\S]*?)\n```/, '```suggestion\n' + suggestion.suggestionCode + '\n```');
+      // Process the comment comprehensively for GitHub posting
+      let reviewBody = this.processCommentForGitHub(suggestion.originalComment, suggestion.suggestionCode);
 
       // Add line range information for multi-line suggestions
       if (suggestion.lineEnd && suggestion.lineEnd !== suggestion.lineStart) {
@@ -227,35 +225,7 @@ export class PRCommentService {
     return successCount;
   }
 
-  /**
-   * Post an initial analysis started comment
-   */
-  // async postAnalysisStartedComment(): Promise<boolean> {
-  //   const comment: PRComment = {
-  //     content: "🔍 **CodeDetector Analysis Started**\n\nI'm analyzing this pull request for security vulnerabilities, code quality issues, and potential bugs. I'll post my findings as comments shortly.",
-  //     timestamp: new Date().toISOString()
-  //   };
-    
-  //   return this.postComment(comment);
-  // }
 
-  /**
-   * Post an analysis completed comment
-   */
-  // async postAnalysisCompletedComment(analysisId?: string): Promise<boolean> {
-  //   let content = "✅ **CodeDetector Analysis Completed**\n\nI've finished analyzing this pull request. Please review the comments above for any findings.";
-    
-  //   if (analysisId) {
-  //     content += `\n\n*Analysis ID: ${analysisId}*`;
-  //   }
-    
-  //   const comment: PRComment = {
-  //     content,
-  //     timestamp: new Date().toISOString()
-  //   };
-    
-  //   return this.postComment(comment);
-  // }
 
   /**
    * Post an analysis error comment
