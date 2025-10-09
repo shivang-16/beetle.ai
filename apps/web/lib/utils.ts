@@ -678,3 +678,44 @@ export function extractPath(filePath: string) {
   const match = filePath.match(/repositories\/[^/]+\/(.+)/);
   return match ? match[1] : null;
 }
+
+/**
+ * Removes line number annotations from code blocks.
+ * Handles patterns like "1|", "2|", "123|" at the beginning of lines.
+ * 
+ * @param code - The code string that may contain line number annotations
+ * @returns The code string with line number annotations removed
+ * 
+ * @example
+ * const annotatedCode = `1| import React from 'react';
+ * 2| import { useState } from 'react';
+ * 3| 
+ * 4| function UserAuth() {
+ * 5|   const [user, setUser] = useState(null);
+ * 6| }`;
+ * 
+ * const cleanCode = removeLineNumberAnnotations(annotatedCode);
+ * // Result:
+ * // import React from 'react';
+ * // import { useState } from 'react';
+ * // 
+ * // function UserAuth() {
+ * //   const [user, setUser] = useState(null);
+ * // }
+ */
+export function removeLineNumberAnnotations(code: string): string {
+  if (!code || typeof code !== 'string') {
+    return code;
+  }
+
+  // Split into lines and process each line
+  const lines = code.split('\n');
+  const cleanedLines = lines.map(line => {
+    // Match line number pattern at the start: optional whitespace, digits, pipe, optional space
+    // Examples: "1|", "  2|", "123| ", "  456|  "
+    const lineNumberPattern = /^\s*\d+\|\s?/;
+    return line.replace(lineNumberPattern, '');
+  });
+
+  return cleanedLines.join('\n');
+}
