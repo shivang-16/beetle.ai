@@ -595,7 +595,8 @@ export const PrData = async (payload: any) => {
           installationId: installation.id,
           owner,
           repo,
-          pullNumber: pull_request.number
+          pullNumber: pull_request.number,
+          commitSha: pull_request.head.sha
         };
         const prCommentService = new PRCommentService(prCommentContext);
         

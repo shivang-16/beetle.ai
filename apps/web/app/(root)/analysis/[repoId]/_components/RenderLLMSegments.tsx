@@ -15,6 +15,7 @@ import {
   extractTitleAndDescription,
   parsePatchString,
   parseWarningString,
+  removeLineNumberAnnotations,
 } from "@/lib/utils";
 import dynamic from "next/dynamic";
 import { useTheme } from "next-themes";
@@ -473,13 +474,13 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
                     PreTag="div"
                     language={match[1]}
                     style={vscDarkPlus}>
-                    {String(children).replace(/\n$/, "")}
+                    {removeLineNumberAnnotations(String(children).replace(/\n$/, ""))}
                   </SyntaxHighlighter>
                 ) : (
                   <code
                     {...rest}
                     className={cn("w-full whitespace-pre-wrap", className)}>
-                    {children}
+                    {removeLineNumberAnnotations(String(children))}
                   </code>
                 );
               },
@@ -580,8 +581,8 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
 
     if (seg.kind === "patch") {
       const patch = parsePatchString(seg.content);
-      const before = extractFencedContent(patch.before).code.split("\n");
-      const after = extractFencedContent(patch.after).code.split("\n");
+      const before = removeLineNumberAnnotations(extractFencedContent(patch.before).code).split("\n");
+      const after = removeLineNumberAnnotations(extractFencedContent(patch.after).code).split("\n");
       const explanation = patch.explanation || "";
       const file = patch.file || "";
       const patchId = patch.patchId || `patch-${i}`;
@@ -777,11 +778,11 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
                               }}
                               showLineNumbers
                               startingLineNumber={Number(warning.line)}>
-                              {String(children).replace(/\n$/, "")}
+                              {removeLineNumberAnnotations(String(children).replace(/\n$/, ""))}
                             </SyntaxHighlighter>
                           ) : (
                             <code {...rest} className={className}>
-                              {children}
+                              {removeLineNumberAnnotations(String(children))}
                             </code>
                           );
                         },
@@ -820,11 +821,11 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
                               }}
                               showLineNumbers
                               startingLineNumber={Number(warning.line)}>
-                              {String(children).replace(/\n$/, "")}
+                              {removeLineNumberAnnotations(String(children).replace(/\n$/, ""))}
                             </SyntaxHighlighter>
                           ) : (
                             <code {...rest} className={className}>
-                              {children}
+                              {removeLineNumberAnnotations(String(children))}
                             </code>
                           );
                         },

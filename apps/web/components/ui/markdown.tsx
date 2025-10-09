@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { cn } from '@/lib/utils';
+import { cn, removeLineNumberAnnotations } from '@/lib/utils';
 import { Check, Copy, WrapText, ArrowLeftRight, Download } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -124,22 +124,26 @@ const CodeBlock: React.FC<CodeBlockProps> = React.memo(
   ({ language, children, elementKey }) => {
     const [isCopied, setIsCopied] = useState(false);
     const [isWrapped, setIsWrapped] = useState(false);
+    
+    // Clean the code by removing line number annotations
+    const cleanedCode = useMemo(() => removeLineNumberAnnotations(children), [children]);
+    
     const [highlightedCode, setHighlightedCode] = useState<string>(() => {
-      return highlight(children);
+      return highlight(cleanedCode);
     });
 
-    const lineCount = useMemo(() => children.split('\n').length, [children]);
+    const lineCount = useMemo(() => cleanedCode.split('\n').length, [cleanedCode]);
 
     useEffect(() => {
       let cancelled = false;
 
       const performHighlight = async () => {
-        if (children.length >= 5000) {
+        if (cleanedCode.length >= 5000) {
           await new Promise((resolve) => setTimeout(resolve, 0));
         }
 
         if (!cancelled) {
-          setHighlightedCode(highlight(children));
+          setHighlightedCode(highlight(cleanedCode));
         }
       };
 
@@ -148,11 +152,11 @@ const CodeBlock: React.FC<CodeBlockProps> = React.memo(
       return () => {
         cancelled = true;
       };
-    }, [children]);
+    }, [cleanedCode]);
 
     const handleCopy = useCallback(async () => {
       try {
-        await navigator.clipboard.writeText(children);
+        await navigator.clipboard.writeText(cleanedCode);
         setIsCopied(true);
         setTimeout(() => setIsCopied(false), 2000);
         toast.success('Code copied to clipboard');
@@ -160,7 +164,7 @@ const CodeBlock: React.FC<CodeBlockProps> = React.memo(
         console.error('Failed to copy code:', error);
         toast.error('Failed to copy code');
       }
-    }, [children]);
+    }, [cleanedCode]);
 
     const toggleWrap = useCallback(() => {
       setIsWrapped((prev) => {

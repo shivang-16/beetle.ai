@@ -1,6 +1,6 @@
 "use client";
 
-import { cn, detectLanguage, extractPath, parseToolCall } from "@/lib/utils";
+import { cn, detectLanguage, extractPath, parseToolCall, removeLineNumberAnnotations } from "@/lib/utils";
 // Accordion components removed as they are not used
 import { LogItem } from "@/types/types";
 import { useTheme } from "next-themes";
@@ -67,13 +67,13 @@ export const RenderToolCall = ({ log }: { log: LogItem }) => {
                         fontSize: 14,
                       }}
                       showLineNumbers>
-                      {String(children).replace(/\n$/, "")}
+                      {removeLineNumberAnnotations(String(children).replace(/\n$/, ""))}
                     </SyntaxHighlighter>
                   ) : (
                     <code
                       {...rest}
                       className={cn("whitespace-pre-wrap w-full", className)}>
-                      {children}
+                      {removeLineNumberAnnotations(String(children))}
                     </code>
                   );
                 },

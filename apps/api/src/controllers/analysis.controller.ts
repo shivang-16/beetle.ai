@@ -38,11 +38,11 @@ export const createAnalysis = async (
       return next(new CustomError("Github repository not found", 404));
     }
 
-    if (github_repository.analysisRequired === false) {
-      return next(
-        new CustomError("You haven't enabled analysis for this repository", 400)
-      );
-    }
+    // if (github_repository.analysisRequired === false) {
+    //   return next(
+    //     new CustomError("You haven't enabled analysis for this repository", 400)
+    //   );
+    // }
 
     const repoUrl = `https://github.com/${github_repository.fullName}`;
     let userId = req.user._id;
@@ -143,11 +143,11 @@ export const startAnalysis = async (
       return next(new CustomError("Github repository not found", 404));
     }
 
-    if (github_repository.analysisRequired === false) {
-      return next(
-        new CustomError("You haven't enabled analysis for this repository", 400)
-      );
-    }
+    // if (github_repository.analysisRequired === false) {
+    //   return next(
+    //     new CustomError("You haven't enabled analysis for this repository", 400)
+    //   );
+    // }
 
     const branchForAnalysis = branch || github_repository.defaultBranch;
     repoUrl = `https://github.com/${github_repository.fullName}`;
