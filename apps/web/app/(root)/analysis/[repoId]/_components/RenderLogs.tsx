@@ -8,6 +8,8 @@ import {
   parseFullLogText,
   bufferJSONToUint8Array,
   gunzipUint8ArrayToText,
+  parseToolCall,
+  extractPath,
 } from "@/lib/utils";
 import { LogItem, ParserState, RepoTree } from "@/types/types";
 import { RefreshCcwDotIcon } from "lucide-react";
@@ -50,6 +52,7 @@ const RenderLogs = ({
   const [logs, setLogs] = useState<LogItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadedFromDb, setIsLoadedFromDb] = useState(false);
+  const [selectedFileFilter, setSelectedFileFilter] = useState<string | null>(null);
   const { getToken } = useAuth();
 
   const abortControllerRef = useRef<AbortController>(null);
@@ -288,11 +291,54 @@ const RenderLogs = ({
   };
 
   const processedLogs = useMemo(() => {
-    const initLogs = logs.filter((log) => log.type === "INITIALISATION");
-    const otherLogs = logs.filter((log) => log.type !== "INITIALISATION");
+    let filteredLogs = logs;
+
+    // Apply file filter if selected
+    if (selectedFileFilter) {
+      // Group logs by file context
+      const fileContextGroups: { [filePath: string]: LogItem[] } = {};
+      let currentFileContext: string | undefined = undefined;
+      let ungroupedLogs: LogItem[] = [];
+
+      logs.forEach((log) => {
+        // Check if this is a READ_FILE tool call that starts a new file context
+         if (log.type === "TOOL_CALL") {
+           const result = parseToolCall(log.messages.join("\n"));
+           if (result?.type === "READ_FILE" && result?.result?.file_path) {
+             const normalizedLogPath = extractPath(result.result.file_path);
+             if (normalizedLogPath) {
+               currentFileContext = normalizedLogPath;
+               if (!fileContextGroups[currentFileContext]) {
+                 fileContextGroups[currentFileContext] = [];
+               }
+             }
+           }
+         }
+
+        // Add log to appropriate group
+        if (currentFileContext) {
+          fileContextGroups[currentFileContext]?.push(log);
+        } else {
+          ungroupedLogs.push(log);
+        }
+      });
+
+      // Return logs for the selected file plus ungrouped logs (like INITIALISATION)
+      const selectedFileLogs = fileContextGroups[selectedFileFilter] || [];
+      const initLogs = ungroupedLogs.filter(log => log.type === "INITIALISATION");
+      
+      console.log("File context groups:", Object.keys(fileContextGroups));
+      console.log("Selected file filter:", selectedFileFilter);
+      console.log("Selected file logs count:", selectedFileLogs.length);
+
+      filteredLogs = [...initLogs, ...selectedFileLogs];
+    }
+
+    const initLogs = filteredLogs.filter((log) => log.type === "INITIALISATION");
+    const otherLogs = filteredLogs.filter((log) => log.type !== "INITIALISATION");
 
     if (initLogs.length === 0) {
-      return logs;
+      return filteredLogs;
     }
 
     // Combine all initialization messages into one object
@@ -302,37 +348,62 @@ const RenderLogs = ({
     };
 
     return [combinedInitLog, ...otherLogs];
-  }, [logs]);
+  }, [logs, selectedFileFilter]);
 
   return (
     <main className=" flex w-full h-full">
-      <RepoFileTree repoTree={repoTree} />
+      <RepoFileTree 
+        repoTree={repoTree} 
+        onFileSelect={setSelectedFileFilter}
+        selectedFile={selectedFileFilter}
+      />
 
       <div className="h-full w-full flex flex-col overflow-hidden ">
             
-        <div className="px-4 py-3 flex justify-end-safe gap-3 flex-shrink-0">
-          <GithubIssuesSlider 
-            repoId={repoId} 
-            analysisId={analysisId || undefined} 
-          />
-          <Button 
-            onClick={() => analyzeRepo()} 
-            className="cursor-pointer"
-          >
-            {'Start New Analysis'}
-          </Button>
+        <div className="px-4 py-3 flex justify-between items-center flex-shrink-0">
+          {/* File filter indicator */}
+          <div className="flex items-center gap-2">
+            {selectedFileFilter && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-accent/50 rounded-md text-sm">
+                <span className="text-muted-foreground">Filtering:</span>
+                <span className="font-medium">{selectedFileFilter.split('/').pop()}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedFileFilter(null)}
+                  className="h-auto p-1 hover:bg-accent"
+                >
+                  ✕
+                </Button>
+              </div>
+            )}
+          </div>
 
-          <Button
-            variant={"outline"}
-            onClick={handleCancelLogs}
-            className="cursor-pointer">
-            Cancel Logs
-          </Button>
+          {/* Action buttons */}
+          <div className="flex gap-3">
+            <GithubIssuesSlider 
+              repoId={repoId} 
+              analysisId={analysisId || undefined} 
+            />
+            <Button 
+              onClick={() => analyzeRepo()} 
+              className="cursor-pointer"
+            >
+              {'Start New Analysis'}
+            </Button>
+
+            <Button
+              variant={"outline"}
+              onClick={handleCancelLogs}
+              className="cursor-pointer">
+              Cancel Logs
+            </Button>
+          </div>
         </div>
         <div className="flex-1 px-4 pb-3 max-w-4xl w-full mx-auto overflow-hidden">
           <div className="w-full h-full py-3 overflow-y-auto output-scrollbar">
             {/* Show start analysis button when no logs exist and not loading */}
-            {processedLogs.length === 0 && !isLoading && analysisId && (
+            {processedLogs.length === 0 && !isLoading && analysisId && !selectedFileFilter && (
               <div className="w-full h-full flex flex-col items-center justify-center gap-4">
                 <div className="text-center space-y-4">
                   <Button 
@@ -346,6 +417,25 @@ const RenderLogs = ({
                     You are about to start a full repository analysis on your default branch. 
                     This will analyze your codebase for security vulnerabilities and code quality.
                   </p>
+                </div>
+              </div>
+            )}
+
+            {/* Show message when no logs found for selected file */}
+            {processedLogs.length === 0 && !isLoading && selectedFileFilter && (
+              <div className="w-full h-full flex flex-col items-center justify-center gap-4">
+                <div className="text-center space-y-4">
+                  <p className="text-lg font-medium">No logs found for this file</p>
+                  <p className="text-sm text-muted-foreground max-w-md">
+                    The selected file "{selectedFileFilter.split('/').pop()}" doesn't have any analysis logs yet. 
+                    Try selecting a different file or clear the filter to see all logs.
+                  </p>
+                  <Button 
+                    onClick={() => setSelectedFileFilter(null)}
+                    variant="outline"
+                  >
+                    Clear Filter
+                  </Button>
                 </div>
               </div>
             )}

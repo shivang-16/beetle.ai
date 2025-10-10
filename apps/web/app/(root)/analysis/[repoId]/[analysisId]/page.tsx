@@ -1,6 +1,6 @@
-import React, { Suspense } from "react";
-import RepoSkeleton from "../_components/RepoSkeleton";
-import RepoWrapper from "../_components/RepoWrapper";
+import React from "react";
+import { getRepoTree } from "../_actions/getRepoTree";
+import AnalysisViewer from "../_components/AnalysisViewer";
 
 const Page = async ({
   params,
@@ -14,10 +14,20 @@ const Page = async ({
   const teamId = searchParamsData?.teamId;
   const branch = searchParamsData?.branch;
 
+  // Fetch repo tree at page level to prevent refetching when logs change
+  const repoTree = await getRepoTree(decodeURIComponent(repoId), teamId, branch);
+
   return (
-    <Suspense key={repoId} fallback={<RepoSkeleton />}>
-      <RepoWrapper repoId={repoId} teamId={teamId} branch={branch} />
-    </Suspense>
+    <div className="h-svh flex">
+      <div className="flex-1">
+        <AnalysisViewer 
+          repoId={decodeURIComponent(repoId)} 
+          repoTree={repoTree.data} 
+          branch={branch} 
+          teamId={teamId} 
+        />
+      </div>
+    </div>
   );
 };
 
