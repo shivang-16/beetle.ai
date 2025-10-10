@@ -23,7 +23,7 @@ import { IconWorld } from "@tabler/icons-react";
 import { IconCommand } from "@tabler/icons-react";
 import { IconCaretLeftFilled } from "@tabler/icons-react";
 import { IconCaretDownFilled } from "@tabler/icons-react";
-import CodetectorLogo from "../shared/codetector-logo";
+import BeetleLogo from "../shared/beetle-logo";
 import Image from "next/image";
 
 export const MacbookScroll = ({
@@ -199,7 +199,7 @@ export const Lid = ({
           }}
           className="absolute inset-0 flex items-center justify-center rounded-lg bg-[#010101]">
           <span className="text-white">
-            <CodetectorLogo />
+            <BeetleLogo />
           </span>
         </div>
       </div>

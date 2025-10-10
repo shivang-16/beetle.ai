@@ -5,10 +5,13 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "dev": "tsc --watch & nodemon dist/server.js",
+    "dev": "concurrently \"tsc --watch\" \"nodemon dist/server.js\"",
+    "dev:build": "tsc && npm run start",
     "build": "tsc",
     "start": "node dist/server.js",
-    "lint": "eslint . --ext .ts"
+    "start:dev": "nodemon dist/server.js",
+    "lint": "eslint . --ext .ts",
+    "clean": "rimraf dist"
   },
   "keywords": [],
   "author": "",
@@ -41,7 +44,9 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.16.5",
     "@types/nodemailer": "^7.0.1",
+    "concurrently": "^8.2.2",
     "nodemon": "^3.1.10",
+    "rimraf": "^5.0.5",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.8.3"
   }

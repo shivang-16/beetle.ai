@@ -7,8 +7,8 @@ const AnalysisSidebar = async ({ repoId, analysisList }: { repoId: string, analy
   return (
     <>
       {analysisList && analysisList.length > 0 && (
-        <AnalysisContent analysisList={analysisList} repoId={repoId} />
-      )}
+       <AnalysisContent analysisList={analysisList} repoId={repoId} />
+      )} 
     </>
   );
 };

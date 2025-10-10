@@ -31,9 +31,7 @@ const AnalysisViewer = ({
           teamId={teamId}
         />
       </div>
-      
       {/* GitHub Issues Slider positioned in top-right */}
-  
     </div>
   );
 };
