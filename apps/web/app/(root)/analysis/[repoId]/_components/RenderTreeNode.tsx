@@ -12,7 +12,15 @@ import { ITreeNode } from "@/types/types";
 import { FileCode, FileJson, FileText } from "lucide-react";
 import React from "react";
 
-const RenderTreeNode = ({ node }: { node: ITreeNode }) => {
+const RenderTreeNode = ({ 
+  node, 
+  onFileSelect, 
+  selectedFile 
+}: { 
+  node: ITreeNode;
+  onFileSelect?: (filePath: string | null) => void;
+  selectedFile?: string | null;
+}) => {
   const hasChildren = node.children && node.children.length > 0;
 
   // Utility function to get file icon based on extension
@@ -36,13 +44,27 @@ const RenderTreeNode = ({ node }: { node: ITreeNode }) => {
     }
   };
 
+  const handleFileClick = () => {
+    // Only handle file clicks (blob type), not folder clicks
+    if (node.type === "blob" && onFileSelect) {
+      // Toggle selection: if already selected, deselect; otherwise select
+      const isCurrentlySelected = selectedFile === node.path;
+      onFileSelect(isCurrentlySelected ? null : node.path);
+    }
+  };
+
+  const isSelected = selectedFile === node.path && node.type === "blob";
+
   return (
     <TreeNode
       nodeId={node.id}
       level={node.level}
       isLast={node.isLast}
       parentPath={node.parentPath}>
-      <TreeNodeTrigger>
+      <TreeNodeTrigger 
+        onClick={handleFileClick}
+        className={isSelected ? "bg-accent/80" : ""}
+      >
         <TreeExpander hasChildren={hasChildren} />
         <TreeIcon
           hasChildren={hasChildren}
@@ -53,7 +75,12 @@ const RenderTreeNode = ({ node }: { node: ITreeNode }) => {
       {hasChildren && (
         <TreeNodeContent hasChildren={hasChildren}>
           {node.children?.map((child) => (
-            <RenderTreeNode key={child.id} node={child} />
+            <RenderTreeNode 
+              key={child.id} 
+              node={child} 
+              onFileSelect={onFileSelect}
+              selectedFile={selectedFile}
+            />
           ))}
         </TreeNodeContent>
       )}

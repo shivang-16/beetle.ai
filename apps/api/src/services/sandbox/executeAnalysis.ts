@@ -4,7 +4,6 @@ import {
   finalizeAnalysisAndPersist,
 } from "../../utils/analysisStreamStore.js";
 import { connectSandbox, createSandbox } from "../../config/sandbox.js";
-import { Github_Repository } from "../../models/github_repostries.model.js";
 import { authenticateGithubRepo } from "../../utils/authenticateGithubUrl.js";
 import Analysis from "../../models/analysis.model.js";
 import mongoose from "mongoose";
@@ -48,7 +47,6 @@ export const executeAnalysis = async (
     : new mongoose.Types.ObjectId();
 
   try {
-
     const latestAnalysis = await Analysis.findOne({
       github_repositoryId: new mongoose.Types.ObjectId(github_repositoryId),
     }).sort({ createdAt: -1 });
@@ -175,7 +173,7 @@ export const executeAnalysis = async (
     const dataParam = data ? JSON.stringify(data) : '{}';
     console.log("🔧 Formatted data parameter length:", dataParam.length);
     
-    const analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" --user-id "${userId}" --github-repository-id ${github_repositoryId} --model "${model}" --mode ${analysisType} --api-key ${process.env.GOOGLE_API_KEY} --data '${dataParam.replace(/'/g, "'\"'\"'")}'`;
+    const analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" --user-id "${userId}" --github-repository-id ${github_repositoryId} --analysis-id "${_id.toString()}" --model "${model}" --mode ${analysisType} --api-key ${process.env.GOOGLE_API_KEY} --data '${dataParam.replace(/'/g, "'\"'\"'")}'`;
 
     if (callbacks?.onProgress) {
       await callbacks.onProgress("🚀 Starting workflow execution...");

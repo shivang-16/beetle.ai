@@ -1,6 +1,6 @@
-import React, { Suspense } from "react";
-import RepoSkeleton from "../../../../analysis/[repoId]/_components/RepoSkeleton";
-import RepoWrapper from "../../../../analysis/[repoId]/_components/RepoWrapper";
+import React from "react";
+import { getRepoTree } from "../../../../analysis/[repoId]/_actions/getRepoTree";
+import AnalysisViewer from "../../../../analysis/[repoId]/_components/AnalysisViewer";
 import { auth } from "@clerk/nextjs/server";
 
 interface PageProps {
@@ -28,10 +28,20 @@ const Page = async ({
   // For now, we'll pass teamSlug as teamId until we implement proper resolution
   const teamId = activeOrgId; // This should be resolved to actual team ID
 
+  // Fetch repo tree at page level to prevent refetching when logs change
+  const repoTree = await getRepoTree(decodeURIComponent(repoId), teamId, branch);
+
   return (
-    <Suspense key={repoId} fallback={<RepoSkeleton />}>
-      <RepoWrapper repoId={repoId} teamId={teamId} branch={branch} />
-    </Suspense>
+    <div className="h-svh flex">
+      <div className="flex-1">
+        <AnalysisViewer 
+          repoId={decodeURIComponent(repoId)} 
+          repoTree={repoTree.data} 
+          branch={branch} 
+          teamId={teamId} 
+        />
+      </div>
+    </div>
   );
 };
 

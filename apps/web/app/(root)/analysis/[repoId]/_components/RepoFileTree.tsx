@@ -9,7 +9,15 @@ import RenderTreeNode from "./RenderTreeNode";
 import { Button } from "@/components/ui/button";
 import { logger } from "@/lib/logger";
 
-const RepoFileTree = ({ repoTree }: { repoTree: RepoTree }) => {
+const RepoFileTree = ({ 
+  repoTree, 
+  onFileSelect, 
+  selectedFile 
+}: { 
+  repoTree: RepoTree;
+  onFileSelect?: (filePath: string | null) => void;
+  selectedFile?: string | null;
+}) => {
   const treeData = buildTreeStructure(repoTree?.tree || []) ?? [];
 
   const { setOpen } = useSidebar();
@@ -32,7 +40,8 @@ const RepoFileTree = ({ repoTree }: { repoTree: RepoTree }) => {
         {repoTree && repoTree.repository && repoTree.repository.repo && (
           <Button
             variant={"secondary"}
-            className="bg-transparent cursor-pointer rounded-none w-full">
+            className="bg-transparent cursor-pointer rounded-none w-full"
+            onClick={() => onFileSelect?.(null)}>
             <span className="w-full truncate text-left">
               {repoTree?.repository?.repo}
             </span>
@@ -40,7 +49,12 @@ const RepoFileTree = ({ repoTree }: { repoTree: RepoTree }) => {
         )}
         {treeData && treeData.length > 0 ? (
           treeData.map((node, i) => (
-            <RenderTreeNode key={`${node.id}-${i}`} node={node} />
+            <RenderTreeNode 
+              key={`${node.id}-${i}`} 
+              node={node} 
+              onFileSelect={onFileSelect}
+              selectedFile={selectedFile}
+            />
           ))
         ) : (
           <div>No Tree Found</div>

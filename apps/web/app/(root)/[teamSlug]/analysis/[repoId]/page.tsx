@@ -1,6 +1,6 @@
-import React, { Suspense } from "react";
-import RepoWrapper from "../../../analysis/[repoId]/_components/RepoWrapper";
-import RepoSkeleton from "../../../analysis/[repoId]/_components/RepoSkeleton";
+import React from "react";
+import { getRepoTree } from "../../../analysis/[repoId]/_actions/getRepoTree";
+import AnalysisViewer from "../../../analysis/[repoId]/_components/AnalysisViewer";
 
 interface PageProps {
   params: Promise<{
@@ -17,11 +17,18 @@ const Page = async ({ params }: PageProps) => {
   // For now, we'll pass teamSlug as teamId until we implement proper resolution
   const teamId = teamSlug; // This should be resolved to actual team ID
 
+  // Fetch repo tree at page level to prevent refetching when logs change
+  const repoTree = await getRepoTree(decodeURIComponent(repoId), teamId);
+
   return (
-    <div className="h-svh w-full">
-      <Suspense fallback={<RepoSkeleton />}>
-        <RepoWrapper repoId={repoId} teamId={teamId} />
-      </Suspense>
+    <div className="h-svh flex">
+      <div className="flex-1">
+        <AnalysisViewer 
+          repoId={decodeURIComponent(repoId)} 
+          repoTree={repoTree.data} 
+          teamId={teamId} 
+        />
+      </div>
     </div>
   );
 };
