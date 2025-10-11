@@ -3,6 +3,9 @@ import { CustomError } from "../middlewares/error.js";
 import Analysis from "../models/analysis.model.js";
 import { Github_Repository } from "../models/github_repostries.model.js";
 import { executeAnalysis, StreamingCallbacks } from "../services/sandbox/executeAnalysis.js";
+import { connectSandbox } from "../config/sandbox.js";
+import { Sandbox } from '@e2b/code-interpreter';
+import { appendToRedisBuffer, finalizeAnalysisAndPersist } from "../utils/analysisStreamStore.js";
 import { logger } from "../utils/logger.js";
 import mongoose from "mongoose";
 import Team from "../models/team.model.js";
@@ -447,6 +450,88 @@ export const getRepositoryAnalysisLogs = async (
       analysisId: req.params.id 
     });
     next(new CustomError(error.message || "Failed to fetch analysis", 500));
+  }
+};
+
+export const stopAnalysis = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+
+    // Find the analysis
+    const analysis = await Analysis.findById(id);
+    if (!analysis) {
+      return next(new CustomError("Analysis not found", 404));
+    }
+
+    // Authorization: user must be owner or part of the team owned by analysis.userId
+    if (analysis.userId !== req.user._id) {
+      const team = await Team.findOne({ ownerId: analysis.userId });
+      const isMember = team && Array.isArray((team as any).members)
+        ? (team as any).members.includes(req.user._id)
+        : false;
+      if (!isMember) {
+        return next(new CustomError("Unauthorized to stop this analysis", 403));
+      }
+    }
+
+    // Only allow stopping if currently running
+    if (analysis.status !== "running") {
+      return res.status(200).json({
+        success: true,
+        message: "Analysis is not running; no action taken",
+        data: { id: analysis._id, status: analysis.status }
+      });
+    }
+
+    // Attempt to connect and kill the sandbox
+    try {
+      if (analysis.sandboxId) {
+        // Append interruption message to buffer so it's captured in logs
+        await appendToRedisBuffer(String(analysis._id), "⛔ Analysis interrupted by user");
+        await Sandbox.kill(analysis.sandboxId);
+        logger.info("Sandbox killed for analysis", { analysisId: id, sandboxId: analysis.sandboxId });
+      }
+    } catch (killErr: any) {
+      logger.warn("Failed to kill sandbox; proceeding to finalize as interrupted", {
+        analysisId: id,
+        error: killErr?.message || killErr
+      });
+    }
+
+    // Finalize and persist as interrupted
+    try {
+      await finalizeAnalysisAndPersist({
+        _id: String(analysis._id),
+        analysis_type: analysis.analysis_type,
+        userId: analysis.userId,
+        repoUrl: analysis.repoUrl,
+        github_repositoryId: String(analysis.github_repositoryId),
+        sandboxId: analysis.sandboxId,
+        model: analysis.model,
+        prompt: analysis.prompt,
+        status: "interrupted",
+        exitCode: null,
+      });
+    } catch (persistErr: any) {
+      logger.error("Failed to finalize interrupted analysis", {
+        analysisId: id,
+        error: persistErr?.message || persistErr,
+      });
+      // Even if finalize fails, respond with success but include warning
+    }
+
+    res.json({
+      success: true,
+      message: "Analysis stopped successfully",
+      data: { id: analysis._id, status: "interrupted" }
+    });
+  } catch (error: any) {
+    logger.error("Error stopping analysis", { analysisId: req.params.id, error: error?.message || error });
+    next(new CustomError(error.message || "Failed to stop analysis", 500));
   }
 };
 

@@ -107,34 +107,34 @@ const AnalysisContent = ({
         </Button>
       </div>
       <div className="flex flex-col gap-2 flex-1 overflow-y-auto output-scrollbar p-3">
-        {analysisList?.map((a, idx) => (
+        {analysisList?.map((analysis, idx) => (
           <Button
-            key={a._id}
+            key={analysis._id}
             variant={"outline"}
             className={cn(
               `flex-col h-auto items-start text-left border rounded p-3 transition cursor-pointer`,
-              analysis_id === a._id ? "border-primary" : "border-input"
+              analysis_id === analysis._id ? "border-primary" : "border-input"
             )}
             asChild>
             <Link
-              href={`/analysis/${repoId}/${a._id}${queryString ? `?${queryString}` : ""}`}>
+              href={`/analysis/${repoId}/${analysis._id}${queryString ? `?${queryString}` : ""}`}>
               <div className="flex items-center justify-between gap-2 w-full">
                 <span className="text-xs text-muted-foreground">
                   #{idx + 1}
                 </span>
                 <span
-                  className={`text-[10px] px-2 py-0.5 rounded border capitalize flex items-center gap-1 ${statusColor(a.status)} ${isNarrow ? "hidden" : "block"}`}>
-                  {a.status === "running" && (
+                  className={`text-[10px] px-2 py-0.5 rounded border capitalize flex items-center gap-1 ${statusColor(analysis.status)} ${isNarrow ? "hidden" : "block"}`}>
+                  {analysis.status === "running" && (
                     <Loader2 className="h-3 w-3 animate-spin" />
                   )}
-                  {a.status}
+                  {analysis.status}
                 </span>
               </div>
               <div className={cn(
                 "mt-1 text-sm font-medium truncate",
                 isNarrow ? "hidden" : "block"
               )}>
-                {new Date(a.createdAt).toLocaleString()}{" "}
+                {new Date(analysis.createdAt).toLocaleString()}{" "}
               </div>
             </Link>
           </Button>

@@ -38,6 +38,41 @@ export const executeAnalysisStream = async (
   return response;
 };
 
+export const stopAnalysis = async (
+  analysisId: string,
+  token: string
+): Promise<{ success: boolean; message?: string; error?: string }> => {
+  try {
+    const response = await fetch(`${_config.API_BASE_URL}/api/analysis/${analysisId}/stop`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.message || `HTTP error! status: ${response.status}`
+      };
+    }
+
+    return {
+      success: true,
+      message: data.message
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to stop analysis"
+    };
+  }
+};
+
 export const updateAnalysisStatus = async (
   analysisId: string,
   status: string,

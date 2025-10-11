@@ -27,7 +27,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { executeAnalysisStream, updateAnalysisStatus } from "@/lib/api/analysis";
+import { executeAnalysisStream, updateAnalysisStatus, stopAnalysis } from "@/lib/api/analysis";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createAnalysisRecord } from "../_actions/createAnalysis";
@@ -49,22 +49,25 @@ const RenderLogs = ({
 }) => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [logs, setLogs] = useState<LogItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isLoadedFromDb, setIsLoadedFromDb] = useState(false);
-  const [selectedFileFilter, setSelectedFileFilter] = useState<string | null>(null);
-  const { getToken } = useAuth();
+ const [logs, setLogs] = useState<LogItem[]>([]);
+ const [isLoading, setIsLoading] = useState(false);
+ const [isLoadedFromDb, setIsLoadedFromDb] = useState(false);
+ const [selectedFileFilter, setSelectedFileFilter] = useState<string | null>(null);
+ const { getToken } = useAuth();
 
   const abortControllerRef = useRef<AbortController>(null);
   const parserStateRef = useRef<ParserState>(createParserState());
+  type AnalysisStatus = "draft" | "completed" | "interrupted" | "error" | "running";
+  const [analysisStatus, setAnalysisStatus] = useState<AnalysisStatus | undefined>(undefined);
 
   const streamAnalysis = async (targetAnalysisId: string) => {
     try {
       abortControllerRef.current = new AbortController();
       const signal = abortControllerRef.current.signal;
-      setLogs([]);
-      setIsLoading(true);
-      setIsLoadedFromDb(false);
+     setLogs([]);
+     setIsLoading(true);
+     setIsLoadedFromDb(false);
+     setAnalysisStatus("running");
 
       const token = await getToken();
       if (!token) {
@@ -140,6 +143,29 @@ const RenderLogs = ({
       // Trigger analysis list refresh to show the completed/error status
       triggerAnalysisListRefresh();
       setIsLoading(false);
+      // Fetch latest analysis status from backend
+      try {
+        const token = await getToken();
+        if (token && targetAnalysisId) {
+          const res = await fetch(
+            `${_config.API_BASE_URL}/api/analysis/${encodeURIComponent(targetAnalysisId)}/logs`,
+            {
+              method: "GET",
+              credentials: "include",
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+          const json = await res.json();
+          const statusFromDb = json?.data?.status as AnalysisStatus | undefined;
+          if (statusFromDb) {
+            setAnalysisStatus(statusFromDb);
+          }
+        }
+      } catch (_) {
+        // ignore status fetch errors
+      }
     }
   };
 
@@ -195,7 +221,7 @@ const RenderLogs = ({
         if (!analysisId) {
           setIsLoading(false);
           return;
-        }
+        } 
 
         const token = await getToken();
 
@@ -223,6 +249,10 @@ const RenderLogs = ({
 
         const json = await res.json();
         // console.log("🔄 Loading analysis from db: ", json);
+        const statusFromDb = json?.data?.status as AnalysisStatus | undefined;
+        if (statusFromDb) {
+          setAnalysisStatus(statusFromDb);
+        }
         let logsText: string = "";
         const bufJson = json?.data?.logsCompressed;
         const binary = bufferJSONToUint8Array(bufJson);
@@ -255,11 +285,38 @@ const RenderLogs = ({
 
   // console.log("State Logs ====> ", logs);
 
-  const handleCancelLogs = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
+  const handleStopAnalysis = async () => {
+    try {
+      const token = await getToken();
+      if (!token) {
+        toast.error("Authentication token not available");
+        return;
+      }
+
+      if (!analysisId) {
+        toast.error("No analysis is active");
+        return;
+      }
+
+      const res = await stopAnalysis(analysisId, token);
+      if (!res.success) {
+        toast.error(res.error || "Failed to stop analysis");
+        return;
+      }
+
+      // Abort local stream reading
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      // Update UI state and refresh list
+      setIsLoading(false);
+      setAnalysisStatus("interrupted");
+      triggerAnalysisListRefresh();
+      toast.success("Analysis stopped");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to stop analysis");
     }
-    setIsLoading(false);
   };
 
   const startCurrentAnalysis = async () => {
@@ -392,12 +449,22 @@ const RenderLogs = ({
               {'Start New Analysis'}
             </Button>
 
-            <Button
+            {/* <Button
               variant={"outline"}
               onClick={handleCancelLogs}
               className="cursor-pointer">
               Cancel Logs
-            </Button>
+            </Button> */}
+
+            {analysisId && (analysisStatus === "running" || analysisStatus === "interrupted" || analysisStatus === "error") && (
+              <Button
+                variant={analysisStatus === "running" ? "destructive" : "outline"}
+                onClick={analysisStatus === "running" ? handleStopAnalysis : startCurrentAnalysis}
+                className="cursor-pointer"
+              >
+                {analysisStatus === "running" ? "Stop Analysis" : "Restart Analysis"}
+              </Button>
+            )}
           </div>
         </div>
         <div className="flex-1 px-4 pb-3 max-w-4xl w-full mx-auto overflow-hidden">
@@ -478,13 +545,13 @@ const RenderLogs = ({
 
             {/* Show loading indicator */}
             {isLoading && (
-              <div className="flex items-center gap-2">
-                <RefreshCcwDotIcon className="size-5 animate-spin text-primary" />
-                <span className="italic text-secondary text-sm">
-                  Analyzing...
-                </span>
-              </div>
-            )}
+              <div className="flex items-center gap-2 ml-2 py-2">
+               <RefreshCcwDotIcon className="size-5 animate-spin text-primary" />
+               <span className="italic text-gray-400 text-sm">
+                 {isLoadedFromDb ? "Loading..." : "Analyzing..."}
+               </span>
+             </div>
+           )}
           </div>
         </div>
       </div>

@@ -41,7 +41,7 @@ const RepositoryItem: React.FC<RepositoryItemProps> = ({ repo, teamId }) => {
         <span>{repo.fullName}</span>
         <Badge
           variant={"outline"}
-          className="border-primary text-primary text-sm rounded-full">
+          className="border-neutral-300 text-neutral-300 text-xs rounded-full">
           {repo.private ? "Private" : "Public"}
         </Badge>
       </Link>

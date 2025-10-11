@@ -226,6 +226,22 @@ export const executeAnalysis = async (
       );
     }
 
+    // If analysis has already been marked as interrupted, skip finalization
+    try {
+      const current = await Analysis.findById(_id).lean();
+      if (current && !Array.isArray(current) && current.status === "interrupted") {
+        if (callbacks?.onProgress) {
+          await callbacks.onProgress("⛔ Analysis was interrupted. Skipping finalize.");
+        }
+        return {
+          success: false,
+          exitCode: result.exitCode,
+          sandboxId: sandboxId,
+          _id: _id.toString(),
+        };
+      }
+    } catch (_) {}
+
     // Puase the sandbox
     await sandbox.betaPause();
     // console.log(sameSandbox.sandboxId)
@@ -318,6 +334,23 @@ export const executeAnalysis = async (
     if (callbacks?.onProgress) {
       await callbacks.onProgress(`❌ Error: ${error.message}`);
     }
+
+    // If analysis has already been marked as interrupted, skip error finalization
+    try {
+      const current = await Analysis.findById(_id).lean();
+      if (current && !Array.isArray(current) && current.status === "interrupted") {
+        if (callbacks?.onProgress) {
+          await callbacks.onProgress("⛔ Analysis was interrupted. Skipping error finalize.");
+        }
+        return {
+          success: false,
+          exitCode: runExitCode || -1,
+          sandboxId: sandboxId,
+          _id: _id.toString(),
+          error: error.message,
+        };
+      }
+    } catch (_) {}
 
     // Auto-persist analysis results even on error if persistence parameters are provided
     if (userId && repoUrl && github_repositoryId) {
