@@ -9,6 +9,7 @@ import {
 } from "../controllers/analysis.controller.js";
 import { baseAuth, checkAuth, teamAuth } from "../middlewares/checkAuth.js";
 import { checkAnalysisAccess } from "../middlewares/checkFeatureAccess.js";
+import { stopAnalysis } from "../controllers/analysis.controller.js";
 
 const router: Router = express.Router();
 
@@ -26,6 +27,12 @@ router.post("/execute",
   checkAuth,
   checkAnalysisAccess,
   startAnalysis
+);
+
+// Stop a running analysis
+router.post("/:id/stop",
+  baseAuth,
+  stopAnalysis
 );
 
 
