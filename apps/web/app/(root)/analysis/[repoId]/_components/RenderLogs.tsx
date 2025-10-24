@@ -204,7 +204,9 @@ const RenderLogs = ({
           {
             method: "GET",
             credentials: "include",
-            headers: {
+headers: {
+"Authorization": `Bearer ${token}`
+}
               "Authorization": `Bearer ${token}`
             }
           }
