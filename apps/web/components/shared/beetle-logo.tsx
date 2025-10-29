@@ -19,5 +19,11 @@ className={cn("dark:invert", className)}
 />
 );
 };
+width={40}
+height={40}
+className={cn("dark:invert", className)}
+/>
+);
+};
 export default BeetleLogo;
 export default BeetleLogo;
