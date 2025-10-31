@@ -4,14 +4,15 @@
   "description": "",
   "main": "server.js",
   "type": "module",
-  "scripts": {
-    "dev": "concurrently \"tsc --watch\" \"nodemon dist/server.js\"",
-    "dev:build": "tsc && npm run start",
-    "build": "tsc",
-    "start": "node dist/server.js",
-    "start:dev": "nodemon dist/server.js",
-    "lint": "eslint . --ext .ts",
-    "clean": "rimraf dist"
+"scripts": {
+"dev": "concurrently \"tsc --watch\" \"nodemon dist/server.js\"",
+"dev:build": "tsc && npm run start", // Build and start the server
+"build": "tsc",
+"start": "node dist/server.js",
+"start:dev": "nodemon dist/server.js", // Start the server with nodemon
+"lint": "eslint . --ext .ts",
+"clean": "rimraf dist" // Clean the dist folder
+},
   },
   "keywords": [],
   "author": "",
