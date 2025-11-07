@@ -7,6 +7,7 @@ import {
   getRepositoryAnalysisLogs,
   updateAnalysisStatus,
   getPrAnalyais,
+  deleteAnalysis,
 } from "../controllers/analysis.controller.js";
 import { baseAuth, checkAuth, teamAuth } from "../middlewares/checkAuth.js";
 import { checkAnalysisAccess } from "../middlewares/checkFeatureAccess.js";
@@ -40,6 +41,8 @@ router.post("/:id/stop",
 // Routes that only need basic auth (user authentication)
 router.put("/:id/status", baseAuth, updateAnalysisStatus);
 router.get("/:id/logs", baseAuth, getRepositoryAnalysisLogs);
+// Delete an analysis by ID
+router.delete("/:id", baseAuth, deleteAnalysis);
 // Get PR analyses for current user (place before dynamic :github_repositoryId route)
 router.get("/pull_requests", baseAuth, getPrAnalyais);
 

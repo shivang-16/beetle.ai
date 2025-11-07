@@ -569,3 +569,48 @@ export const stopAnalysis = async (
   }
 };
 
+export const deleteAnalysis = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+
+    // Find the analysis
+    const analysis = await Analysis.findById(id);
+    if (!analysis) {
+      return next(new CustomError("Analysis not found", 404));
+    }
+
+    // Authorization: user must be owner or part of the team owned by analysis.userId
+    if (analysis.userId !== req.user._id) {
+      const team = await Team.findOne({ ownerId: analysis.userId });
+      const isMember = team && Array.isArray((team as any).members)
+        ? (team as any).members.includes(req.user._id)
+        : false;
+      if (!isMember) {
+        return next(new CustomError("Unauthorized to delete this analysis", 403));
+      }
+    }
+
+    // Prevent deletion of running analyses
+    if (analysis.status === "running") {
+      return next(new CustomError("Cannot delete a running analysis. Please stop it first.", 400));
+    }
+
+    await Analysis.findByIdAndDelete(id);
+
+    logger.info("Analysis deleted", { analysisId: id, userId: req.user._id });
+
+    res.json({
+      success: true,
+      message: "Analysis deleted successfully",
+      data: { id }
+    });
+  } catch (error: any) {
+    logger.error("Error deleting analysis", { analysisId: req.params.id, error: error?.message || error });
+    next(new CustomError(error.message || "Failed to delete analysis", 500));
+  }
+};
+

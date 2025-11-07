@@ -6,8 +6,11 @@ import { AnalysisItem } from "@/types/types";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Trash2 } from "lucide-react";
 import { useAnalysisList } from "@/hooks/useAnalysisList";
+import { useAuth } from "@clerk/nextjs";
+import { _config } from "@/lib/_config";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const statusColor = (status: AnalysisItem["status"]) => {
   switch (status) {
@@ -46,6 +49,9 @@ const AnalysisContent = ({
     repoId, 
     initialAnalysisList 
   });
+
+  const { getToken } = useAuth();
+  const [deletingIds, setDeletingIds] = useState<Record<string, boolean>>({});
 
   const analysis_id = pathname.split("/")[pathname.split("/").length - 1];
 
@@ -95,6 +101,36 @@ const AnalysisContent = ({
     };
   }, []);
 
+  const handleDelete = async (id: string) => {
+    const confirmed = typeof window !== "undefined" ? window.confirm("Delete this analysis? This cannot be undone.") : false;
+    if (!confirmed) return;
+
+    try {
+      setDeletingIds((prev) => ({ ...prev, [id]: true }));
+      const token = await getToken();
+      if (!token || !_config.API_BASE_URL) {
+        throw new Error("Missing auth token or API base URL");
+      }
+      const res = await fetch(`${_config.API_BASE_URL}/api/analysis/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (!res.ok) {
+        const msg = `Failed to delete analysis (${res.status})`;
+        throw new Error(msg);
+      }
+      // Refresh list; redirect useEffect will handle selection
+      await refreshAnalysisList();
+    } catch (err) {
+      console.error("Delete analysis failed", err);
+      // Optional: surface error to user via toast (not implemented here)
+    } finally {
+      setDeletingIds((prev) => ({ ...prev, [id]: false }));
+    }
+  };
+
   return (
     <aside ref={containerRef} className="w-full h-full flex flex-col">
       <div className="flex items-center justify-between p-3 border-b">
@@ -112,7 +148,7 @@ const AnalysisContent = ({
             key={analysis._id}
             variant={"outline"}
             className={cn(
-              `flex-col h-auto items-start text-left border rounded p-3 transition cursor-pointer`,
+              `group relative flex-col h-auto items-start text-left border rounded p-3 transition cursor-pointer`,
               analysis_id === analysis._id ? "border-primary" : "border-input"
             )}
             asChild>
@@ -122,13 +158,46 @@ const AnalysisContent = ({
                 <span className="text-xs text-muted-foreground">
                   #{idx + 1}
                 </span>
-                <span
-                  className={`text-[10px] px-2 py-0.5 rounded border capitalize flex items-center gap-1 ${statusColor(analysis.status)} ${isNarrow ? "hidden" : "block"}`}>
-                  {analysis.status === "running" && (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  )}
-                  {analysis.status}
-                </span>
+                <div className={cn("flex items-center gap-2")}
+                >
+                  <span
+                    className={cn(
+                      `text-[10px] px-2 py-0.5 rounded border capitalize items-center gap-1 ${statusColor(analysis.status)}`,
+                      "flex",
+                      isNarrow ? "hidden" : "inline-flex"
+                    )}
+                  >
+                    {analysis.status === "running" && (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    )}
+                    {analysis.status}
+                  </span>
+                </div>
+              </div>
+              <div className="absolute bottom-2 right-2 z-10 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground"
+                      aria-label="Delete analysis"
+                      disabled={analysis.status === "running" || !!deletingIds[analysis._id]}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDelete(analysis._id);
+                      }}
+                    >
+                      {deletingIds[analysis._id] ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  
+                </Tooltip>
               </div>
               <div className={cn(
                 "mt-1 text-sm font-medium truncate",
