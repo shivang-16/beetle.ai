@@ -7,13 +7,22 @@ import dotenv from "dotenv";
 dotenv.config();
 
 console.log(process.env.GITHUB_APP_ID);
+if (!process.env.GITHUB_APP_ID) {
+throw new Error('GITHUB_APP_ID environment variable is not set');
+}
+if (!process.env.GITHUB_PRIVATE_KEY_BASE64) {
+throw new Error('GITHUB_PRIVATE_KEY_BASE64 environment variable is not set');
+}
+if (!process.env.GITHUB_WEBHOOK_SECRET) {
+throw new Error('GITHUB_WEBHOOK_SECRET environment variable is not set');
+}
 // Initialize GitHub App
 export const octokitApp = new App({
-  appId: process.env.GITHUB_APP_ID!,
-  privateKey: Buffer.from(process.env.GITHUB_PRIVATE_KEY_BASE64!, 'base64').toString('utf8'),
-  webhooks: {
-    secret: process.env.GITHUB_WEBHOOK_SECRET!
-  }
+appId: process.env.GITHUB_APP_ID,
+privateKey: Buffer.from(process.env.GITHUB_PRIVATE_KEY_BASE64, 'base64').toString('utf8'),
+webhooks: {
+secret: process.env.GITHUB_WEBHOOK_SECRET
+}
 });
 
 // Create authenticated Octokit instance for an installation
