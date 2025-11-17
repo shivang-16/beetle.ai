@@ -25,6 +25,11 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { _config } from "@/lib/_config";
+import { usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
+import { cn } from "@/lib/utils";
+import { dark } from "@clerk/themes";
 
 const items = [
   {
