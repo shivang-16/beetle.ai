@@ -5,6 +5,7 @@ import RepositoryListSkeleton from "../../analysis/_components/RepositoryListSke
 import SyncRepositoriesButton from "../../analysis/_components/SyncRepositoriesButton";
 import { AddRepositoriesModal } from "./_components/add-repositories-modal";
 import { logger } from "@/lib/logger";
+import { getMyTeams } from "@/_actions/user-actions";
 
 type RepoScope = "user" | "team";
 
@@ -28,6 +29,12 @@ const Page = async (props: PageProps) => {
   const scope = (searchParams?.scope as RepoScope) || "team"; // Default to team scope for team routes
   const teamId = searchParams?.teamId;
   const teamSlug = params.teamSlug;
+
+  // Determine if the current user is an admin of this team
+  const myTeams = await getMyTeams();
+  const isTeamAdmin = Array.isArray(myTeams)
+    ? myTeams.some((t: any) => t?.slug === teamSlug && t?.role === "admin")
+    : false;
 
   logger.info(`Team analysis page loaded with query:`, {
     query,
@@ -55,7 +62,9 @@ const Page = async (props: PageProps) => {
 
             <SyncRepositoriesButton />
 
-            <AddRepositoriesModal teamSlug={teamSlug} />
+            {isTeamAdmin ? (
+              <AddRepositoriesModal teamSlug={teamSlug} />
+            ) : null}
           </div>
         </div>
 

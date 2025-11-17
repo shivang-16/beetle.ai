@@ -1,19 +1,16 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { UserButton, OrganizationSwitcher, useAuth } from "@clerk/nextjs";
+import {
+  ScanTextIcon,
+  StarsIcon,
+  BotIcon,
+  GitPullRequest,
+  Settings,
+  Bug,
+} from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useTheme } from "next-themes";
-
-import { cn } from "@/lib/utils";
-
-import { dark } from "@clerk/themes";
-import { OrganizationSwitcher, useAuth } from "@clerk/nextjs";
-
-import { _config } from "@/lib/_config";
-
-import { ScanTextIcon, StarsIcon, GitPullRequest } from "lucide-react";
-
+import { useEffect, useState } from "react";
 import BeetleLogo from "@/components/shared/beetle-logo";
 import { UpgradePlanDialog } from "@/components/shared/UpgradePlanDialog";
 import {
@@ -50,6 +47,11 @@ const items = [
   //   url: "/agents",
   //   icon: BotIcon,
   // },
+  {
+    title: "Settings",
+    url: "/settings",
+    icon: Settings,
+  },
 ];
 
 const AppSidebar = () => {
@@ -110,7 +112,14 @@ const AppSidebar = () => {
     // If first segment looks like a team slug (not dashboard, analysis, agents, etc.)
     if (
       pathSegments.length > 0 &&
-      !["dashboard", "analysis", "agents", "repo"].includes(pathSegments[0])
+      ![
+        "dashboard",
+        "analysis",
+        "agents",
+        "repo",
+        "pr-analysis",
+        "settings",
+      ].includes(pathSegments[0])
     ) {
       const pathWithoutSlug = "/" + pathSegments.slice(1).join("/");
       return pathWithoutSlug || "/dashboard";
@@ -215,36 +224,61 @@ const AppSidebar = () => {
               >
                 Checking plan…
               </div>
-            ) : isFreePlan ? (
-              <>
-                <UpgradePlanDialog />
-              </>
             ) : (
-              <SidebarMenuButton asChild>
-                <OrganizationSwitcher
-                  hidePersonal={false}
-                  afterSelectOrganizationUrl={(organization) => {
-                    const currentPathWithoutSlug =
-                      getCurrentPathWithoutTeamSlug();
-                    return `/${organization.slug}${currentPathWithoutSlug}`;
-                  }}
-                  afterSelectPersonalUrl={() => {
-                    return getCurrentPathWithoutTeamSlug();
-                  }}
-                  afterCreateOrganizationUrl={(organization) => {
-                    return `/${organization.slug}/dashboard`;
-                  }}
-                  appearance={{
-                    baseTheme: resolvedTheme === "dark" ? dark : undefined,
-                    elements: {
-                      organizationSwitcherTrigger: cn(
-                        "cursor-pointer",
-                        open ? "p-1" : "ml-1 w-7 h-7 overflow-hidden",
-                      ),
-                    },
-                  }}
-                />
-              </SidebarMenuButton>
+              <div className="flex flex-col">
+                <SidebarMenuButton asChild>
+                  <Link
+                    href="/report-issue"
+                    className={cn(
+                      "mb-3 flex items-center gap-2",
+                      open ? "px-2" : "px-0",
+                    )}
+                  >
+                    <Bug className="h-4 w-4" />
+                    <span>Having an issue?</span>
+                  </Link>
+                </SidebarMenuButton>
+                <SidebarMenuButton asChild>
+                  <OrganizationSwitcher
+                    hidePersonal={false}
+                    afterSelectOrganizationUrl={(organization) => {
+                      const currentPathWithoutSlug =
+                        getCurrentPathWithoutTeamSlug();
+                      return `/${organization.slug}${currentPathWithoutSlug}`;
+                    }}
+                    afterSelectPersonalUrl={() => {
+                      return getCurrentPathWithoutTeamSlug();
+                    }}
+                    afterCreateOrganizationUrl={(organization) => {
+                      return `/${organization.slug}/dashboard`;
+                    }}
+                    // For free plan, redirect "Create organization" to upgrade page instead of opening Clerk modal
+                    {...(isFreePlan
+                      ? {
+                          createOrganizationMode: "navigation" as const,
+                          createOrganizationUrl: "/upgrade",
+                        }
+                      : {
+                          createOrganizationMode: "modal" as const,
+                        })}
+                    appearance={{
+                      baseTheme: resolvedTheme === "dark" ? dark : undefined,
+                      elements: {
+                        organizationSwitcherTrigger: cn(
+                          "cursor-pointer",
+                          open ? "p-1" : "ml-1 w-7 h-7 overflow-hidden",
+                        ),
+                      },
+                    }}
+                  />
+                </SidebarMenuButton>
+
+                {isFreePlan && (
+                  <div className={cn("mt-2 w-full", open ? "px-1" : "px-0")}>
+                    <UpgradePlanDialog />
+                  </div>
+                )}
+              </div>
             )}
           </SidebarMenuItem>
         </SidebarMenu>

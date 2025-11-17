@@ -12,6 +12,7 @@ import AnalysisRoutes from "./routes/analysis.routes.js";
 import TeamRoutes from "./routes/team.routes.js";
 import SandboxRoutes from "./routes/sandbox.routes.js";
 import SubscriptionRoutes from "./routes/subscription.routes.js";
+import AiRoutes from "./routes/ai.routes.js";
 import { config } from "dotenv";
 import { winstonLogger } from "./utils/logger.js";
 
@@ -86,6 +87,7 @@ export function createApp(): Application {
   app.use("/api/team", TeamRoutes);
   app.use("/api/sandbox", SandboxRoutes);
   app.use("/api/subscription", SubscriptionRoutes);
+  app.use("/api/ai", AiRoutes);
 
   // 404 handler
   app.use((req: Request, res: Response) => {

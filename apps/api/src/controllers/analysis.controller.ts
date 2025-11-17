@@ -10,6 +10,7 @@ import { appendToRedisBuffer, finalizeAnalysisAndPersist } from "../utils/analys
 import { logger } from "../utils/logger.js";
 import mongoose from "mongoose";
 import Team from "../models/team.model.js";
+import User from "../models/user.model.js";
 
 export const createAnalysis = async (
   req: Request,
@@ -27,7 +28,6 @@ export const createAnalysis = async (
       github_repositoryId,
       branch,
       teamId: bodyTeamId,
-      model = "gemini-2.0-flash",
       prompt = "Analyze this codebase for security vulnerabilities and code quality",
       analysis_type = "full_repo_analysis",
       status = "draft"
@@ -60,6 +60,26 @@ export const createAnalysis = async (
       userId = team.ownerId;
     }
 
+    // Resolve model from team/user settings
+    let selectedModel: string | undefined;
+    if (teamId && teamId !== 'null') {
+      try {
+        const teamDoc = await Team.findById(teamId);
+        const ts: any = teamDoc?.settings || {};
+        selectedModel = analysis_type === 'full_repo_analysis' ? ts.defaultModelRepo : ts.defaultModelPr;
+      } catch (_) {}
+    }
+    if (!selectedModel) {
+      try {
+        const userDoc = await User.findById(userId);
+        const us: any = userDoc?.settings || {};
+        selectedModel = analysis_type === 'full_repo_analysis' ? us.defaultModelRepo : us.defaultModelPr;
+      } catch (_) {}
+    }
+    if (!selectedModel || typeof selectedModel !== 'string' || selectedModel.length === 0) {
+      selectedModel = 'gemini-2.5-pro';
+    }
+
     // Generate new MongoDB ObjectId for the analysis
     const analysisId = new mongoose.Types.ObjectId();
 
@@ -71,7 +91,7 @@ export const createAnalysis = async (
       repoUrl,
       github_repositoryId,
       sandboxId: "", // Will be updated when sandbox is created
-      model,
+      model: selectedModel,
       prompt,
       status,
     });
@@ -92,7 +112,7 @@ export const createAnalysis = async (
           userId,
           repoUrl,
           github_repositoryId,
-          model,
+          model: selectedModel,
           prompt,
           status,
           createdAt: analysis.createdAt
@@ -133,8 +153,7 @@ export const startAnalysis = async (
       github_repositoryId,
       branch,
       teamId: bodyTeamId,
-      analysisId, // Optional pre-created analysis ID
-      model = "gemini-2.0-flash",
+      analysisId,
       prompt = "Analyze this codebase for security vulnerabilities and code quality",
     } = req.body;
     
@@ -195,7 +214,7 @@ export const startAnalysis = async (
     await streamToClient("🧠 CodeDetector - Intelligent Code Analysis");
     await streamToClient("=".repeat(50));
     await streamToClient(`📁 Repository: ${repoUrl}`);
-    await streamToClient(`🤖 Model: ${model}`);
+    
     await streamToClient(`💭 Prompt: ${prompt}`);
     await streamToClient("=".repeat(50));
 
@@ -218,7 +237,6 @@ export const startAnalysis = async (
       repoUrl,
       branchForAnalysis,
       userId,
-      model,
       prompt: prompt.substring(0, 200) + (prompt.length > 200 ? "..." : ""),
       analysisType: "full_repo_analysis",
       userEmail: req.user?.email,
@@ -231,14 +249,13 @@ export const startAnalysis = async (
       repoUrl,
       branchForAnalysis,
       userId,
-      model,
       prompt,
-      "full_repo_analysis", // analysisType
+      "full_repo_analysis",
       callbacks,
-      undefined, // data parameter
-      req.user?.email, // userEmail parameter
+      undefined,
+      req.user?.email,
       teamId,
-      analysisId // Pass the optional pre-created analysis ID
+      analysisId
     );
 
     exitCode = result.exitCode;

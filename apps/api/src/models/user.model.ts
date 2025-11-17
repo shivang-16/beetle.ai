@@ -20,6 +20,7 @@ export interface IUser extends Document {
   earlyAccess?: boolean;
   earlyAccessRequestedAt?: Date;
   requestedUpgrade?: boolean;
+  settings?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -99,6 +100,15 @@ const userSchema = new Schema<IUser>(
     requestedUpgrade: {
       type: Boolean,
       default: false,
+    },
+    settings: {
+      type: Schema.Types.Mixed,
+      default: {
+        defaultModelRepo: 'gemini-2.5-flash',
+        defaultProviderRepo: 'vertex',
+        defaultModelPr: 'gemini-2.5-pro',
+        defaultProviderPr: 'vertex',
+      },
     },
   },
   {

@@ -103,8 +103,8 @@ export default clerkMiddleware(async (auth, req) => {
     const pathname = url.pathname;
     const activeOrgSlug = (sessionClaims as any)?.o?.slg as string | undefined;
 
-    // Define routes that should have team context
-    const teamRoutes = ['/dashboard', '/analysis', '/agents', '/pr-analysis'];
+    // Define routes that should have team context (include Settings)
+    const teamRoutes = ['/dashboard', '/analysis', '/agents', '/pr-analysis', '/settings'];
     const isTeamRoute = teamRoutes.some(route => pathname === route || pathname.startsWith(route + '/'));
     
     // Check if we're on a team route without slug but have an active organization

@@ -44,7 +44,22 @@ const RepositoryList = async ({
 
   return (
     <ul className="h-full w-full">
-      {!installations || installations.length === 0 ? (
+      {scope === "team" ? (
+        data && data.length > 0 ? (
+          data.map((repo) => (
+            <React.Fragment key={repo._id}>
+              <li className="w-full py-5">
+                <RepositoryItem repo={repo} teamId={teamId} />
+              </li>
+              <Separator />
+            </React.Fragment>
+          ))
+        ) : (
+          <li className="text-foreground grid h-full place-items-center text-base font-medium">
+            No repository added
+          </li>
+        )
+      ) : !installations || installations.length === 0 ? (
         <li className="mt-2 h-full w-full">
           <ConnectGithubCard />
         </li>

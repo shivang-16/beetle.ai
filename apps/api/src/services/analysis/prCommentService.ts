@@ -22,6 +22,7 @@ export interface ParsedSuggestion {
   originalComment: string;
   severity?: string;
   issueType?: string;
+  confidence?: string;
 }
 
 export class PRCommentService {
@@ -85,13 +86,32 @@ export class PRCommentService {
     let processedContent = problemMatch ? problemMatch[1] : content;
     
     // Step 2: Remove any remaining metadata lines that might appear anywhere
-    processedContent = processedContent.replace(/^(\*\*(File|Line_Start|Line_End|Severity)\*\*:.*|##\s*\[.*?\]:.*)$/gm, '');
+    processedContent = processedContent.replace(/^(\*\*(File|Line_Start|Line_End|Severity|Confidence)\*\*:.*|##\s*\[.*?\]:.*)$/gm, '');
     
     // Step 3: Remove line number annotations from ALL code blocks (not just suggestion blocks)
     processedContent = processedContent.replace(/```[\s\S]*?```/g, (match) => {
       return match.replace(/^\s*\d+\|\s*/gm, '');
     });
     
+    // Insert spacing before & after File Changes table
+// Add one blank line BEFORE the File Changes Summary heading
+processedContent = processedContent.replace(
+  /\s*\*\*File Changes Summary/,
+  "\n\n**File Changes Summary"
+);
+
+// Add one blank line AFTER the entire table block
+processedContent = processedContent.replace(
+  /(\n\|.*?\|\s*\n(?:\|.*?\|\s*\n)+)(?=\S)/,
+  (match) => match.trimEnd() + "\n\n"
+);
+
+// Ensure one blank line after table (after last row)
+  processedContent = processedContent.replace(
+    /\n*\s*\*\*Walkthrough\*\*:/,
+    "\n\n**Walkthrough**:"
+  );
+
     // Step 4: If we have suggestion code, clean it and replace the suggestion block content
     if (suggestionCode) {
       const cleanSuggestionCode = suggestionCode.replace(/^\s*\d+\|\s*/gm, '').trim();
@@ -101,18 +121,50 @@ export class PRCommentService {
       );
     }
 
-    // Step 4.5: Ensure a blank line between </summary> and the ```suggestion code block inside <details>
-    // Some comments may have the suggestion block immediately after </summary> without a blank line.
-    // Normalize it to have exactly one blank line to render properly in GitHub.
     processedContent = processedContent.replace(
-      /(<details>[\s\S]*?<summary>[\s\S]*?<\/summary>)(\s*)(```suggestion)/g,
-      '$1\n\n$3'
+  /<details>[\s\S]*?<\/details>/g,
+  (detailsBlock) => {
+    // 1. Add exactly one blank line after <summary>...</summary>
+    let block = detailsBlock.replace(
+      /(<summary>[\s\S]*?<\/summary>)[ \t\r]*\n*/g,
+      '$1\n\n'
     );
+
+    const lines = block.split('\n');
+    const out: string[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // 2. Detect code fences ``` and enforce exactly one blank line before it
+      if (line.trim().startsWith('```')) {
+        // Walk backwards to find first non-empty line
+        let j = out.length - 1;
+
+        // Remove only EMPTY lines (not indentation lines)
+        while (j >= 0 && out[j].trim() === '') {
+          out.pop();
+          j--;
+        }
+
+        // Add exactly ONE blank line before ```
+        out.push('');
+        out.push(line);
+      } else {
+        out.push(line);
+      }
+    }
+
+    return out.join('\n');
+  }
+);
+
     
     // Step 5: Clean up any extra whitespace
     processedContent = processedContent.replace(/\n\s*\n\s*\n/g, '\n\n').trim();
+    
     // Step 6: Normalize Markdown tables only (disable mermaid/HTML/code-fence auto-fixes)
-    processedContent = this.fixMarkdownTables(processedContent);
+    // processedContent = this.fixMarkdownTables(processedContent);
 
     return processedContent;
   }
@@ -143,6 +195,9 @@ export class PRCommentService {
       const suggestionMatch = content.match(/```suggestion\s*\n([\s\S]*?)\n```/);
       const suggestionCode = suggestionMatch ? suggestionMatch[1].trim() : undefined;
       
+      const confidenceMatch = content.match(/\*\*Confidence\*\*:\s*(.+)/);
+      const confidence = confidenceMatch ? confidenceMatch[1].trim() : undefined;
+      
 
       
       return {
@@ -151,6 +206,7 @@ export class PRCommentService {
         lineEnd,
         suggestionCode,
         originalComment: content,
+        confidence,
       };
     } catch (error) {
       console.error('Error parsing suggestion comment:', error);
@@ -184,6 +240,17 @@ export class PRCommentService {
       if (suggestion.lineEnd && suggestion.lineEnd !== suggestion.lineStart) {
         const lineRangeInfo = `\n\n*📍 This suggestion applies to lines ${suggestion.lineStart}-${suggestion.lineEnd}*`;
         reviewBody = reviewBody + lineRangeInfo;
+      }
+
+      if (suggestion.confidence) {
+        const confidenceLine = `\n\n**Confidence**: ${suggestion.confidence}\n\n`;
+        if (reviewBody.includes('<details>')) {
+          reviewBody = reviewBody.replace('<details>', confidenceLine + '<details>');
+        } else if (reviewBody.includes('```suggestion')) {
+          reviewBody = reviewBody.replace('```suggestion', confidenceLine + '```suggestion');
+        } else {
+          reviewBody = reviewBody + confidenceLine;
+        }
       }
 
 
@@ -411,7 +478,7 @@ export class PRCommentService {
    * Create a friendly, immediately visible status comment indicating analysis started.
    * Includes collapsible sections for commits and files.
    */
-  async postAnalysisStartedComment(commits?: any[], files?: any[]): Promise<boolean> {
+  async postAnalysisStartedComment(commits?: any[], files?: any[], ignoredFiles?: any[]): Promise<boolean> {
     try {
       // Always create a fresh status comment for each analysis run
 
@@ -430,8 +497,14 @@ export class PRCommentService {
         return `- \`${name}\`${status}${stats}`;
       }).join('\n');
 
+      const ignoredItems = (ignoredFiles || []).slice(0, 50).map((f: any) => {
+        const name = f?.filename || f;
+        return `- \`${name}\``;
+      }).join('\n');
+
       const commitsCount = (commits || []).length;
       const filesCount = (files || []).length;
+      const ignoredCount = (ignoredFiles || []).length;
 
       const body = [
         PRCommentService.STATUS_MARKER,
@@ -441,7 +514,39 @@ export class PRCommentService {
         '',
         `<details>\n<summary>Files Changed (${filesCount})</summary>\n\n${fileItems || '- No files found'}\n\n</details>`,
         '',
+        ignoredCount > 0 ? `<details>\n<summary>Ignored Files (${ignoredCount})</summary>\n\n${ignoredItems}\n\n</details>` : '',
+        '',
         `\`Step aside — I’m tearing through this PR 😈 -- You keep on building\``,
+        '',
+        `\`\`\`
+
+                      ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡴⠶⠶⠦⠦⣤⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+                      ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡤⣞⠁⠀⠀⡄⠀⠀⠀⠀⠐⢣⢄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+                      ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡖⠀⣁⠀⠠⡮⠁⠀⠀⠀⠀⠀⠀⠈⠐⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+                      ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣏⠐⣣⠦⠐⣧⠆⢀⡰⠃⠰⠆⠀⠀⠀⠀⠸⠆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+                      ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡟⡤⠃⡄⠛⠛⢓⡛⢓⣾⡇⣰⡞⠃⢠⢰⢀⠙⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+                      ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡥⡧⣯⣿⠡⢾⡯⢧⡠⠟⠋⢁⡠⢌⣏⣺⢸⣰⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+                      ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣀⣁⠇⠇⣇⠀⠀⠁⠀⠀⠀⢀⣠⣄⠈⢸⡿⠸⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+                      ⠀⠀⠀⠀⠀⠀⠀⠀⣤⠶⠋⠉⠀⠀⢧⠀⠀⠀⠃⠀⠀⠀⠀⠀⠀⠛⠃⣴⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+                      ⠀⠀⠀⠀⠀⢀⠰⠉⠀⠀⠀⠀⠀⡀⠀⡶⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢈⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+                      ⠀⠀⠀⠀⠰⠊⠁⠀⠀⠀⠀⠀⠀⠙⡄⠀⠓⣤⡆⣦⡀⠀⠀⠐⣢⡌⠉⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+                      ⠀⠀⢀⡘⠃⠀⠀⢀⠶⠀⠀⠀⠀⠀⣏⠀⠀⠙⣣⣏⡹⠦⠔⠚⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+                      ⠀⢠⠎⠁⠀⠀⠀⣸⠀⠀⠀⠀⠀⣤⠿⠀⢀⡴⠈⠉⢁⡆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+                      ⠀⡖⠀⠀⠀⠀⠰⣤⢀⠀⣤⣄⣀⠶⠀⣠⠎⠓⠋⠉⠉⢛⠳⠤⢄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+                      ⠘⠃⠀⠀⠀⠀⢀⣴⠏⠀⠀⣠⣼⠗⠋⠁⢀⡄⣀⠀⡸⣾⣷⡀⠀⠈⢣⠄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+                      ⢘⡇⠀⠀⠀⠀⠀⢘⠁⠀⠛⠀⠀⠀⠀⣰⠋⠀⣠⠬⠉⠉⠀⡉⠛⠢⣼⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+                      ⢸⡇⠀⠀⠠⠞⢋⢹⠀⠀⠀⠀⠀⠀⣬⠁⠀⣼⠓⠲⠤⣄⡬⠁⠀⠀⠀⠈⠙⠢⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+                      ⢸⣅⣀⡴⢂⡴⠊⠉⣤⣀⣀⠤⠖⠋⠀⠀⡼⠁⠀⠀⢀⡦⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠒⢦⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣄⡄⠀⠀⠀⠀⠀⠀⠀⠠⣄⠀⠀⠀⠀⠀
+                      ⠰⡏⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣖⠟⠀⠀⠀⢠⠆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠉⠲⢤⣀⠀⠀⠀⠀⠀⠀⠀⠘⠯⠁⠀⢀⣠⣀⣀⠤⣀⡀⠽⠂⠀⠀⠀⠀
+                      ⠀⠹⢆⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⢛⡟⠀⠀⢀⣰⠏⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠙⠲⠄⠀⠀⢀⡸⠁⢈⣷⡶⢋⡙⣦⣀⣀⠈⠙⠦⡀⠀⠀⠀⠀
+                      ⠀⠀⠘⢢⣀⠀⠀⠀⠀⠀⢀⡶⠀⣍⠀⠠⡶⠛⠇⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢓⣀⡴⠞⢂⣀⡾⠉⢳⠊⠀⠈⣂⠉⠛⠢⣄⢻⡀⠀⠀⠀
+                      ⠀⠀⠀⠀⠈⢹⠐⠒⠚⠛⠉⠙⠛⠀⠋⠋⠉⠓⠾⠟⠓⢲⣄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⢩⡀⠀⢈⡟⢡⠝⢻⠃⠀⠀⣸⠀⠀⠀⠈⢈⡇⠀⠀⠀
+                      ⢀⣀⣠⢴⢒⣸⣄⣀⣀⣠⣴⣀⠀⠀⠀⠀⠀⡀⡀⢔⣀⡠⢇⣀⣰⡦⠤⠄⡠⠄⠀⢀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡀⠙⠤⠴⢾⡾⠲⠸⣤⣀⣰⡂⣀⠀⡀⣠⠮⢤⠀⠀⠀
+                      ⠀⠀⠘⠃⠀⠀⠀⠀⠀⠀⠀⠀⠉⠉⠉⠁⠉⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠁⠀⠀⠀⠀⠀⠀⠀⠠⠄⠠⠄⠨⡷⠼⢇⣀⡸⠏⠀⣠⣀⠾⢀⠀⠹⣭⡀⠉⠷⣄⣀⠳⠄⠆
+                      ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠀⠀⠐⠂⢸⠈⠈⠀⠀⠀⠉⠀⠀⠈⠉⠀⠀⠀
+
+\`\`\``,
+
         '',
         '---',
         `Links: [Beetle](https://beetleai.dev) · [X](https://x.com/beetleai_dev) · [LinkedIn](https://www.linkedin.com/company/beetle-ai)`,

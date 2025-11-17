@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import User from "../models/user.model.js";
+import AIModel, { IAIModel } from '../models/ai_model.model.js';
 import { CustomError } from "../middlewares/error.js";
 import { Github_Installation } from '../models/github_installations.model.js';
 import { Github_Repository } from '../models/github_repostries.model.js';
@@ -283,6 +284,8 @@ export const getUserDashboardInfo = async (req: Request, res: Response, next: Ne
                 : undefined;
             return {
                 repo_name: repo?.fullName || 'Unknown',
+                pr_title: (analysis as any).pr_title ?? undefined,
+                pr_number: (analysis as any).pr_number ?? undefined,
                 state: analysis.status,
                 date: analysis.createdAt,
                 total_comments: typeof (analysis as any).pr_comments_posted === 'number' ? (analysis as any).pr_comments_posted : 0,
@@ -331,4 +334,68 @@ export const getUserDashboardInfo = async (req: Request, res: Response, next: Ne
 }
 
 
-  
+
+export const getUserSettings = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = await User.findById(req.user._id).select('settings');
+    if (!user) {
+      return next(new CustomError('User not found', 404));
+    }
+    return res.status(200).json({ success: true, data: user.settings || {} });
+  } catch (error: any) {
+    next(new CustomError(error.message || 'Failed to get user settings', 500));
+  }
+};
+
+export const updateUserSettings = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return next(new CustomError('User not found', 404));
+    }
+    const body = req.body || {};
+    const s = typeof user.settings === 'object' && user.settings ? { ...(user.settings as any) } : {};
+    const nextSettings: any = { ...s };
+
+    const repoId = typeof body.defaultModelRepoId === 'string' ? body.defaultModelRepoId : undefined;
+    const prId = typeof body.defaultModelPrId === 'string' ? body.defaultModelPrId : undefined;
+
+    if (repoId) {
+      const m = await AIModel.findById(repoId).select('name provider').lean() as IAIModel | null;
+      if (m) {
+        nextSettings.defaultModelRepo = m.name;
+        nextSettings.defaultProviderRepo = m.provider;
+        nextSettings.defaultModelRepoId = String(m._id);
+      }
+    } else if (typeof body.defaultModelRepo === 'string') {
+      const m = await AIModel.findOne({ name: body.defaultModelRepo }).select('name provider').lean() as IAIModel | null;
+      if (m) {
+        nextSettings.defaultModelRepo = m.name;
+        nextSettings.defaultProviderRepo = m.provider;
+        nextSettings.defaultModelRepoId = String(m._id);
+      }
+    }
+
+    if (prId) {
+      const m = await AIModel.findById(prId).select('name provider').lean() as IAIModel | null;
+      if (m) {
+        nextSettings.defaultModelPr = m.name;
+        nextSettings.defaultProviderPr = m.provider;
+        nextSettings.defaultModelPrId = String(m._id);
+      }
+    } else if (typeof body.defaultModelPr === 'string') {
+      const m = await AIModel.findOne({ name: body.defaultModelPr }).select('name provider').lean() as IAIModel | null;
+      if (m) {
+        nextSettings.defaultModelPr = m.name;
+        nextSettings.defaultProviderPr = m.provider;
+        nextSettings.defaultModelPrId = String(m._id);
+      }
+    }
+
+    user.settings = nextSettings;
+    await user.save();
+    return res.status(200).json({ success: true, message: 'Settings updated', data: nextSettings });
+  } catch (error: any) {
+    next(new CustomError(error.message || 'Failed to update user settings', 500));
+  }
+};

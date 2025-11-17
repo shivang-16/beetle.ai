@@ -28,6 +28,8 @@ export interface PullRequestActivity {
   state: string;
   date: string;
   total_comments: number;
+  pr_title?: string;
+  pr_number?: number;
   pr_url?: string;
   repo_id?: string;
   analysis_id?: string;

@@ -7,6 +7,8 @@ import {
   getMyTeams,
   addReposInTeam,
   getTeamDashboardInfo,
+  getTeamSettings,
+  updateTeamSettings,
 } from '../controllers/team.controller.js';
 import { checkTeamMemberRole } from '../middlewares/checkRole.js';
 
@@ -20,6 +22,8 @@ router.get('/mine', getMyTeams);
 router.get('/repositories', getTeamRepositories);
 router.post('/repositories/add', checkTeamMemberRole('admin'), addReposInTeam);
 router.get("/dashboard", getTeamDashboardInfo)
+router.get('/settings', getTeamSettings);
+router.put('/settings', checkTeamMemberRole('admin'), updateTeamSettings);
 
 // router.get('/:teamId', getTeam);
 // router.put('/:teamId',  updateTeam);

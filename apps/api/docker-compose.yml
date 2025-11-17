@@ -21,7 +21,8 @@ services:
       
       # Application Configuration
       - PORT=${PORT:-3001}
-      - FRONTEND_URL=${FRONTEND_URL:-https://beetle-ai.vercel.app}
+      - FRONTEND_URL=${FRONTEND_URL:-https://beetleai.dev}
+      - API_BASE_URL=${API_BASE_URL}
       - NODE_ENV=${NODE_ENV:-production}
       
       # Clerk Authentication
@@ -37,7 +38,13 @@ services:
       
       # Google API Configuration
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      
+      - GOOGLE_CREDENTIALS_JSON_BASE64=${GOOGLE_CREDENTIALS_JSON_BASE64}
+      # GOOGLE_APPLICATION_CREDENTIALS is set by the entrypoint script from GOOGLE_CREDENTIALS_JSON_BASE64
+      # It will be /app/credentials/google-credentials.json inside the container
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/google-credentials.json
+      - GOOGLE_CLOUD_PROJECT_ID=${GOOGLE_CLOUD_PROJECT_ID}
+      - GOOGLE_CLOUD_LOCATION=${GOOGLE_CLOUD_LOCATION}
+
       # SMTP Configuration
       - SMTP_HOST=${SMTP_HOST}
       - SMTP_PORT=${SMTP_PORT}
@@ -45,6 +52,12 @@ services:
       - SMTP_SERVICE=${SMTP_SERVICE}
       - SMTP_USER=${SMTP_USER}
       - SMTP_PASS=${SMTP_PASS}
+
+      # AWS Configuration
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - AWS_BEDROCK_API_KEY=${AWS_BEDROCK_API_KEY}
 
       - BETTERSTACK_SOURCE_TOKEN=${BETTERSTACK_SOURCE_TOKEN}
       - BETTERSTACK_INGESTING_HOST=${BETTERSTACK_INGESTING_HOST}

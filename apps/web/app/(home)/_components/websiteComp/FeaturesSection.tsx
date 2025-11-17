@@ -28,7 +28,7 @@ const loadingStates = [
     text: "Processing streaming AI analysis",
   },
   {
-    text: "Generating Github Issues along with Suggest Fix for those",
+    text: "Generating Context-driven Code Suggestion for your code",
   },
   {
     text: "Let's F***** Go",
@@ -88,19 +88,19 @@ export default function Features() {
             <CardHeader className="pb-3">
               <CardHeading
                 icon={MapIcon}
-                title="Auto Github Issues and Pull Requests"
-                description="Generate Github Issues and Pull Requests based on the analysis."
+                title="Pull Requests Reviews"
+                description="Smart, context-driven code review comments tailored to your PRs"
               />
             </CardHeader>
 
             <div className="relative border-t border-[#333333] border-dashed max-sm:mb-6">
               <div
                 aria-hidden
-                className="absolute inset-0 [background:radial-gradient(125%_125%_at_50%_0%,transparent_40%,var(--color-primary),var(--color-white)_100%)]"
+                className="absolute inset-0 [background:radial-gradient(125%_200%_at_50%_0%,transparent_40%,var(--color-primary),var(--color-white)_100%)]"
               />
               <div className="aspect-76/59 p-1 px-6">
                 <DualModeImage
-                  darkSrc="/analysis-page-dark.png"
+                  darkSrc="/pr_review_3.png"
                   alt="analysis illustration"
                   width={1207}
                   height={929}
@@ -132,34 +132,84 @@ export default function Features() {
             </CardContent>
           </FeatureCard>
 
-          <FeatureCard className="p-6 lg:col-span-2">
-            <p className="mx-auto my-6 max-w-md text-balance text-center text-2xl font-semibold text-zinc-400">
-              Smart scheduling with automated reminders for maintenance.
-            </p>
+          <div className="lg:col-span-2 grid gap-4 lg:grid-cols-3">
+            <FeatureCard className="p-2 lg:col-span-2">
+                 <CardHeader className="pb-3">
+              <CardHeading
+                icon={MapIcon}
+                title="Chat in Pull Request"
+                description="Ship faster with agentic Chat!"
 
-            <div className="flex justify-center gap-6 overflow-hidden">
-              <CircularUI
-                label="Inclusion"
-                circles={[{ pattern: "border" }, { pattern: "border" }]}
               />
+            </CardHeader>
+              <div className="flex flex-col items-center justify-center gap-8 ">
+                
+                  {/* <p className="text-zinc-400 text-lg px-12  ">
+Start chatting and watch the workflow build itself. Code, tests, issues, reviews — done faster, and smarter with every use.                  </p>
+                   */}
+                   <DualModeImage
+                      darkSrc="/pr_review.png"
+                      alt="analysis illustration"
+                      width={700}
+                      height={600}
+                      className="m-auto border-2 rounded-md"
+                    />               
+              </div>
+            </FeatureCard>
 
-              <CircularUI
-                label="Inclusion"
-                circles={[{ pattern: "none" }, { pattern: "primary" }]}
-              />
+            <FeatureCard className="p-2 lg:col-span-1">         
+              <CardHeader className="pb-3">
+              <CardHeading
+                icon={MapIcon}
+                title="Tag Beetle"
+                description="Got a question? Just ask @Beetle."
 
-              <CircularUI
-                label="Join"
-                circles={[{ pattern: "blue" }, { pattern: "none" }]}
               />
+            </CardHeader>
+                  <div className="mb-6 w-full flex justify-center">
+                    <Image
+                      src="/@beetle.png"
+                      alt="beetle card"
+                      width={308}
+                      height={308}
+                      className="rounded-md"
+                    />
+                  </div>
+                {/* <h3 className="text-white text-2xl md:text-3xl font-semibold">
+                  More signal. Less noise.
+                </h3>
+                <p className="mt-4 text-zinc-400 text-lg">
+                  Automatically runs popular static analyzers, linters, and security tools combined with Gen-AI's advanced reasoning models. Code graph analysis enhances context for deeper code understanding, delivering best-in-class signal-to-noise ratio.
+                </p> */}
+              
+            </FeatureCard>
+          </div>
+              <FeatureCard className="p-2 lg:col-span-2">         
+              <CardHeader className="pb-3">
+              <CardHeading
+                icon={MapIcon}
+                title="Full Repo Reviews"
+                description="Say hello to Beetle’s end-to-end repo analysis."
 
-              <CircularUI
-                label="Exclusion"
-                circles={[{ pattern: "primary" }, { pattern: "none" }]}
-                className="hidden sm:block"
               />
-            </div>
-          </FeatureCard>
+            </CardHeader>
+                  <div className="mb-6 w-full flex justify-center">
+                    <Image
+                      src="/analysis-page.png"
+                      alt="beetle card"
+                      width={1100}
+                      height={700}
+                      className="rounded-md"
+                    />
+                  </div>
+                {/* <h3 className="text-white text-2xl md:text-3xl font-semibold">
+                  More signal. Less noise.
+                </h3>
+                <p className="mt-4 text-zinc-400 text-lg">
+                  Automatically runs popular static analyzers, linters, and security tools combined with Gen-AI's advanced reasoning models. Code graph analysis enhances context for deeper code understanding, delivering best-in-class signal-to-noise ratio.
+                </p> */}
+              
+            </FeatureCard>
         </div>
       </div>
     </section>

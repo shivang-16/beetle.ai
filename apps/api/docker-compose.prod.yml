@@ -35,6 +35,7 @@ services:
     tmpfs:
       - /tmp
       - /app/apps/api/logs
+      - /app/credentials:uid=1001,gid=1001,mode=700
       - /home/apiuser/.cache:uid=1001,gid=1001,mode=700
       - /home/apiuser/.local:uid=1001,gid=1001,mode=700
       - /home/apiuser/.pnpm-state:uid=1001,gid=1001,mode=700

@@ -62,8 +62,14 @@ COPY --from=builder /app/packages ./packages
 # Install only production dependencies
 RUN pnpm install --frozen-lockfile --prod
 
-# Create logs directory with proper permissions
-RUN mkdir -p /app/apps/api/logs && chown -R apiuser:nodejs /app/apps/api/logs
+# Create logs and credentials directories with proper permissions
+RUN mkdir -p /app/apps/api/logs /app/credentials && \
+    chown -R apiuser:nodejs /app/apps/api/logs /app/credentials
+
+# Copy the entrypoint script
+COPY apps/api/scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh && \
+    chown apiuser:nodejs /app/docker-entrypoint.sh
 
 # Switch to non-root user
 USER apiuser
@@ -78,5 +84,6 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3001/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })" || exit 1
 
-# Start the application
+# Use entrypoint script to handle credentials, then start the application
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["pnpm", "start"]

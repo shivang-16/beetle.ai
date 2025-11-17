@@ -12,7 +12,7 @@ export interface BeetleSuggestionContext {
   issueType?: string;
 }
 
-// (Removed old Gemini SDK response type shims; the new SDK provides response.text)
+// Using Vertex AI with @google/genai package for Gemini 2.5-pro model
 
 /**
  * Heuristically determine if a comment body is a Beetle AI suggestion/comment
@@ -79,7 +79,6 @@ export function isLikelyReplyToBeetleConversation(body: string): boolean {
  */
 export function extractSuggestionFromComment(content: string): BeetleSuggestionContext | null {
   try {
-    console.log(content, "here is the content")
     if (!content || typeof content !== 'string') return null;
     // Extract file path
     const fileMatch = content.match(/\*\*File\*\*:\s*`([^`]+)`/);
@@ -196,31 +195,55 @@ If a code fix helps, present it inside a collapsible dropdown:
 }
 
 export async function generateReplyWithGemini(prompt: string, model?: string): Promise<string> {
-  const apiKey = process.env.GOOGLE_API_KEY;
-  const chosenModel = model || process.env.BEETLE_GEMINI_MODEL || 'gemini-2.5-pro';
-  if (!apiKey) {
-    logger.warn('GEMINI_API_KEY is not set; cannot call Gemini.');
+  const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
+  const location = process.env.GOOGLE_CLOUD_LOCATION || 'global';
+  const chosenModel = model || 'gemini-2.5-pro';
+  
+  if (!credentialsPath) {
+    logger.warn('GOOGLE_APPLICATION_CREDENTIALS is not set; cannot call Vertex AI.');
     return 'I\'m unable to process your reply right now due to missing configuration. Please try again later.';
   }
+  
+  if (!projectId) {
+    logger.warn('GOOGLE_CLOUD_PROJECT_ID or GCP_PROJECT_ID is not set; cannot call Vertex AI.');
+    return 'I\'m unable to process your reply right now due to missing project configuration. Please try again later.';
+  }
+  
   try {
-    logger.info('Calling Gemini SDK generateContent', { model: chosenModel, promptLength: prompt.length });
-    const ai = new GoogleGenAI({ apiKey });
+    logger.info('Calling Vertex AI Gemini SDK generateContent', { 
+      model: chosenModel, 
+      promptLength: prompt.length,
+      projectId,
+      location 
+    });
+    
+    // Initialize GoogleGenAI for Vertex AI
+    const ai = new GoogleGenAI({
+      vertexai: true,
+      project: projectId,
+      location: location,
+    });
+    
     const response = await ai.models.generateContent({
       model: chosenModel,
       contents: prompt,
     });
+    
     const text = String((response as any)?.text || '').trim();
     const firstCandidate = (response as any)?.candidates?.[0];
     const finishReason = firstCandidate?.finishReason;
     const safety = firstCandidate?.safetyRatings;
-    logger.info('Gemini SDK response received', {
+    
+    logger.info('Vertex AI Gemini SDK response received', {
       finishReason,
       responseLength: text.length,
       safetyBlocked: Array.isArray(safety) ? safety.some((s: any) => s?.blocked) : false,
     });
+    
     return text || 'Missing context; share relevant code or details.';
   } catch (error) {
-    logger.error('Gemini SDK call failed', { error: error instanceof Error ? error.message : error });
+    logger.error('Vertex AI Gemini SDK call failed', { error: error instanceof Error ? error.message : error });
     return 'I encountered an error while generating a response. Please try again.';
   }
 }

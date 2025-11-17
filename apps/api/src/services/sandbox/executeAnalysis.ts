@@ -9,6 +9,7 @@ import Analysis from "../../models/analysis.model.js";
 import mongoose from "mongoose";
 import { mailService } from "../mail/mail_service.js";
 import Team from "../../models/team.model.js";
+import User from "../../models/user.model.js";
 
 export interface StreamingCallbacks {
   onStdout?: (data: string) => Promise<void>;
@@ -29,14 +30,13 @@ export const executeAnalysis = async (
   repoUrl: string,
   branch: string,
   userId: string,
-  model = "gemini-2.5-pro",
   prompt = "Analyze this codebase for security vulnerabilities and code quality",
   analysisType: string,
   callbacks?: StreamingCallbacks,
-  data?: any, // Optional data parameter for PR analysis or other structured data
-  userEmail?: string, // Optional email parameter to send analysis results
+  data?: any,
+  userEmail?: string,
   teamId?: string,
-  preCreatedAnalysisId?: string // Optional pre-created analysis ID
+  preCreatedAnalysisId?: string
 ): Promise<AnalysisResult> => {
   // Hoisted context for streaming persistence
   let sandboxRef: any | undefined;
@@ -45,16 +45,16 @@ export const executeAnalysis = async (
   let _id: mongoose.Types.ObjectId = preCreatedAnalysisId 
     ? new mongoose.Types.ObjectId(preCreatedAnalysisId)
     : new mongoose.Types.ObjectId();
+    
+  // Ensure model/provider are available across try/catch
+  let model: string;
+  let provider: string;
 
   try {
-    const latestAnalysis = await Analysis.findOne({
-      github_repositoryId: new mongoose.Types.ObjectId(github_repositoryId),
-    }).sort({ createdAt: -1 });
-
-    let owner = userId;
+    let teamDoc: any = null;
     if (teamId && teamId !== 'null') {
-      const team = await Team.findById(teamId);
-      if (!team) {
+      teamDoc = await Team.findById(teamId);
+      if (!teamDoc) {
         return {
         success: false,
         exitCode: -1,
@@ -63,7 +63,41 @@ export const executeAnalysis = async (
         error: "Team not found",
       };;
       }
-      owner = team.ownerId;
+      const ts: any = teamDoc.settings || {};
+      if (analysisType === "full_repo_analysis") {
+        model = ts.defaultModelRepo;
+        provider = ts.defaultProviderRepo;
+      } else {
+        model = ts.defaultModelPr;
+        provider = ts.defaultProviderPr;
+      }
+    } else {
+      const userDoc = await User.findById(userId);
+      if (!userDoc) {
+        return {
+          success: false,
+          exitCode: -1,
+          sandboxId: null,
+          _id: new mongoose.Types.ObjectId().toString(),
+          error: "User not found",
+        };
+      }
+      const us: any = userDoc.settings || {};
+      if (analysisType === "full_repo_analysis") {
+        model = us.defaultModelRepo;
+        provider = us.defaultProviderRepo;
+      } else {
+        model = us.defaultModelPr;
+        provider = us.defaultProviderPr;
+      }
+    }
+    const latestAnalysis = await Analysis.findOne({
+      github_repositoryId: new mongoose.Types.ObjectId(github_repositoryId),
+    }).sort({ createdAt: -1 });
+
+    let owner = userId;
+    if (teamDoc) {
+      owner = teamDoc.ownerId;
       console.log("setting owner form team")
     }
     // Authenticate GitHub repository
@@ -198,7 +232,7 @@ export const executeAnalysis = async (
     const dataParam = data ? JSON.stringify(data) : '{}';
     console.log("🔧 Formatted data parameter length:", dataParam.length);
     
-    const analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" --user-id "${userId}" --github-repository-id ${github_repositoryId} --analysis-id "${_id.toString()}" --model "${model}" --mode ${analysisType} --api-key ${process.env.GOOGLE_API_KEY} --data '${dataParam.replace(/'/g, "'\"'\"'")}'`;
+    const analysisCommand = `if [ -n "$GOOGLE_CREDENTIALS_JSON_BASE64" ]; then echo "$GOOGLE_CREDENTIALS_JSON_BASE64" | base64 -d > /workspace/google-credentials.json; export GOOGLE_APPLICATION_CREDENTIALS=/workspace/google-credentials.json; fi; cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" --user-id "${userId}" --github-repository-id ${github_repositoryId} --analysis-id "${_id.toString()}" --model "${model}" --provider "${provider}" --mode ${analysisType} --api-key ${'$GOOGLE_APPLICATION_CREDENTIALS'} --data '${dataParam.replace(/'/g, "'\"'\"'")}'`;
 
     if (callbacks?.onProgress) {
       await callbacks.onProgress("🚀 Starting workflow execution...");
@@ -208,8 +242,19 @@ export const executeAnalysis = async (
     const command = await sandbox.commands.run(analysisCommand, {
       background: true,
       onStdout: async (data) => {
-        // Strip ANSI color codes for cleaner client output
-        const cleanData = data.replace(/\x1b\[[0-9;]*m/g, "");
+        const redact = (input: string) => {
+          let s = input;
+          s = s.replace(/\x1b\[[0-9;]*m/g, "");
+          s = s.replace(/x-access-token:[^@]+@github\.com/gi, "x-access-token:***@github.com");
+          s = s.replace(/(Authorization:\s*(?:Bearer|token)\s*)([A-Za-z0-9._-]+)/gi, "$1***");
+          s = s.replace(/(GITHUB_TOKEN[=:\s]+)([A-Za-z0-9._-]+)/gi, "$1***");
+          s = s.replace(/(AWS_SECRET_ACCESS_KEY[=:\s]+)([A-Za-z0-9/+_=.-]+)/gi, "$1***");
+          s = s.replace(/(AWS_ACCESS_KEY_ID[=:\s]+)([A-Za-z0-9/+_=.-]+)/gi, "$1***");
+          s = s.replace(/(GOOGLE_CREDENTIALS_JSON_BASE64[=:\s]+)([A-Za-z0-9/+_=.-]+)/gi, "$1***");
+          s = s.replace(/ghp_[A-Za-z0-9]{20,}/gi, "ghp_***");
+          return s;
+        };
+        const cleanData = redact(data);
 
         // Buffer to Redis
         try {
@@ -224,7 +269,19 @@ export const executeAnalysis = async (
         }
       },
       onStderr: async (data) => {
-        const cleanData = data.replace(/\x1b\[[0-9;]*m/g, "");
+        const redact = (input: string) => {
+          let s = input;
+          s = s.replace(/\x1b\[[0-9;]*m/g, "");
+          s = s.replace(/x-access-token:[^@]+@github\.com/gi, "x-access-token:***@github.com");
+          s = s.replace(/(Authorization:\s*(?:Bearer|token)\s*)([A-Za-z0-9._-]+)/gi, "$1***");
+          s = s.replace(/(GITHUB_TOKEN[=:\s]+)([A-Za-z0-9._-]+)/gi, "$1***");
+          s = s.replace(/(AWS_SECRET_ACCESS_KEY[=:\s]+)([A-Za-z0-9/+_=.-]+)/gi, "$1***");
+          s = s.replace(/(AWS_ACCESS_KEY_ID[=:\s]+)([A-Za-z0-9/+_=.-]+)/gi, "$1***");
+          s = s.replace(/(GOOGLE_CREDENTIALS_JSON_BASE64[=:\s]+)([A-Za-z0-9/+_=.-]+)/gi, "$1***");
+          s = s.replace(/ghp_[A-Za-z0-9]{20,}/gi, "ghp_***");
+          return s;
+        };
+        const cleanData = redact(data);
 
         // Buffer to Redis
         try {
@@ -387,7 +444,7 @@ export const executeAnalysis = async (
           repoUrl,
           github_repositoryId,
           sandboxId,
-          model,
+          model: "",
           prompt,
           status: "error",
           exitCode: runExitCode || -1,

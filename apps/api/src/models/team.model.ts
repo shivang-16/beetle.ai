@@ -53,10 +53,15 @@ const TeamSchema = new Schema<ITeam>(
       type: [TeamMemberSchema],
       default: [],
     },
-    settings: {
-      type: Schema.Types.Mixed,
-      default: {},
-    },
+   settings: {
+        type: Schema.Types.Mixed,
+        default: {
+          defaultModelRepo: 'gemini-2.5-flash',
+          defaultProviderRepo: 'vertex',
+          defaultModelPr: 'gemini-2.5-pro',
+          defaultProviderPr: 'vertex',
+        },
+      },
   },
   {
     timestamps: true,

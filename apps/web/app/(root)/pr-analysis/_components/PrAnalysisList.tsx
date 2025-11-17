@@ -14,7 +14,9 @@ import { useAuth } from "@clerk/nextjs";
 import { _config } from "@/lib/_config";
 import ConnectGithubCard from "../../_components/connect-github-card";
 
-const PrAnalysisList = () => {
+type RepoScope = "user" | "team";
+
+const PrAnalysisList = ({ scope = "user" }: { scope?: RepoScope }) => {
   const [items, setItems] = useState<Array<{
     repoUrl: string;
     model: string;
@@ -35,17 +37,27 @@ const PrAnalysisList = () => {
   const [installationsLoading, setInstallationsLoading] = useState(true);
   const [hasInstallations, setHasInstallations] = useState<boolean | null>(null);
   const { getToken } = useAuth();
+  const isTeamContext = scope === "team";
 
   const debouncedSetQuery = useDebouncedCallback((val: string) => {
     setPage(1); // Reset to first page on new search
     setQuery(val);
   }, 400);
 
-  // First, check if the user has any GitHub installations
+  // First, check if the user has any GitHub installations (skip on team pages)
   useEffect(() => {
     let cancelled = false;
     const checkInstallations = async () => {
       try {
+        // In team context, we do NOT show ConnectGithubCard.
+        // Skip installation check and allow list to load.
+        if (isTeamContext) {
+          if (!cancelled) {
+            setHasInstallations(true);
+            setInstallationsLoading(false);
+          }
+          return;
+        }
         if (!_config.API_BASE_URL) {
           if (!cancelled) {
             setHasInstallations(false);
@@ -74,9 +86,9 @@ const PrAnalysisList = () => {
     return () => {
       cancelled = true;
     };
-  }, [getToken]);
+  }, [getToken, isTeamContext]);
 
-  // Fetch PR analyses only if installations exist
+  // Fetch PR analyses only if installations exist (or when in team context)
   useEffect(() => {
     const fetchData = async () => {
       if (installationsLoading || hasInstallations !== true) return;
@@ -141,7 +153,7 @@ const PrAnalysisList = () => {
       {/* Rows */}
       {installationsLoading ? (
         <div className="min-h-[70vh] grid place-items-center text-sm text-neutral-500">Checking GitHub installation…</div>
-      ) : hasInstallations === false ? (
+      ) : (!isTeamContext && hasInstallations === false) ? (
         <div className="mt-2 min-h-[68vh]">
           <ConnectGithubCard />
         </div>

@@ -68,8 +68,6 @@ jobs:
           cd apps/api
           touch .env
           echo "${{ secrets.PROD_ENV }}" > .env
-          # Ensure DOCKER_USERNAME is available for docker-compose
-          echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> .env
 
       - name: Stop existing containers
         run: |

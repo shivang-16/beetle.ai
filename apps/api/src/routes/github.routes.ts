@@ -2,7 +2,7 @@ import express, { Router } from "express";
 import { baseAuth, checkAuth, teamAuth } from "../middlewares/checkAuth.js";
 import { getRepoTree, getRepoInfo, openIssue, openPullRequest, getBranches, saveGithubIssue, savePatch, getGithubIssuesWithPullRequests, getIssueStates, syncRepositories } from "../controllers/github.controller.js";
 import { getAllUserInstallations } from "../queries/github.queries.js";
-import { updateRepoSettings, getRepoSettings } from "../controllers/repository.controller.js";
+import { updateRepoSettings, getRepoSettings, bulkUpdateRepoSettings } from "../controllers/repository.controller.js";
 
 const router: Router = express.Router();
 
@@ -26,6 +26,7 @@ router.post("/save-patch", savePatch);
 // Repository settings routes (auth required)
 router.get("/repository/:repoId/settings", getRepoSettings);
 router.put("/repository/:repoId/settings", updateRepoSettings);
+router.put("/repository/settings/bulk", teamAuth, bulkUpdateRepoSettings);
 
 // Sync repositories route (auth required) - syncs all user installations
 router.post("/sync", syncRepositories);

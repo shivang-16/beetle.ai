@@ -672,6 +672,20 @@ export const PrData = async (payload: any) => {
     const newCommitsOnly = lastIndex >= 0 ? commits.slice(lastIndex + 1) : commits;
     let prDataInsertedId: string | undefined;
 
+    const ignoredExtensions = new Set([
+      'png','jpg','jpeg','gif','webp','bmp','svg','ico','psd','ai','tiff','tif','heic','heif',
+      'mp4','mov','avi','mkv','webm','mp3','wav','flac','ogg',
+      'pdf','zip','rar','7z','tar','gz','tgz',
+      'woff','woff2','ttf','otf'
+    ]);
+    const isAnalyzable = (filename: string, patch?: string) => {
+const ext = (filename?.split('.')?.pop() || '').toLowerCase();
+
+      if (ignoredExtensions.has(ext)) return false;
+      if (!patch) return false;
+      return true;
+    };
+
     if (newCommitsOnly.length === 0) {
       logger.info("No new commits detected for PR; skipping insertion", {
         prNumber: pull_request.number,
@@ -681,20 +695,23 @@ export const PrData = async (payload: any) => {
       return
     } else {
       console.log(newCommitsOnly.map(el => el.message))
-      // Replace commits array with only new commits for this insertion
-      modelAnalysisData.changes.commits = newCommitsOnly.map((commit: any) => ({
-        sha: commit.sha,
-        message: commit.message,
-        author: commit.author.name || commit.author.login,
-        date: commit.author.date,
-        files: commit.files.map((file: any) => ({
-          filename: file.filename,
-          status: file.status,
-          additions: file.additions,
-          deletions: file.deletions,
-          patch: file.patch
-        }))
-      }));
+      
+      modelAnalysisData.changes.commits = newCommitsOnly.map((commit: any) => {
+        const filteredFiles = (commit.files || []).filter((file: any) => isAnalyzable(file.filename, file.patch));
+        return {
+          sha: commit.sha,
+          message: commit.message,
+          author: commit.author.name || commit.author.login,
+          date: commit.author.date,
+          files: filteredFiles.map((file: any) => ({
+            filename: file.filename,
+            status: file.status,
+            additions: file.additions,
+            deletions: file.deletions,
+            patch: file.patch
+          }))
+        };
+      });
 
       const insertResult = await prCollection?.insertOne(modelAnalysisData);
       prDataInsertedId = insertResult?.insertedId?.toString();
@@ -706,13 +723,20 @@ export const PrData = async (payload: any) => {
       });
     }
 
-       // Derive files changed for analysis from NEW commits only
     const filesChangedForAnalysis = Array.from(new Set(
       (newCommitsOnly || [])
         .flatMap((commit: any) => (commit.files || [])
+          .filter((file: any) => isAnalyzable(file.filename, file.patch))
+          .flatMap((file: any) => [file.filename, file.previousFilename].filter(Boolean)))
+    ));
+    const ignoredFilesForAnalysis = Array.from(new Set(
+      (newCommitsOnly || [])
+        .flatMap((commit: any) => (commit.files || [])
+          .filter((file: any) => !isAnalyzable(file.filename, file.patch))
           .flatMap((file: any) => [file.filename, file.previousFilename].filter(Boolean)))
     ));
     console.log("🔍 Files changed for analysis (from new commits): ", filesChangedForAnalysis);
+    console.log("🚫 Ignored files (non-analyzable): ", ignoredFilesForAnalysis);
 
 
     // Fallback to previous entry id if we didn't insert a new one
@@ -859,8 +883,7 @@ export const PrData = async (payload: any) => {
         // Initialize parser state for streaming response parsing
         const parserState = createParserState();
         
-        // Post initial “Under Review” comment immediately with NEW commits/files only
-        await prCommentService.postAnalysisStartedComment(newCommitsOnly, filesChangedForAnalysis);
+        await prCommentService.postAnalysisStartedComment(newCommitsOnly, filesChangedForAnalysis, ignoredFilesForAnalysis);
 
         // Define streaming callbacks for PR analysis
         const callbacks: StreamingCallbacks = {
@@ -910,21 +933,20 @@ export const PrData = async (payload: any) => {
           repoUrl,
           branchForAnalysis,
           githubInstallation.userId,
-          "gemini-2.5-pro", // model
           prAnalysisPrompt,
-          "pr_analysis", // analysisType
+          "pr_analysis",
           callbacks,
-          {pr_data_id: prDataInsertedId, 
+          {
+            pr_data_id: prDataInsertedId,
             auth_token: sandbox_token.auth_token,
-            base_url: "https://api.beetleai.dev",
-            // Pass PR metadata for persistence
+            base_url: process.env.API_BASE_URL || "https://api.beetleai.dev",
             pr_number: pull_request.number,
             pr_url: prUrl,
             pr_title: pull_request.title
           },
           user.email,
-          undefined, // teamId (not used here)
-          preAnalysisId // ensure executeAnalysis uses this ID when persisting
+          undefined,
+          preAnalysisId
         ).then(async (result) => {
           logger.info("PR analysis completed", { 
             repository: repository.full_name, 

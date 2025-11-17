@@ -1,6 +1,7 @@
 // apps/api/src/controllers/team.controller.ts
 import { NextFunction, Request, Response } from 'express';
 import Team, { ITeam } from '../models/team.model.js';
+import AIModel, { IAIModel } from '../models/ai_model.model.js';
 import { clerkClient } from '@clerk/express';
 import { Github_Installation } from '../models/github_installations.model.js';
 import { Github_Repository } from '../models/github_repostries.model.js';
@@ -51,6 +52,78 @@ export const getOrCreateCurrentOrgTeam = async (req: Request, res: Response, nex
   } catch (err) {
     logger.error(`getOrCreateCurrentOrgTeam error: ${err}`);
     return next(new CustomError('Failed to ensure organization team', 500));
+  }
+};
+
+export const getTeamSettings = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const teamId = req.team?.id || req.org?.id;
+    if (!teamId) {
+      return next(new CustomError('Team context required', 400));
+    }
+    const team = await Team.findById(teamId).select('settings');
+    if (!team) {
+      return next(new CustomError('Team not found', 404));
+    }
+    return res.status(200).json({ success: true, data: team.settings || {} });
+  } catch (error: any) {
+    next(new CustomError(error.message || 'Failed to get team settings', 500));
+  }
+};
+
+export const updateTeamSettings = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const teamId = req.team?.id || req.org?.id;
+    if (!teamId) {
+      return next(new CustomError('Team context required', 400));
+    }
+    const team = await Team.findById(teamId);
+    if (!team) {
+      return next(new CustomError('Team not found', 404));
+    }
+    const s = typeof team.settings === 'object' && team.settings ? { ...(team.settings as any) } : {};
+    const body = req.body || {};
+    const nextSettings: any = { ...s };
+
+    const repoId = typeof body.defaultModelRepoId === 'string' ? body.defaultModelRepoId : undefined;
+    const prId = typeof body.defaultModelPrId === 'string' ? body.defaultModelPrId : undefined;
+
+    if (repoId) {
+      const m = await AIModel.findById(repoId).select('name provider').lean() as IAIModel | null;
+      if (m) {
+        nextSettings.defaultModelRepo = m.name;
+        nextSettings.defaultProviderRepo = m.provider;
+        nextSettings.defaultModelRepoId = String(m._id);
+      }
+    } else if (typeof body.defaultModelRepo === 'string') {
+      const m = await AIModel.findOne({ name: body.defaultModelRepo }).select('name provider').lean() as IAIModel | null;
+      if (m) {
+        nextSettings.defaultModelRepo = m.name;
+        nextSettings.defaultProviderRepo = m.provider;
+        nextSettings.defaultModelRepoId = String(m._id);
+      }
+    }
+
+    if (prId) {
+      const m = await AIModel.findById(prId).select('name provider').lean() as IAIModel | null;
+      if (m) {
+        nextSettings.defaultModelPr = m.name;
+        nextSettings.defaultProviderPr = m.provider;
+        nextSettings.defaultModelPrId = String(m._id);
+      }
+    } else if (typeof body.defaultModelPr === 'string') {
+      const m = await AIModel.findOne({ name: body.defaultModelPr }).select('name provider').lean() as IAIModel | null;
+      if (m) {
+        nextSettings.defaultModelPr = m.name;
+        nextSettings.defaultProviderPr = m.provider;
+        nextSettings.defaultModelPrId = String(m._id);
+      }
+    }
+    team.settings = nextSettings;
+    await team.save();
+    return res.status(200).json({ success: true, message: 'Settings updated', data: nextSettings });
+  } catch (error: any) {
+    next(new CustomError(error.message || 'Failed to update team settings', 500));
   }
 };
 
@@ -383,6 +456,8 @@ export const getTeamDashboardInfo = async (req: Request, res: Response, next: Ne
                 : undefined;
             return {
                 repo_name: repo?.fullName || 'Unknown',
+                pr_title: (analysis as any).pr_title ?? undefined,
+                pr_number: (analysis as any).pr_number ?? undefined,
                 state: analysis.status,
                 date: analysis.createdAt,
                 total_comments: typeof (analysis as any).pr_comments_posted === 'number' ? (analysis as any).pr_comments_posted : 0,

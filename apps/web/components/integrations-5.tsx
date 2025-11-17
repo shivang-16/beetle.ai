@@ -66,7 +66,7 @@ export default function IntegrationsSection() {
             </p>
 
             <Button variant="outline" size="sm" asChild>
-              <Link href="#">Get Started</Link>
+              <Link href="/signin">Get Started</Link>
             </Button>
           </div>
         </div>

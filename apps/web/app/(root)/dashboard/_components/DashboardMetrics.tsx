@@ -10,7 +10,6 @@ interface DashboardMetricsProps {
 }
 
 export const DashboardMetrics = ({ data }: DashboardMetricsProps) => {
-  console.log(data, "here is the data")
   const rangeDays = data.trends?.range_days ?? 7;
 
   const prTrendData = (data.trends?.daily_pr_reviews ?? []).map((d) => ({

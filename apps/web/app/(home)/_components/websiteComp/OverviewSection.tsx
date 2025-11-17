@@ -4,10 +4,11 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight } from "lucide-react";
 import { MacbookScroll } from "@/components/ui/macbook-scroll";
+import Link from "next/link";
 
 const OverviewSection = () => {
   return (
-    <section className="pt-10">
+    <section id="overview" className="pt-10">
       <div className="py-14 md:px-6 max-w-[1563px] w-full mx-auto border border-t-0 border-b-0 border-[#333333]">
         <div className="px-4 flex flex-col lg:flex-row gap-3 items-center justify-between">
           <div className="flex-1">
@@ -23,15 +24,17 @@ const OverviewSection = () => {
               ship faster.{" "}
             </p>
             <div>
-              <Button
-                variant={"ghost"}
-                className="cursor-pointer border bg-white text-black hover:text-white/80">
-                Launch Agent <ArrowUpRight />
-              </Button>
+              <Link href="/signin">
+                <Button
+                  variant={"ghost"}
+                  className="cursor-pointer border bg-white text-black hover:text-white/80">
+                  Launch Agent <ArrowUpRight />
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
-        <MacbookScroll src={"/analysis-page.png"} />
+        <MacbookScroll src={"/dashboard-page.png"} />
         {/* <motion.div
           initial={{ opacity: 0, filter: "blur(5px)", y: 10 }}
           animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}

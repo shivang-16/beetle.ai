@@ -13,9 +13,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-export function UpgradePlanDialog() {
+export function UpgradePlanDialog({ defaultOpen = false }: { defaultOpen?: boolean }) {
   // Upgrade modal open state
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
 
   const [startupName, setStartupName] = useState("");
   const [startupUrl, setStartupUrl] = useState("");
