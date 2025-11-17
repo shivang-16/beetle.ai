@@ -1,12 +1,20 @@
 "use client";
 
-import { UserButton, OrganizationSwitcher, useAuth } from "@clerk/nextjs";
-import { ScanTextIcon, StarsIcon, BotIcon, GitPullRequest } from "lucide-react";
-import Link from "next/link";
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
+
+import { cn } from "@/lib/utils";
+
+import { dark } from "@clerk/themes";
+import { OrganizationSwitcher, useAuth } from "@clerk/nextjs";
+
+import { _config } from "@/lib/_config";
+
+import { ScanTextIcon, StarsIcon, GitPullRequest } from "lucide-react";
+
 import BeetleLogo from "@/components/shared/beetle-logo";
-import ThemeToggle from "@/components/shared/theme-toggle";
-import { Button } from "@/components/ui/button";
 import { UpgradePlanDialog } from "@/components/shared/UpgradePlanDialog";
 import {
   Sidebar,
@@ -18,14 +26,8 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { cn } from "@/lib/utils";
-import { usePathname } from "next/navigation";
-import { useTheme } from "next-themes";
-import { dark } from "@clerk/themes";
-import { _config } from "@/lib/_config";
 
 const items = [
   {

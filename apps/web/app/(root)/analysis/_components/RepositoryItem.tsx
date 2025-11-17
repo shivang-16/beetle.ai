@@ -19,7 +19,6 @@ const RepositoryItem: React.FC<RepositoryItemProps> = ({ repo, teamId }) => {
   const [selectedBranch, setSelectedBranch] = useState(
     repo.defaultBranch || "main",
   );
-  const [isHovered, setIsHovered] = useState(false);
 
   const handleBranchChange = (branch: string) => {
     setSelectedBranch(branch);
@@ -32,19 +31,13 @@ const RepositoryItem: React.FC<RepositoryItemProps> = ({ repo, teamId }) => {
   };
 
   return (
-    <div
-      className="group flex items-center justify-between gap-3"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
+    <div className="group flex items-center justify-between gap-3">
       <Link
         href={`/analysis/${encodeURIComponent(repo._id)}${teamId ? `?teamId=${teamId}` : ""}${selectedBranch !== "main" ? `${teamId ? "&" : "?"}branch=${selectedBranch}` : ""}`}
         className="flex items-center gap-3"
       >
         <IconBrandGithub className="size-4 shrink-0" />
-        <div className="text-sm whitespace-pre-wrap md:text-base">
-          {repo.fullName}
-        </div>
+        <div className="text-sm break-all md:text-base">{repo.fullName}</div>
         <Badge
           variant={"outline"}
           className="text-muted-foreground rounded-full"
@@ -52,14 +45,19 @@ const RepositoryItem: React.FC<RepositoryItemProps> = ({ repo, teamId }) => {
           {repo.private ? "Private" : "Public"}
         </Badge>
       </Link>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 transition-all duration-200">
+        <BranchDropdown
+          repositoryId={repo._id}
+          teamId={teamId}
+          selectedBranch={selectedBranch}
+          onBranchChange={handleBranchChange}
+        />
+
         <Button
           asChild
           variant="ghost"
           size="sm"
-          className={`transition-opacity duration-200 ${
-            isHovered ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-          }`}
+          className={`transition-opacity duration-200 md:hidden md:group-hover:flex`}
         >
           <Link
             href={`/repo/${encodeURIComponent(repo._id)}/settings${teamId ? `?teamId=${teamId}` : ""}`}
@@ -67,12 +65,6 @@ const RepositoryItem: React.FC<RepositoryItemProps> = ({ repo, teamId }) => {
             <Settings className="h-4 w-4" />
           </Link>
         </Button>
-        <BranchDropdown
-          repositoryId={repo._id}
-          teamId={teamId}
-          selectedBranch={selectedBranch}
-          onBranchChange={handleBranchChange}
-        />
       </div>
     </div>
   );

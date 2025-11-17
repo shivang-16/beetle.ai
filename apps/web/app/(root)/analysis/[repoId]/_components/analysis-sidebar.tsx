@@ -2,7 +2,7 @@ import React from "react";
 import AnalysisContent from "./AnalysisContent";
 import { AnalysisItem } from "@/types/types";
 
-const AnalysisSidebar = async ({
+const AnalysisSidebar = ({
   repoId,
   analysisList,
   isSheet,

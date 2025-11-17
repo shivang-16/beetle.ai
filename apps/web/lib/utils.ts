@@ -19,7 +19,7 @@ export function cn(...inputs: ClassValue[]) {
 // Calculate parentPath array for tree styling
 export const calculateParentPath = (
   pathParts: string[],
-  allPaths: Set<string>
+  allPaths: Set<string>,
 ): boolean[] => {
   const parentPath: boolean[] = [];
 
@@ -141,7 +141,7 @@ export function safeParseJSON(str: string) {
         }
 
         return match; // leave normal text untouched
-      }
+      },
     );
 
     // If it already looks like JSON (double-quoted keys), try parsing directly
@@ -171,7 +171,7 @@ function cleanInitialisationLine(line: string): string {
   // remove prefix: "2025-09-08 06:58:50 - codetector - INITIALISATION -"
   return line.replace(
     /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} - codetector - INITIALISATION -\s*/,
-    ""
+    "",
   );
 }
 
@@ -295,7 +295,7 @@ function buildLLMSegments(lines: string[]): LLMResponseSegment[] {
 export function parseLines(
   lines: string[],
   logs: LogItem[],
-  state: ParserState
+  state: ParserState,
 ): { logs: LogItem[]; state: ParserState } {
   for (const rawLine of lines) {
     const line = rawLine.trim();
@@ -413,7 +413,11 @@ export async function decodeGzipBase64ToText(base64: string): Promise<string> {
 // Convert Node Buffer JSON (from Mongoose lean() -> JSON.stringify(Buffer)) to Uint8Array
 // Accepts either { type: 'Buffer', data: number[] } or just number[]
 export function bufferJSONToUint8Array(
-  bufferLike: { type?: string; data?: number[] } | number[] | string | undefined
+  bufferLike:
+    | { type?: string; data?: number[] }
+    | number[]
+    | string
+    | undefined,
 ): Uint8Array | null {
   // console.log("🔄 Buffer JSON to Uint8Array1: ", bufferLike);
   if (!bufferLike) return null;
@@ -440,14 +444,14 @@ export function bufferJSONToUint8Array(
   }
   logger.warn(
     "Unable to convert bufferLike to Uint8Array - unsupported format",
-    { bufferLike }
+    { bufferLike },
   );
   return null;
 }
 
 // Gunzip Uint8Array to string using Web DecompressionStream when available
 export async function gunzipUint8ArrayToText(
-  binary: Uint8Array
+  binary: Uint8Array,
 ): Promise<string> {
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
@@ -500,7 +504,7 @@ export function parsePatchString(input: string): ParsedPatch {
 
   // Issue
   const issueMatch = input.match(
-    /\*\*Issue:\*\*\s*([\s\S]*?)(?=\*\*Language:|\n###)/
+    /\*\*Issue:\*\*\s*([\s\S]*?)(?=\*\*Language:|\n###)/,
   );
   if (issueMatch && issueMatch[1]) result.issue = issueMatch[1].trim();
 
@@ -514,7 +518,7 @@ export function parsePatchString(input: string): ParsedPatch {
 
   // After code (preserve full block)
   const afterMatch = input.match(
-    /### After[^\n]*\n([\s\S]*?)\n### Explanation/
+    /### After[^\n]*\n([\s\S]*?)\n### Explanation/,
   );
   if (afterMatch && afterMatch[1]) result.after = afterMatch[1].trim();
 
@@ -557,27 +561,27 @@ export function parseWarningString(input: string): ParsedWarning {
 
   // Warning
   const warningMatch = input.match(
-    /### Warning\s*([\s\S]*?)(?=### Current Code)/
+    /### Warning\s*([\s\S]*?)(?=### Current Code)/,
   );
   if (warningMatch && warningMatch[1]) result.warning = warningMatch[1].trim();
 
   // Current Code (keep fenced block)
   const currentCodeMatch = input.match(
-    /### Current Code\s*([\s\S]*?)\n### Suggestion/
+    /### Current Code\s*([\s\S]*?)\n### Suggestion/,
   );
   if (currentCodeMatch && currentCodeMatch[1])
     result.currentCode = currentCodeMatch[1].trim();
 
   // Suggestion
   const suggestionMatch = input.match(
-    /### Suggestion\s*([\s\S]*?)(?=### Example Fix)/
+    /### Suggestion\s*([\s\S]*?)(?=### Example Fix)/,
   );
   if (suggestionMatch && suggestionMatch[1])
     result.suggestion = suggestionMatch[1].trim();
 
   // Example Fix (keep fenced block)
   const exampleFixMatch = input.match(
-    /### Example Fix\s*([\s\S]*?)\n### Why This Matters/
+    /### Example Fix\s*([\s\S]*?)\n### Why This Matters/,
   );
   if (exampleFixMatch && exampleFixMatch[1])
     result.exampleFix = exampleFixMatch[1].trim();
@@ -590,7 +594,7 @@ export function parseWarningString(input: string): ParsedWarning {
 }
 
 export function parseToolCall(
-  log: string
+  log: string,
 ): { type: string; result: any } | null {
   try {
     // Extract type (inside square brackets)
@@ -619,11 +623,13 @@ export function parseToolCall(
       return `"${val.replace(/"/g, '\\"')}"`;
     });
 
+    console.log({ type, payload });
+
     return {
       type,
-      result: !payload.includes("Scanning")
-        ? JSON.parse(payload)
-        : payloadMatch[1]?.trim(),
+      result: payload.includes("Scanning")
+        ? payloadMatch[1]?.trim()
+        : JSON.parse(payload),
     };
   } catch (err) {
     logger.error("Failed to parse tool call log", {
@@ -635,7 +641,7 @@ export function parseToolCall(
 }
 
 export function detectLanguage(
-  filePath: string
+  filePath: string,
 ): { language: string; icon: string } | null {
   const ext = filePath.split(".").pop()?.toLowerCase();
   if (!ext) return null;
@@ -799,7 +805,7 @@ export function processTextWithThinking(text: string): ProcessedTextContent {
 
   // Sort thinking blocks by start index to process them in order
   const sortedBlocks = thinkingBlocks.sort(
-    (a, b) => a.startIndex - b.startIndex
+    (a, b) => a.startIndex - b.startIndex,
   );
 
   for (const block of sortedBlocks) {

@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import Markdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -25,26 +31,29 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@clerk/nextjs";
 import { toast } from "sonner";
 import { _config } from "@/lib/_config";
-import { createGithubIssue, createGithubPullRequest } from "../_actions/github-actions";
+import {
+  createGithubIssue,
+  createGithubPullRequest,
+} from "../_actions/github-actions";
 import { ExternalLink } from "lucide-react";
 
 const GithubIssueDialog = dynamic(() => import("./GithubIssueDialog"));
 
 // Types for state management
 interface IssueState {
-  state: 'draft' | 'open' | 'closed';
+  state: "draft" | "open" | "closed";
   githubUrl?: string;
   githubId?: number;
   issueNumber?: number;
-  type: 'issue';
+  type: "issue";
 }
 
 interface PullRequestState {
-  state: 'draft' | 'open' | 'closed' | 'merged';
+  state: "draft" | "open" | "closed" | "merged";
   githubUrl?: string;
   githubId?: number;
   pullRequestNumber?: number;
-  type: 'pullRequest';
+  type: "pullRequest";
 }
 
 // Combined state type for unified handling
@@ -65,7 +74,9 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
   const { getToken } = useAuth();
 
   // Combined state management for GitHub issues and pull requests
-  const [combinedStates, setCombinedStates] = useState<Record<string, CombinedState>>({});
+  const [combinedStates, setCombinedStates] = useState<
+    Record<string, CombinedState>
+  >({});
   const [isLoadingStates, setIsLoadingStates] = useState(false);
   const [statesFetched, setStatesFetched] = useState(false);
   const fetchInitiatedRef = useRef(false);
@@ -120,7 +131,12 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
 
   // Batch fetch combined GitHub states with debouncing and chunking for large datasets
   const fetchCombinedStates = useCallback(async () => {
-    if ((issueIds.length === 0 && patchIds.length === 0) || statesFetched || isLoadingStates || fetchInitiatedRef.current) {
+    if (
+      (issueIds.length === 0 && patchIds.length === 0) ||
+      statesFetched ||
+      isLoadingStates ||
+      fetchInitiatedRef.current
+    ) {
       return;
     }
 
@@ -133,63 +149,78 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
       // Process in chunks to handle large numbers of IDs
       const CHUNK_SIZE = 50; // Smaller than API limit for better performance
       const chunks = [];
-      
+
       // Create chunks with mixed issueIds and patchIds
       let currentIssueIndex = 0;
       let currentPatchIndex = 0;
-      
-      while (currentIssueIndex < issueIds.length || currentPatchIndex < patchIds.length) {
-        const chunkIssueIds = issueIds.slice(currentIssueIndex, currentIssueIndex + Math.floor(CHUNK_SIZE / 2));
-        const chunkPatchIds = patchIds.slice(currentPatchIndex, currentPatchIndex + Math.floor(CHUNK_SIZE / 2));
-        
+
+      while (
+        currentIssueIndex < issueIds.length ||
+        currentPatchIndex < patchIds.length
+      ) {
+        const chunkIssueIds = issueIds.slice(
+          currentIssueIndex,
+          currentIssueIndex + Math.floor(CHUNK_SIZE / 2),
+        );
+        const chunkPatchIds = patchIds.slice(
+          currentPatchIndex,
+          currentPatchIndex + Math.floor(CHUNK_SIZE / 2),
+        );
+
         if (chunkIssueIds.length > 0 || chunkPatchIds.length > 0) {
           chunks.push({ issueIds: chunkIssueIds, patchIds: chunkPatchIds });
         }
-        
+
         currentIssueIndex += chunkIssueIds.length;
         currentPatchIndex += chunkPatchIds.length;
       }
 
       // Process chunks sequentially to avoid overwhelming the API
       for (const chunk of chunks) {
-        console.log("Sending to API:", { 
-          issueIds: chunk.issueIds, 
+        console.log("Sending to API:", {
+          issueIds: chunk.issueIds,
           patchIds: chunk.patchIds,
           repoId,
-          analysisId 
+          analysisId,
         });
-        
-        const response = await fetch(`${_config.API_BASE_URL}/api/github/issue-states`, {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json",
+
+        const response = await fetch(
+          `${_config.API_BASE_URL}/api/github/issue-states`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              github_repositoryId: repoId,
+              analysisId,
+              issueIds: chunk.issueIds,
+              patchIds: chunk.patchIds,
+            }),
           },
-          body: JSON.stringify({
-            github_repositoryId: repoId,
-            analysisId,
-            issueIds: chunk.issueIds,
-            patchIds: chunk.patchIds,
-          }),
-        });
+        );
 
         if (response.ok) {
           const data = await response.json();
           console.log("API Response:", data);
           if (data.success && data.data?.issueStates) {
             console.log("Setting combined states:", data.data.issueStates);
-            setCombinedStates(prev => ({ ...prev, ...data.data.issueStates }));
+            setCombinedStates((prev) => ({
+              ...prev,
+              ...data.data.issueStates,
+            }));
           }
         } else {
           console.error("API Error:", response.status, response.statusText);
         }
-        
+
         // Small delay between chunks to prevent API rate limiting
         if (chunks.length > 1) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise((resolve) => setTimeout(resolve, 100));
         }
       }
-      
+
       setStatesFetched(true);
     } catch (error) {
       console.error("Error fetching GitHub states:", error);
@@ -197,16 +228,30 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
       setIsLoadingStates(false);
       fetchInitiatedRef.current = false;
     }
-  }, [issueIds, patchIds, statesFetched, isLoadingStates, getToken, repoId, analysisId]);
+  }, [
+    issueIds,
+    patchIds,
+    statesFetched,
+    isLoadingStates,
+    getToken,
+    repoId,
+    analysisId,
+  ]);
 
   // Effect to fetch combined states when IDs change
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
-    
-    if ((prioritizedIssueIds.length > 0 || patchIds.length > 0) && !statesFetched && !isLoadingStates) {
+
+    if (
+      (prioritizedIssueIds.length > 0 || patchIds.length > 0) &&
+      !statesFetched &&
+      !isLoadingStates
+    ) {
       // Check if we already have states for these IDs
-      const needsFetch = prioritizedIssueIds.some(id => !combinedStates[id]) || patchIds.some(id => !combinedStates[id]);
-      
+      const needsFetch =
+        prioritizedIssueIds.some((id) => !combinedStates[id]) ||
+        patchIds.some((id) => !combinedStates[id]);
+
       if (needsFetch) {
         // Debounce the fetch to avoid excessive API calls
         timeoutId = setTimeout(() => {
@@ -222,15 +267,26 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
         clearTimeout(timeoutId);
       }
     };
-  }, [prioritizedIssueIds.length, patchIds.length, statesFetched, isLoadingStates]); // Removed fetchCombinedStates dependency
+  }, [
+    prioritizedIssueIds.length,
+    patchIds.length,
+    statesFetched,
+    isLoadingStates,
+  ]); // Removed fetchCombinedStates dependency
 
   // Lazy load remaining states after initial render
   useEffect(() => {
-    if ((issueIds.length > 20 || patchIds.length > 0) && statesFetched && !isLoadingStates) {
+    if (
+      (issueIds.length > 20 || patchIds.length > 0) &&
+      statesFetched &&
+      !isLoadingStates
+    ) {
       const remainingIssueIds = issueIds.slice(20);
       // Check if we already have states for remaining IDs
-      const needsFetch = remainingIssueIds.some(id => !combinedStates[id]) || patchIds.some(id => !combinedStates[id]);
-      
+      const needsFetch =
+        remainingIssueIds.some((id) => !combinedStates[id]) ||
+        patchIds.some((id) => !combinedStates[id]);
+
       if (needsFetch) {
         const timeoutId = setTimeout(() => {
           // Only fetch if we still need the data and aren't already loading
@@ -254,22 +310,26 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
   }, []);
 
   // Save GitHub issue to database during streaming
-  
-  
-  const saveGithubIssueToDb = async (segment: LLMResponseSegment, segmentIndex: number) => {
+
+  const saveGithubIssueToDb = async (
+    segment: LLMResponseSegment,
+    segmentIndex: number,
+  ) => {
     // Skip saving if data is loaded from database
     if (isLoadedFromDb) return;
-    
+
     try {
       const token = await getToken();
       if (!token) return;
 
-      const { title, description, issueId } = extractTitleAndDescription(segment.content);
+      const { title, description, issueId } = extractTitleAndDescription(
+        segment.content,
+      );
       const finalIssueId = issueId || `segment-${segmentIndex}`;
       await fetch(`${_config.API_BASE_URL}/api/github/save-issue`, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -283,22 +343,25 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
       });
 
       // Update local state to reflect the saved issue
-      setCombinedStates(prev => ({
+      setCombinedStates((prev) => ({
         ...prev,
         [finalIssueId]: {
-          state: 'draft',
-          type: 'issue',
-        }
+          state: "draft",
+          type: "issue",
+        },
       }));
     } catch (error) {
       console.error("Error saving GitHub issue to database:", error);
     }
   };
 
-  const savePatchToDb = async (segment: LLMResponseSegment, segmentIndex: number) => {
+  const savePatchToDb = async (
+    segment: LLMResponseSegment,
+    segmentIndex: number,
+  ) => {
     // Skip saving if data is loaded from database
     if (isLoadedFromDb) return;
-    
+
     try {
       const token = await getToken();
       if (!token) return;
@@ -309,12 +372,12 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
       const patchId = patch.patchId || `patch-${segmentIndex}`;
       const issueId = patch.issueId || `segment-${segmentIndex}`;
 
-            console.log("patchId ====> ", patchId);
+      console.log("patchId ====> ", patchId);
 
       await fetch(`${_config.API_BASE_URL}/api/github/save-patch`, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -337,12 +400,14 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
 
   const openGithubIssue = async (segment: LLMResponseSegment) => {
     try {
-      const { title, description, issueId } = extractTitleAndDescription(segment.content);
-      console.log("title ====> ", title, issueId); 
+      const { title, description, issueId } = extractTitleAndDescription(
+        segment.content,
+      );
+      console.log("title ====> ", title, issueId);
       const finalIssueId = issueId || `segment-${segments.indexOf(segment)}`;
-      
+
       console.log("issueId ====> ", finalIssueId);
-      
+
       const result = await createGithubIssue({
         repoId,
         analysisId,
@@ -354,19 +419,19 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
 
       if (result.success && result.data) {
         toast.success("GitHub issue created successfully!");
-        
+
         // Update local state to reflect the opened issue
-        setCombinedStates(prev => ({
+        setCombinedStates((prev) => ({
           ...prev,
           [finalIssueId]: {
-            state: 'open',
+            state: "open",
             githubUrl: result.data!.html_url,
             githubId: result.data!.id,
             issueNumber: result.data!.number,
-            type: 'issue',
-          }
+            type: "issue",
+          },
         }));
-        
+
         // Open the issue in a new tab
         window.open(result.data.html_url, "_blank");
       } else {
@@ -374,29 +439,32 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
       }
     } catch (error) {
       console.error("Error creating GitHub issue:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to create GitHub issue");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to create GitHub issue",
+      );
     }
   };
 
   const openGithubPullRequest = async (segment: LLMResponseSegment) => {
     try {
-
       const token = await getToken();
       if (!token) return;
 
       const patch = parsePatchString(segment.content);
       const before = extractFencedContent(patch.before).code;
       const after = extractFencedContent(patch.after).code;
-      const patchId = patch.patchId ;
-      const issueId = patch.issueId ;
+      const patchId = patch.patchId;
+      const issueId = patch.issueId;
       const title = `Patch for ${extractPath(patch.file || "")}`;
       const body = patch.explanation || "Automated patch suggestion";
 
-      console.log("PR title ====> ", title, issueId); 
+      console.log("PR title ====> ", title, issueId);
       const finalPRId = issueId as string;
-      
+
       console.log("pullRequestId ====> ", finalPRId);
-      
+
       const result = await createGithubPullRequest({
         repoId,
         analysisId,
@@ -406,30 +474,30 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
         before,
         after,
         issueId: finalPRId,
-        patchId
+        patchId,
       });
 
       console.log(result, "result");
 
       if (result.success && result.data) {
         toast.success("GitHub pull request created successfully!");
-        
+
         // Update local state to reflect the opened pull request
         // Use patchId for the state key since that's what the patch rendering section looks for
         const statePatchId = patchId as string;
-        setCombinedStates(prev => ({
+        setCombinedStates((prev) => ({
           ...prev,
           [statePatchId]: {
-            state: 'open',
+            state: "open",
             githubUrl: result.data!.html_url,
             githubId: result.data!.id,
             pullRequestNumber: result.data!.number,
-            type: 'pullRequest',
-          }
+            type: "pullRequest",
+          },
         }));
 
         console.log(result.data.html_url, "result.data.html_url");
-        
+
         // Open the pull request in a new tab
         window.open(result.data.html_url, "_blank");
       } else {
@@ -437,17 +505,21 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
       }
     } catch (error) {
       console.error("Error creating GitHub pull request:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to create GitHub pull request");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to create GitHub pull request",
+      );
     }
   };
 
   const [expandedWarnings, setExpandedWarnings] = useState<Set<number>>(
-    new Set()
+    new Set(),
   );
   const [savedSegments, setSavedSegments] = useState<Set<number>>(new Set());
 
   const extractFencedContent = (
-    input: string | undefined
+    input: string | undefined,
   ): { code: string; lang?: string } => {
     const trimmed = (input || "").trim();
     const openMatch = trimmed.match(/^```(\w+)?\n/);
@@ -464,11 +536,11 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
     if (seg.kind === "text") {
       // Process the text content to extract thinking blocks
       const processedContent = processTextWithThinking(seg.content);
-      
+
       return (
-        <div key={i} className="w-full mb-2">
+        <div key={i} className="mb-2 w-full">
           {processedContent.segments.map((segment, segIndex) => {
-            if (segment.type === 'thinking') {
+            if (segment.type === "thinking") {
               return (
                 <ThinkingBlock
                   key={`${i}-thinking-${segIndex}`}
@@ -480,7 +552,8 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
               return (
                 <div
                   key={`${i}-text-${segIndex}`}
-                  className="w-full dark:text-neutral-200 text-neutral-800 text-sm leading-7 mb-2 whitespace-pre-wrap">
+                  className="mb-2 w-full text-sm leading-7 whitespace-pre-wrap text-neutral-800 dark:text-neutral-200"
+                >
                   <Markdown
                     components={{
                       code(props) {
@@ -490,18 +563,26 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
                           <SyntaxHighlighter
                             PreTag="div"
                             language={match[1]}
-                            style={vscDarkPlus}>
-                            {removeLineNumberAnnotations(String(children).replace(/\n$/, ""))}
+                            style={vscDarkPlus}
+                          >
+                            {removeLineNumberAnnotations(
+                              String(children).replace(/\n$/, ""),
+                            )}
                           </SyntaxHighlighter>
                         ) : (
                           <code
                             {...rest}
-                            className={cn("w-full whitespace-pre-wrap", className)}>
+                            className={cn(
+                              "w-full whitespace-pre-wrap",
+                              className,
+                            )}
+                          >
                             {removeLineNumberAnnotations(String(children))}
                           </code>
                         );
                       },
-                    }}>
+                    }}
+                  >
                     {segment.content}
                   </Markdown>
                 </div>
@@ -520,28 +601,30 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
       // Save to database during streaming (only once per segment)
       if (!savedSegments.has(i)) {
         saveGithubIssueToDb(seg, i);
-        setSavedSegments(prev => new Set(prev).add(i));
+        setSavedSegments((prev) => new Set(prev).add(i));
       }
 
       // Determine button state and color
-      const isOpen = issueState?.state === 'open';
-      const isDraft = !issueState || issueState.state === 'draft';
-      const isClosed = issueState?.state === 'closed';
-      
-      const stateColor = isOpen ? '#238636' : isClosed ? '#8b5cf6' : '#6b7280';
-      const buttonText = isOpen ? 'View' : 'Open';
-      const buttonAction = isOpen && issueState?.githubUrl 
-        ? () => window.open(issueState.githubUrl, "_blank")
-        : () => openGithubIssue(seg);
+      const isOpen = issueState?.state === "open";
+      const isDraft = !issueState || issueState.state === "draft";
+      const isClosed = issueState?.state === "closed";
+
+      const stateColor = isOpen ? "#238636" : isClosed ? "#8b5cf6" : "#6b7280";
+      const buttonText = isOpen ? "View" : "Open";
+      const buttonAction =
+        isOpen && issueState?.githubUrl
+          ? () => window.open(issueState.githubUrl, "_blank")
+          : () => openGithubIssue(seg);
 
       return (
         <div
           key={i}
-          className="w-full my-4 rounded-md border bg-card hover:bg-accent/40 transition-colors">
+          className="bg-card hover:bg-accent/40 my-4 w-full rounded-md border transition-colors"
+        >
           <div className="flex items-center gap-3 p-4">
             {/* state dot */}
-            <div 
-              className="border rounded-full p-1 mt-1 h-4 w-4 flex items-center justify-center"
+            <div
+              className="mt-1 flex h-4 w-4 items-center justify-center rounded-full border p-1"
               style={{ borderColor: stateColor }}
             >
               <span
@@ -559,19 +642,28 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
                 trigger={
                   <Button
                     variant={"link"}
-                    className="text-left font-bold text-md hover:underline text-black dark:text-white truncate justify-start p-0 cursor-pointer">
+                    className="text-md cursor-pointer justify-start truncate p-0 text-left font-bold text-black hover:underline dark:text-white"
+                  >
                     {githubIssue.title}
                   </Button>
                 }
               />
 
-              <div className="text-xs text-muted-foreground">
+              <div className="text-muted-foreground text-xs">
                 <span className="font-medium">
-                  {isOpen && issueState?.type === 'issue' && issueState?.issueNumber ? `#${issueState.issueNumber}` : `#${i + 1}`}
+                  {isOpen &&
+                  issueState?.type === "issue" &&
+                  issueState?.issueNumber
+                    ? `#${issueState.issueNumber}`
+                    : `#${i + 1}`}
                 </span>
                 <span className="mx-1">·</span>
                 <span>
-                  {isOpen ? 'Open on GitHub' : isClosed ? 'Closed' : 'Beetle suggested this issue'}
+                  {isOpen
+                    ? "Open on GitHub"
+                    : isClosed
+                      ? "Closed"
+                      : "Beetle suggested this issue"}
                 </span>
                 {isLoadingStates && !issueState && (
                   <>
@@ -584,15 +676,14 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
 
             {/* right meta */}
             <div>
-              <Button 
-                className="cursor-pointer" 
+              <Button
+                className="cursor-pointer"
                 onClick={buttonAction}
                 disabled={isLoadingStates && !issueState}
                 variant={isOpen ? "secondary" : "default"}
               >
                 {buttonText}
                 {!isDraft && <ExternalLink className="ml-1 h-3 w-3" />}
-
               </Button>
             </div>
           </div>
@@ -602,8 +693,12 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
 
     if (seg.kind === "patch") {
       const patch = parsePatchString(seg.content);
-      const before = removeLineNumberAnnotations(extractFencedContent(patch.before).code).split("\n");
-      const after = removeLineNumberAnnotations(extractFencedContent(patch.after).code).split("\n");
+      const before = removeLineNumberAnnotations(
+        extractFencedContent(patch.before).code,
+      ).split("\n");
+      const after = removeLineNumberAnnotations(
+        extractFencedContent(patch.after).code,
+      ).split("\n");
       const explanation = patch.explanation || "";
       const file = patch.file || "";
       const patchId = patch.patchId || `patch-${i}`;
@@ -612,17 +707,17 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
       // Save to database during streaming (only once per segment)
       if (!savedSegments.has(i)) {
         savePatchToDb(seg, i);
-        setSavedSegments(prev => new Set(prev).add(i));
+        setSavedSegments((prev) => new Set(prev).add(i));
       }
 
       // Determine button state and action
-      const isDraft = !patchState || patchState.state === 'draft';
-      const isOpen = patchState?.state === 'open';
-      const buttonText = isDraft ? 'Commit suggestion' : 'View';
-      const buttonAction = isDraft 
+      const isDraft = !patchState || patchState.state === "draft";
+      const isOpen = patchState?.state === "open";
+      const buttonText = isDraft ? "Commit suggestion" : "View";
+      const buttonAction = isDraft
         ? () => openGithubPullRequest(seg)
         : () => {
-            if (patchState?.type === 'pullRequest' && patchState?.githubUrl) {
+            if (patchState?.type === "pullRequest" && patchState?.githubUrl) {
               window.open(patchState.githubUrl, "_blank");
             } else {
               openGithubPullRequest(seg);
@@ -630,14 +725,14 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
           };
 
       return (
-        <div key={i} className="w-full my-5 overflow-hidden">
-          <div className="pt-3 text-xs font-medium text-muted-foreground">
+        <div key={i} className="my-5 w-full overflow-hidden">
+          <div className="text-muted-foreground pt-3 text-xs font-medium">
             Suggested change
           </div>
 
-          <div className="my-2 rounded-md border bg-muted/20">
-            <div className="flex items-center gap-2 border-b px-3 py-2 text-xs text-muted-foreground">
-              <span className="rounded-md border bg-background px-2 py-0.5">
+          <div className="bg-muted/20 my-2 rounded-md border">
+            <div className="text-muted-foreground flex items-center gap-2 border-b px-3 py-2 text-xs">
+              <span className="bg-background rounded-md border px-2 py-0.5">
                 Read
               </span>
               <span className="truncate">{extractPath(file)}</span>
@@ -648,9 +743,10 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
                 {before.map((line, idx) => (
                   <div
                     key={`-b-${idx}`}
-                    className="flex items-start gap-2 rounded-sm border-l-4 border-red-600/70 bg-red-500/10 px-3 py-0.5 text-red-600">
+                    className="flex items-start gap-2 rounded-sm border-l-4 border-red-600/70 bg-red-500/10 px-3 py-0.5 text-red-600"
+                  >
                     <span className="select-none">-</span>
-                    <span className="whitespace-pre-wrap text-foreground/90">
+                    <span className="text-foreground/90 whitespace-pre-wrap">
                       {line || "\u00A0"}
                     </span>
                   </div>
@@ -658,35 +754,31 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
                 {after.map((line, idx) => (
                   <div
                     key={`+a-${idx}`}
-                    className="mt-0.5 flex items-start gap-2 rounded-sm border-l-4 border-emerald-600/70 bg-emerald-500/10 px-3 py-0.5 text-emerald-700 dark:text-emerald-400">
+                    className="mt-0.5 flex items-start gap-2 rounded-sm border-l-4 border-emerald-600/70 bg-emerald-500/10 px-3 py-0.5 text-emerald-700 dark:text-emerald-400"
+                  >
                     <span className="select-none">+</span>
-                    <span className="whitespace-pre-wrap text-foreground/90">
+                    <span className="text-foreground/90 whitespace-pre-wrap">
                       {line || "\u00A0"}
                     </span>
                   </div>
                 ))}
-        
               </pre>
             </div>
           </div>
           <div className="flex items-center justify-end gap-2 pb-4">
-            <Button size="sm" onClick={buttonAction} className="cursor-pointer" 
-                            variant={isOpen ? "secondary" : "default"}
-
+            <Button
+              size="sm"
+              onClick={buttonAction}
+              className="cursor-pointer"
+              variant={isOpen ? "secondary" : "default"}
             >
               {buttonText}
               {!isDraft && <ExternalLink className="ml-1 h-3 w-3" />}
             </Button>
           </div>
-             {explanation && (
-            <div className="m-2 px-3 text-foreground/90">
-              {explanation}
-            </div>
+          {explanation && (
+            <div className="text-foreground/90 m-2 px-3">{explanation}</div>
           )}
-      
-
-       
-
         </div>
       );
     }
@@ -706,16 +798,18 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
       };
 
       return (
-        <div key={i} className="w-full my-4 rounded-md border bg-card">
+        <div key={i} className="bg-card my-4 w-full rounded-md border">
           <button
             onClick={toggleWarning}
-            className="w-full flex items-center gap-3 p-4 text-left hover:bg-accent/40 transition-colors cursor-pointer">
+            className="hover:bg-accent/40 flex w-full cursor-pointer items-center gap-3 p-4 text-left transition-colors"
+          >
             {/* Warning triangle icon */}
-            <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center">
+            <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center">
               <svg
-                className="w-4 h-4 text-amber-500"
+                className="h-4 w-4 text-amber-500"
                 fill="currentColor"
-                viewBox="0 0 20 20">
+                viewBox="0 0 20 20"
+              >
                 <path
                   fillRule="evenodd"
                   d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
@@ -725,11 +819,11 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
             </div>
 
             {/* Warning content */}
-            <div className="flex-1 min-w-0">
-              <div className="font-semibold text-sm text-foreground">
+            <div className="min-w-0 flex-1">
+              <div className="text-foreground text-sm font-semibold">
                 Warning in {extractPath(warning.file || "")}
               </div>
-              <div className="text-xs text-muted-foreground mt-1">
+              <div className="text-muted-foreground mt-1 text-xs">
                 Line {warning.line} • {warning.type}
               </div>
             </div>
@@ -738,12 +832,13 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
             <div className="flex-shrink-0">
               <svg
                 className={cn(
-                  "w-4 h-4 text-muted-foreground transition-transform",
-                  isExpanded ? "rotate-180" : "rotate-0"
+                  "text-muted-foreground h-4 w-4 transition-transform",
+                  isExpanded ? "rotate-180" : "rotate-0",
                 )}
                 fill="none"
                 stroke="currentColor"
-                viewBox="0 0 24 24">
+                viewBox="0 0 24 24"
+              >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -756,15 +851,15 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
 
           {/* Expanded content */}
           {isExpanded && (
-            <div className="border-t bg-muted/20">
-              <div className="p-4 space-y-4">
+            <div className="bg-muted/20 border-t">
+              <div className="space-y-4 p-4">
                 {/* Warning description */}
                 {warning.warning && (
                   <div>
-                    <div className="text-sm font-medium text-foreground mb-2">
+                    <div className="text-foreground mb-2 text-sm font-medium">
                       Warning
                     </div>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-muted-foreground text-sm">
                       {warning.warning}
                     </div>
                   </div>
@@ -772,8 +867,8 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
 
                 {/* Current Code */}
                 {warning.currentCode && (
-                  <div>
-                    <div className="text-sm font-medium text-foreground mb-2">
+                  <div className="w-full">
+                    <div className="text-foreground mb-2 text-sm font-medium">
                       Current Code
                     </div>
                     <Markdown
@@ -796,18 +891,26 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
                                 borderRadius: 4,
                                 padding: 16,
                                 fontSize: 14,
+                                maxWidth: "100%",
                               }}
                               showLineNumbers
-                              startingLineNumber={Number(warning.line)}>
-                              {removeLineNumberAnnotations(String(children).replace(/\n$/, ""))}
+                              startingLineNumber={Number(warning.line)}
+                            >
+                              {removeLineNumberAnnotations(
+                                String(children).replace(/\n$/, ""),
+                              )}
                             </SyntaxHighlighter>
                           ) : (
-                            <code {...rest} className={className}>
+                            <code
+                              {...rest}
+                              className={cn("w-full break-all", className)}
+                            >
                               {removeLineNumberAnnotations(String(children))}
                             </code>
                           );
                         },
-                      }}>
+                      }}
+                    >
                       {warning.currentCode}
                     </Markdown>
                   </div>
@@ -816,7 +919,7 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
                 {/* Suggested Fix */}
                 {warning.exampleFix && (
                   <div>
-                    <div className="text-sm font-medium text-foreground mb-2">
+                    <div className="text-foreground mb-2 text-sm font-medium">
                       Suggested Fix
                     </div>
                     <Markdown
@@ -839,10 +942,14 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
                                 borderRadius: 4,
                                 padding: 16,
                                 fontSize: 14,
+                                maxWidth: "100%",
                               }}
                               showLineNumbers
-                              startingLineNumber={Number(warning.line)}>
-                              {removeLineNumberAnnotations(String(children).replace(/\n$/, ""))}
+                              startingLineNumber={Number(warning.line)}
+                            >
+                              {removeLineNumberAnnotations(
+                                String(children).replace(/\n$/, ""),
+                              )}
                             </SyntaxHighlighter>
                           ) : (
                             <code {...rest} className={className}>
@@ -850,7 +957,8 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
                             </code>
                           );
                         },
-                      }}>
+                      }}
+                    >
                       {warning.exampleFix}
                     </Markdown>
                   </div>
@@ -859,10 +967,10 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
                 {/* Why this matters */}
                 {warning.whyThisMatters && (
                   <div>
-                    <div className="text-sm font-medium text-foreground mb-2">
+                    <div className="text-foreground mb-2 text-sm font-medium">
                       Why this Matters?
                     </div>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-muted-foreground text-sm">
                       {warning.whyThisMatters}
                     </div>
                   </div>
@@ -880,8 +988,9 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
       return (
         <Card
           key={i}
-          className="mt-3 mb-5 w-max dark:text-neutral-200 text-neutral-800 text-sm leading-7">
-          <CardContent className="flex flex-col items-start gap-y-1.5 pb-0 py-3.5 px-2.5">
+          className="mt-3 mb-5 w-max text-sm leading-7 text-neutral-800 dark:text-neutral-200"
+        >
+          <CardContent className="flex flex-col items-start gap-y-1.5 px-2.5 py-3.5 pb-0">
             {file_status && file_status.length > 0
               ? file_status.map((item, i) => <span key={i}>{item}</span>)
               : null}

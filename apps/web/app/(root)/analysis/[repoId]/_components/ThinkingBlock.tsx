@@ -13,9 +13,9 @@ interface ThinkingBlockProps {
   className?: string;
 }
 
-export const ThinkingBlock: React.FC<ThinkingBlockProps> = ({ 
-  content, 
-  className 
+export const ThinkingBlock: React.FC<ThinkingBlockProps> = ({
+  content,
+  className,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -24,27 +24,27 @@ export const ThinkingBlock: React.FC<ThinkingBlockProps> = ({
   };
 
   return (
-    <div className={cn("w-full my-4", className)}>
+    <div className={cn("my-4 w-full", className)}>
       {/* Thinking Header */}
       <div
         onClick={toggleExpanded}
-        className="justify-start h-auto cursor-pointer transition-all duration-200"
+        className="h-auto w-full cursor-pointer justify-start transition-all duration-200"
       >
-        <div className="flex items-center gap-2 text-muted-foreground">
+        <div className="text-muted-foreground flex max-w-full items-center gap-2">
           <Brain className="h-4 w-4" />
           <span className="text-sm font-medium">Reasoned</span>
           {isExpanded ? (
-            <ChevronDown className="h-4 w-4 ml-auto" />
+            <ChevronDown className="ml-auto h-4 w-4" />
           ) : (
-            <ChevronRight className="h-4 w-4 ml-auto" />
+            <ChevronRight className="ml-auto h-4 w-4" />
           )}
         </div>
       </div>
 
       {/* Thinking Content */}
       {isExpanded && (
-        <div className="mt-2">
-          <div className="text-sm text-muted-foreground leading-relaxed">
+        <div className="mt-2 w-full">
+          <div className="text-muted-foreground w-full text-sm leading-relaxed">
             <Markdown
               components={{
                 code(props) {
@@ -55,7 +55,10 @@ export const ThinkingBlock: React.FC<ThinkingBlockProps> = ({
                       PreTag="div"
                       language={match[1]}
                       style={vscDarkPlus}
-                      className="text-xs"
+                      customStyle={{
+                        maxWidth: "100%",
+                        fontSize: 12,
+                      }}
                     >
                       {String(children).replace(/\n$/, "")}
                     </SyntaxHighlighter>
@@ -63,8 +66,8 @@ export const ThinkingBlock: React.FC<ThinkingBlockProps> = ({
                     <code
                       {...rest}
                       className={cn(
-                        "px-1.5 py-0.5 bg-muted rounded text-xs font-mono",
-                        className
+                        "bg-muted rounded px-1.5 py-0.5 font-mono text-xs",
+                        className,
                       )}
                     >
                       {children}
@@ -75,25 +78,33 @@ export const ThinkingBlock: React.FC<ThinkingBlockProps> = ({
                   <p className="mb-2 last:mb-0">{children}</p>
                 ),
                 ul: ({ children }) => (
-                  <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>
+                  <ul className="mb-2 list-inside list-disc space-y-1">
+                    {children}
+                  </ul>
                 ),
                 ol: ({ children }) => (
-                  <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>
+                  <ol className="mb-2 list-inside list-decimal space-y-1">
+                    {children}
+                  </ol>
                 ),
-                li: ({ children }) => (
-                  <li className="text-sm">{children}</li>
-                ),
+                li: ({ children }) => <li className="text-sm">{children}</li>,
                 h1: ({ children }) => (
-                  <h1 className="text-base font-semibold mb-2 mt-4 first:mt-0">{children}</h1>
+                  <h1 className="mt-4 mb-2 text-base font-semibold first:mt-0">
+                    {children}
+                  </h1>
                 ),
                 h2: ({ children }) => (
-                  <h2 className="text-sm font-semibold mb-2 mt-3 first:mt-0">{children}</h2>
+                  <h2 className="mt-3 mb-2 text-sm font-semibold first:mt-0">
+                    {children}
+                  </h2>
                 ),
                 h3: ({ children }) => (
-                  <h3 className="text-sm font-medium mb-1 mt-2 first:mt-0">{children}</h3>
+                  <h3 className="mt-2 mb-1 text-sm font-medium first:mt-0">
+                    {children}
+                  </h3>
                 ),
                 blockquote: ({ children }) => (
-                  <blockquote className="border-l-2 border-muted-foreground/30 pl-3 italic mb-2">
+                  <blockquote className="border-muted-foreground/30 mb-2 border-l-2 pl-3 italic">
                     {children}
                   </blockquote>
                 ),

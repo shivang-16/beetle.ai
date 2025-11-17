@@ -12,7 +12,7 @@ import {
   extractPath,
 } from "@/lib/utils";
 import { LogItem, ParserState, RepoTree } from "@/types/types";
-import { RefreshCcwDotIcon } from "lucide-react";
+import { PlayIcon, RefreshCcwDotIcon, SquareIcon } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { toast } from "sonner";
@@ -38,6 +38,7 @@ import { createAnalysisRecord } from "../_actions/createAnalysis";
 import { triggerAnalysisListRefresh } from "@/lib/utils/analysisEvents";
 import { IconSandbox } from "@tabler/icons-react";
 import AnalysisSheet from "./AnalysisSheet";
+import { useSidebar } from "@/components/ui/sidebar";
 
 const RenderLogs = ({
   repoId,
@@ -52,6 +53,7 @@ const RenderLogs = ({
   branch?: string;
   teamId?: string;
 }) => {
+  const { isMobile } = useSidebar();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [logs, setLogs] = useState<LogItem[]>([]);
@@ -444,11 +446,9 @@ const RenderLogs = ({
         selectedFile={selectedFileFilter}
       />
 
-      <div className="mx-auto flex max-w-4xl min-w-0 flex-1 flex-col">
+      <div className="mx-auto flex w-full max-w-4xl min-w-0 flex-1 flex-col">
         <div className="flex items-center justify-between px-2 py-3 md:px-4">
-          {/* <div className="md:hidden">
-            <AnalysisSheet />
-          </div> */}
+          {isMobile && <AnalysisSheet />}
 
           {/* File filter indicator */}
           <div className="flex items-center gap-2">
@@ -471,14 +471,15 @@ const RenderLogs = ({
           </div>
 
           {/* Action buttons */}
-
           <div className="flex gap-3">
             <GithubIssuesSlider
               repoId={repoId}
               analysisId={analysisId || undefined}
             />
+
             <Button onClick={() => analyzeRepo()} className="cursor-pointer">
-              {"Start New Analysis"}
+              <PlayIcon className="size-4" />
+              <span className="sr-only lg:not-sr-only">Start New Analysis</span>
             </Button>
 
             {/* <Button
@@ -503,16 +504,23 @@ const RenderLogs = ({
                   }
                   className="cursor-pointer"
                 >
-                  {analysisStatus === "running"
-                    ? "Stop Analysis"
-                    : "Restart Analysis"}
+                  {analysisStatus === "running" ? (
+                    <SquareIcon className="size-4" />
+                  ) : (
+                    <RefreshCcwDotIcon className="size-4" />
+                  )}
+                  <span className="sr-only lg:not-sr-only">
+                    {analysisStatus === "running"
+                      ? "Stop Analysis"
+                      : "Restart Analysis"}
+                  </span>
                 </Button>
               )}
           </div>
         </div>
 
-        <div className="flex-1 overflow-hidden px-4 pb-3">
-          <div className="output-scrollbar h-full w-full overflow-y-auto py-3">
+        <div className="output-scrollbar flex-1 overflow-y-auto">
+          <div className="w-full bg-amber-600 px-3 pt-3 pb-6 sm:px-4">
             {/* Show start analysis button when no logs exist and not loading */}
             {processedLogs.length === 0 &&
               !isLoading &&
@@ -573,7 +581,7 @@ const RenderLogs = ({
                           result?.result
                         ) {
                           return (
-                            <div className="m-0 w-full text-sm whitespace-pre-wrap">
+                            <div className="m-0 w-full bg-yellow-500 text-sm whitespace-pre-wrap">
                               <RenderToolCall
                                 log={log}
                                 allLogs={processedLogs}
@@ -587,7 +595,7 @@ const RenderLogs = ({
                         return null;
                       })()
                     ) : log.type === "INITIALISATION" ? (
-                      <div className="m-0 mb-6 w-full px-2 text-sm leading-7 whitespace-pre-wrap text-neutral-800 dark:text-neutral-200">
+                      <div className="m-0 mb-6 w-full text-sm leading-7 whitespace-pre-wrap text-neutral-800 dark:text-neutral-200">
                         <Accordion type="single" collapsible>
                           <AccordionItem value="item-1" className="border-none">
                             <AccordionTrigger className="border-input cursor-pointer rounded-t-md border bg-neutral-800 p-2 hover:no-underline data-[state=closed]:rounded-b-md">
@@ -596,8 +604,10 @@ const RenderLogs = ({
                                 Bootstrapping Beetle AI Sandbox
                               </span>{" "}
                             </AccordionTrigger>
-                            <AccordionContent className="border-input bg-card rounded-b-md border p-3">
-                              <div>{log.messages.join("\n")}</div>
+                            <AccordionContent className="border-input bg-card w-full rounded-b-md border p-3">
+                              <div className="w-full text-sm break-all whitespace-pre-wrap">
+                                {log.messages.join("\n")}
+                              </div>
                             </AccordionContent>
                           </AccordionItem>
                         </Accordion>

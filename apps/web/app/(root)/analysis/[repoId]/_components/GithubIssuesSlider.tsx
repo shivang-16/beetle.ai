@@ -306,7 +306,7 @@ const GithubIssuesSlider: React.FC<GithubIssuesSliderProps> = ({
       <SheetTrigger asChild>
         <Button variant="outline" className="cursor-pointer">
           <GitBranch className="size-4" />
-          <span className="sr-only md:not-sr-only">GitHub Issues</span>
+          <span className="sr-only lg:not-sr-only">GitHub Issues</span>
         </Button>
       </SheetTrigger>
       <SheetContent
@@ -374,18 +374,17 @@ const GithubIssuesSlider: React.FC<GithubIssuesSliderProps> = ({
                               </span>
                             )}
                           </div>
-                          <Button
+                          <div
+                            role="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleOpenExistingIssue(issue);
                             }}
-                            variant={"secondary"}
-                            size={"sm"}
-                            className="cursor-pointer border bg-transparent p-1"
+                            className="bg-card flex cursor-pointer items-center justify-center gap-1 rounded-md border p-1 shadow-xs"
                           >
                             Open
                             <ExternalLink className="ml-1 h-3 w-3" />
-                          </Button>
+                          </div>
                         </div>
                       </div>
                     </div>

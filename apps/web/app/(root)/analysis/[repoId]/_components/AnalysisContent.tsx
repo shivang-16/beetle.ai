@@ -55,17 +55,16 @@ const AnalysisContent = ({
   }, [teamId, branch, scope]);
 
   useEffect(() => {
-    if (!analysisList?.length) return;
-    console.log({ isSheet });
+    if (!analysisList?.length || isSheet) return;
+
     if (!isSheet) {
-      console.log("Here sheet is false");
       const firstAnalysisId = analysisList[0]?._id;
 
       const redirectUrl = `/analysis/${repoId}/${firstAnalysisId}${queryString ? `?${queryString}` : ""}`;
 
       router.replace(redirectUrl);
     }
-  }, [analysisList, queryString, repoId, router, isSheet]);
+  }, [analysisList, queryString, repoId, router]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -117,7 +116,7 @@ const AnalysisContent = ({
                   #{idx + 1}
                 </span>
                 <span
-                  className={`flex items-center gap-1 rounded border px-2 py-0.5 text-[10px] capitalize ${statusClasses(analysis.status)} ${isNarrow ? "hidden" : "block"}`}
+                  className={`flex items-center gap-1 rounded border px-2 py-0.5 text-[8px] capitalize md:text-[10px] ${statusClasses(analysis.status)}`}
                 >
                   {analysis.status === "running" && (
                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -127,8 +126,7 @@ const AnalysisContent = ({
               </div>
               <div
                 className={cn(
-                  "mt-1 truncate text-sm font-medium",
-                  isNarrow ? "hidden" : "block",
+                  "mt-1 truncate text-[10px] font-medium whitespace-pre-wrap md:text-sm",
                 )}
               >
                 {new Date(analysis.createdAt).toLocaleString()}{" "}

@@ -1,18 +1,19 @@
 "use client";
 
-import { detectLanguage, extractPath, parseToolCall } from "@/lib/utils";
-// Accordion components removed as they are not used
-import { LogItem } from "@/types/types";
-import { useTheme } from "next-themes";
+import React from "react";
+
+import { BoxSelect, Eye, Import, SearchCode } from "lucide-react";
 import { Icon } from "@iconify/react";
+
+import { detectLanguage, extractPath, parseToolCall } from "@/lib/utils";
+import { LogItem } from "@/types/types";
+
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { BoxSelect, Eye, Import, SearchCode } from "lucide-react";
-import React from "react";
 import { RenderLLMSegments } from "./RenderLLMSegments";
 
 export const RenderToolCall = ({
@@ -28,8 +29,6 @@ export const RenderToolCall = ({
   analysisId?: string;
   isLoadedFromDb?: boolean;
 }) => {
-  const { resolvedTheme } = useTheme();
-
   const result = parseToolCall(log.messages.join("\n"));
   // console.log(result?.type, result,"here is read file");
 
@@ -135,7 +134,10 @@ export const RenderToolCall = ({
         defaultValue={filePath ?? "item-1"}
         className="mb-2 w-full rounded px-2"
       >
-        <AccordionItem value={filePath ?? "item-1"} className="border-none">
+        <AccordionItem
+          value={filePath ?? "item-1"}
+          className="w-full border-none"
+        >
           <AccordionTrigger className="cursor-pointer py-2 hover:no-underline data-[state=closed]:rounded-b-md">
             <span className="flex flex-col text-gray-400 md:flex-row md:items-center">
               <span>
@@ -167,14 +169,14 @@ export const RenderToolCall = ({
               </span>
             </span>
           </AccordionTrigger>
-          <AccordionContent className="overflow-hidden p-0">
-            <div className="p-4">
+          <AccordionContent className="w-full p-0">
+            <div className="w-full">
               {filteredLogs.length > 0 ? (
                 <div className="flex w-full flex-col items-start gap-3.5">
                   {filteredLogs.map((logItem: any, index: number) => (
                     <React.Fragment key={index}>
                       {logItem.type === "LLM_RESPONSE" && logItem.segments ? (
-                        <div className="m-0 w-full text-sm break-words">
+                        <div className="m-0 w-full text-sm break-all whitespace-pre-wrap">
                           <RenderLLMSegments
                             segments={logItem.segments}
                             repoId={repoId || ""}
@@ -183,7 +185,7 @@ export const RenderToolCall = ({
                           />
                         </div>
                       ) : logItem.type === "TOOL_CALL" ? (
-                        <div className="m-0 w-full text-sm whitespace-pre-wrap">
+                        <div className="m-0 w-full text-sm break-all whitespace-pre-wrap">
                           <RenderToolCall
                             log={logItem}
                             allLogs={allLogs}
@@ -193,7 +195,7 @@ export const RenderToolCall = ({
                           />
                         </div>
                       ) : (
-                        <div className="text-muted-foreground w-full text-sm whitespace-pre-wrap">
+                        <div className="text-muted-foreground w-full text-sm break-all whitespace-pre-wrap">
                           {logItem.messages.join("\n")}
                         </div>
                       )}

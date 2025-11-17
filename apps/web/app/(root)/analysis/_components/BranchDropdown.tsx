@@ -35,10 +35,10 @@ const BranchDropdown: React.FC<BranchDropdownProps> = ({
 
   const fetchBranches = async () => {
     if (branches.length > 0) return; // Don't fetch if already loaded
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const result = await getBranches(repositoryId, teamId);
       if (result.success && result.data) {
@@ -48,10 +48,10 @@ const BranchDropdown: React.FC<BranchDropdownProps> = ({
       }
     } catch (err) {
       setError("Failed to fetch branches");
-      logger.error("Error fetching branches", { 
-        repositoryId, 
-        teamId, 
-        error: err instanceof Error ? err.message : err 
+      logger.error("Error fetching branches", {
+        repositoryId,
+        teamId,
+        error: err instanceof Error ? err.message : err,
       });
     } finally {
       setLoading(false);
@@ -75,50 +75,52 @@ const BranchDropdown: React.FC<BranchDropdownProps> = ({
       <Button
         variant="outline"
         size="sm"
-        className="h-8 px-3 text-xs"
+        className="h-8 text-xs"
         onClick={handleDropdownToggle}
         disabled={loading}
       >
-        <span className="mr-2">{selectedBranch}</span>
-        <ChevronsUpDown className="size-3" />
+        <span>{selectedBranch}</span>
+        <ChevronsUpDown />
       </Button>
-      
+
       {open && (
-        <div className="absolute right-0 mt-2 w-48 max-h-64 overflow-y-auto bg-popover border rounded-md shadow-md z-50">
+        <div className="bg-popover absolute right-0 z-50 mt-2 max-h-64 w-48 overflow-y-auto rounded-md border shadow-md">
           {loading && (
-            <div className="px-3 py-2 text-sm text-muted-foreground">
+            <div className="text-muted-foreground px-3 py-2 text-sm">
               Loading branches...
             </div>
           )}
-          
+
           {error && (
-            <div className="px-3 py-2 text-sm text-red-500">
-              {error}
-            </div>
+            <div className="px-3 py-2 text-sm text-red-500">{error}</div>
           )}
-          
+
           {!loading && !error && branches.length === 0 && (
-            <div className="px-3 py-2 text-sm text-muted-foreground">
+            <div className="text-muted-foreground px-3 py-2 text-sm">
               No branches found
             </div>
           )}
-          
-          {!loading && !error && branches.map((branch) => (
-            <button
-              key={branch.name}
-              onClick={() => handleBranchSelect(branch.name)}
-              className={`w-full text-left px-3 py-2 hover:bg-accent text-sm ${
-                selectedBranch === branch.name ? "bg-accent" : ""
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <span>{branch.name}</span>
-                {branch.protected && (
-                  <span className="text-xs text-muted-foreground">protected</span>
-                )}
-              </div>
-            </button>
-          ))}
+
+          {!loading &&
+            !error &&
+            branches.map((branch) => (
+              <button
+                key={branch.name}
+                onClick={() => handleBranchSelect(branch.name)}
+                className={`hover:bg-accent w-full px-3 py-2 text-left text-sm ${
+                  selectedBranch === branch.name ? "bg-accent" : ""
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span>{branch.name}</span>
+                  {branch.protected && (
+                    <span className="text-muted-foreground text-xs">
+                      protected
+                    </span>
+                  )}
+                </div>
+              </button>
+            ))}
         </div>
       )}
     </div>
