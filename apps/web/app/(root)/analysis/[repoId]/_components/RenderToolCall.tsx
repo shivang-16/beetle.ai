@@ -4,6 +4,7 @@ import React from "react";
 
 import { BoxSelect, Eye, Import, SearchCode } from "lucide-react";
 import { Icon } from "@iconify/react";
+import { v4 as uuidv4 } from "uuid";
 
 import { detectLanguage, extractPath, parseToolCall } from "@/lib/utils";
 import { LogItem } from "@/types/types";
@@ -176,7 +177,7 @@ export const RenderToolCall = ({
                   {filteredLogs.map((logItem: any, index: number) => (
                     <React.Fragment key={index}>
                       {logItem.type === "LLM_RESPONSE" && logItem.segments ? (
-                        <div className="m-0 w-full text-sm break-all whitespace-pre-wrap">
+                        <div className="llm-segment m-0 w-full text-sm whitespace-pre-wrap">
                           <RenderLLMSegments
                             segments={logItem.segments}
                             repoId={repoId || ""}
@@ -185,17 +186,17 @@ export const RenderToolCall = ({
                           />
                         </div>
                       ) : logItem.type === "TOOL_CALL" ? (
-                        <div className="m-0 w-full text-sm break-all whitespace-pre-wrap">
-                          <RenderToolCall
+                        <div className="tool-call m-0 w-full text-sm whitespace-pre-wrap">
+                          {/* <RenderToolCall
                             log={logItem}
-                            allLogs={allLogs}
+                            allLogs={filteredLogs}
                             repoId={repoId}
                             analysisId={analysisId}
                             isLoadedFromDb={isLoadedFromDb}
-                          />
+                          /> */}
                         </div>
                       ) : (
-                        <div className="text-muted-foreground w-full text-sm break-all whitespace-pre-wrap">
+                        <div className="text-muted-foreground nothing w-full text-sm break-all whitespace-pre-wrap">
                           {logItem.messages.join("\n")}
                         </div>
                       )}
@@ -218,14 +219,15 @@ export const RenderToolCall = ({
 
   if (result?.type === "EXTRACT_IMPORTS") {
     return (
-      <div className="w-full break-words whitespace-pre-wrap">
-        {/* <p>
-          <span className="px-2 py-1 border border-input font-medium rounded">
-            Extract Imports
-          </span>{" "}
-          {extractPath(result.result.file_path)}
-        </p> */}
-      </div>
+      // <div className="w-full break-words whitespace-pre-wrap">
+      //   {/* <p>
+      //     <span className="px-2 py-1 border border-input font-medium rounded">
+      //       Extract Imports
+      //     </span>{" "}
+      //     {extractPath(result.result.file_path)}
+      //   </p> */}
+      // </div>
+      null
     );
   }
 
@@ -235,15 +237,15 @@ export const RenderToolCall = ({
       return null;
     }
 
-    const id = String(Math.floor(Math.random() * 100));
+    const id = uuidv4();
 
     return (
       <Accordion
         type="single"
         collapsible
-        className="mb-3 inline-block rounded px-2"
+        className="mb-3 inline-block w-full rounded px-2"
       >
-        <AccordionItem value={`item-${id}`} className="border-none">
+        <AccordionItem value={`item-${id}`} className="w-full border-none">
           <AccordionTrigger className="cursor-pointer rounded-t-md py-0 hover:no-underline data-[state=closed]:rounded-b-md">
             <span className="text-gray-400">
               <Import className="mr-1 inline-block h-4 w-4" /> Extract{" "}
@@ -285,15 +287,15 @@ export const RenderToolCall = ({
       return null;
     }
 
-    const id = String(Math.floor(Math.random() * 100));
+    const id = uuidv4();
 
     return (
       <Accordion
         type="single"
         collapsible
-        className="mb-2 inline-block rounded px-2"
+        className="mb-2 inline-block w-full rounded px-2"
       >
-        <AccordionItem value={`item-${id}`} className="border-none">
+        <AccordionItem value={`item-${id}`} className="w-full border-none">
           <AccordionTrigger className="cursor-pointer rounded-t-md py-0 hover:no-underline data-[state=closed]:rounded-b-md">
             <span className="text-gray-400">
               <BoxSelect className="mr-1 inline-block h-4 w-4" /> Select{" "}
@@ -340,15 +342,15 @@ export const RenderToolCall = ({
   }
 
   if (result?.type === "GREP_FILE_CONTENT_RESULT") {
-    const id = String(Math.floor(Math.random() * 100));
+    const id = uuidv4();
 
     return (
       <Accordion
         type="single"
         collapsible
-        className="mb-2 inline-block rounded px-2"
+        className="mb-2 inline-block w-full rounded px-2"
       >
-        <AccordionItem value={`item-${id}`} className="border-none">
+        <AccordionItem value={`item-${id}`} className="w-full border-none">
           <AccordionTrigger className="cursor-pointer rounded-t-md py-0 hover:no-underline data-[state=closed]:rounded-b-md">
             <span className="text-gray-400">
               <SearchCode className="mr-1 inline-block h-4 w-4" /> Searching

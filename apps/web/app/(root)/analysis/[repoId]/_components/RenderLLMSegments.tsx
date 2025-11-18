@@ -564,6 +564,9 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
                             PreTag="div"
                             language={match[1]}
                             style={vscDarkPlus}
+                            customStyle={{
+                              width: "100%",
+                            }}
                           >
                             {removeLineNumberAnnotations(
                               String(children).replace(/\n$/, ""),
@@ -621,7 +624,7 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
           key={i}
           className="bg-card hover:bg-accent/40 my-4 w-full rounded-md border transition-colors"
         >
-          <div className="flex items-center gap-3 p-4">
+          <div className="flex w-full items-center gap-3 p-4">
             {/* state dot */}
             <div
               className="mt-1 flex h-4 w-4 items-center justify-center rounded-full border p-1"
@@ -649,7 +652,7 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
                 }
               />
 
-              <div className="text-muted-foreground text-xs">
+              <div className="text-muted-foreground w-full text-xs">
                 <span className="font-medium">
                   {isOpen &&
                   issueState?.type === "issue" &&
@@ -730,7 +733,7 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
             Suggested change
           </div>
 
-          <div className="bg-muted/20 my-2 rounded-md border">
+          <div className="bg-muted/20 my-2 w-full rounded-md border">
             <div className="text-muted-foreground flex items-center gap-2 border-b px-3 py-2 text-xs">
               <span className="bg-background rounded-md border px-2 py-0.5">
                 Read
@@ -851,7 +854,7 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
 
           {/* Expanded content */}
           {isExpanded && (
-            <div className="bg-muted/20 border-t">
+            <div className="bg-muted/20 w-full border-t">
               <div className="space-y-4 p-4">
                 {/* Warning description */}
                 {warning.warning && (
@@ -891,7 +894,7 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
                                 borderRadius: 4,
                                 padding: 16,
                                 fontSize: 14,
-                                maxWidth: "100%",
+                                width: "100%",
                               }}
                               showLineNumbers
                               startingLineNumber={Number(warning.line)}
@@ -903,7 +906,10 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
                           ) : (
                             <code
                               {...rest}
-                              className={cn("w-full break-all", className)}
+                              className={cn(
+                                "w-full whitespace-pre-wrap",
+                                className,
+                              )}
                             >
                               {removeLineNumberAnnotations(String(children))}
                             </code>
@@ -918,7 +924,7 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
 
                 {/* Suggested Fix */}
                 {warning.exampleFix && (
-                  <div>
+                  <div className="w-full">
                     <div className="text-foreground mb-2 text-sm font-medium">
                       Suggested Fix
                     </div>
@@ -942,7 +948,7 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
                                 borderRadius: 4,
                                 padding: 16,
                                 fontSize: 14,
-                                maxWidth: "100%",
+                                width: "100%",
                               }}
                               showLineNumbers
                               startingLineNumber={Number(warning.line)}
@@ -952,7 +958,13 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
                               )}
                             </SyntaxHighlighter>
                           ) : (
-                            <code {...rest} className={className}>
+                            <code
+                              {...rest}
+                              className={cn(
+                                "w-full whitespace-pre-wrap",
+                                className,
+                              )}
+                            >
                               {removeLineNumberAnnotations(String(children))}
                             </code>
                           );
@@ -988,7 +1000,7 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
       return (
         <Card
           key={i}
-          className="mt-3 mb-5 w-max text-sm leading-7 text-neutral-800 dark:text-neutral-200"
+          className="mt-3 mb-5 w-max max-w-full text-sm leading-7 text-neutral-800 dark:text-neutral-200"
         >
           <CardContent className="flex flex-col items-start gap-y-1.5 px-2.5 py-3.5 pb-0">
             {file_status && file_status.length > 0
