@@ -69,21 +69,21 @@ const CheckIcon = () => {
 
   return (
     <div className="bg-black min-h-svh w-full flex items-center justify-center mx-auto py-10 px-4">
-     <CardSpotlight className=" w-96">
+     <CardSpotlight className=" w-126">
       <p className="text-xl font-bold relative z-20 mt-2 text-white">
-        Request Early Access
+        Beetle 1.0
       </p>
       <div className="text-neutral-200 mt-4 relative z-20">
         What to exepect from our beta version:
         <ul className="list-none  mt-2">
-          <Step  title="App is under active development" />
-          <Step title="You may experience issues" />
-          <Step title="Features may change rapidly" />
-          <Step title="Report any issues to our support" />
+          <Step  title="The app is actively improving—new updates ship frequently" />
+          <Step title="You might run into occasional issues as we refine things" />
+          <Step title="Some features may evolve quickly based on your feedback" />
+          <Step title="If you spot anything, just let us know—we’re here to help" />
         </ul>
       </div>
       <p className="text-neutral-300 mt-4 relative z-20 text-sm">
-        By requesting early access, you acknowledge this is a beta version and
+        By accepting the early access, you acknowledge this is a beta version and
         help us improve the product with your feedback.
       </p>
 

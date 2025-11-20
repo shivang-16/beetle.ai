@@ -1,6 +1,7 @@
 import React from "react";
 import { getRepoTree } from "../../../analysis/[repoId]/_actions/getRepoTree";
 import AnalysisViewer from "../../../analysis/[repoId]/_components/AnalysisViewer";
+import ComingSoon from "@/components/coming-soon";
 
 interface PageProps {
   params: Promise<{
@@ -18,16 +19,18 @@ const Page = async ({ params }: PageProps) => {
   const teamId = teamSlug; // This should be resolved to actual team ID
 
   // Fetch repo tree at page level to prevent refetching when logs change
-  const repoTree = await getRepoTree(decodeURIComponent(repoId), teamId);
+  // const repoTree = await getRepoTree(decodeURIComponent(repoId), teamId);
 
   return (
     <div className="flex h-full w-full">
       <div className="flex-1">
-        <AnalysisViewer
+        {/* <AnalysisViewer
           repoId={decodeURIComponent(repoId)}
           repoTree={repoTree.data}
           teamId={teamId}
-        />
+        /> */}
+
+        <ComingSoon />
       </div>
     </div>
   );

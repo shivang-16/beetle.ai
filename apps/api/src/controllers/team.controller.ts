@@ -65,7 +65,43 @@ export const getTeamSettings = async (req: Request, res: Response, next: NextFun
     if (!team) {
       return next(new CustomError('Team not found', 404));
     }
-    return res.status(200).json({ success: true, data: team.settings || {} });
+    const settings: any = team.settings || {};
+    const result: any = { ...settings };
+
+    // Populate model details if ObjectIds are present
+    if (settings.defaultModelRepo) {
+      try {
+        const modelId = typeof settings.defaultModelRepo === 'string' 
+          ? settings.defaultModelRepo 
+          : String(settings.defaultModelRepo);
+        const model = await AIModel.findById(modelId).select('_id name provider').lean() as IAIModel | null;
+        if (model) {
+          result.defaultModelRepo = String(model._id);
+          result.defaultModelRepoName = model.name;
+          result.defaultModelRepoProvider = model.provider;
+        }
+      } catch (err) {
+        // Ignore errors, just don't populate
+      }
+    }
+
+    if (settings.defaultModelPr) {
+      try {
+        const modelId = typeof settings.defaultModelPr === 'string' 
+          ? settings.defaultModelPr 
+          : String(settings.defaultModelPr);
+        const model = await AIModel.findById(modelId).select('_id name provider').lean() as IAIModel | null;
+        if (model) {
+          result.defaultModelPr = String(model._id);
+          result.defaultModelPrName = model.name;
+          result.defaultModelPrProvider = model.provider;
+        }
+      } catch (err) {
+        // Ignore errors, just don't populate
+      }
+    }
+
+    return res.status(200).json({ success: true, data: result });
   } catch (error: any) {
     next(new CustomError(error.message || 'Failed to get team settings', 500));
   }
@@ -89,34 +125,26 @@ export const updateTeamSettings = async (req: Request, res: Response, next: Next
     const prId = typeof body.defaultModelPrId === 'string' ? body.defaultModelPrId : undefined;
 
     if (repoId) {
-      const m = await AIModel.findById(repoId).select('name provider').lean() as IAIModel | null;
+      const m = await AIModel.findById(repoId).lean() as IAIModel | null;
       if (m) {
-        nextSettings.defaultModelRepo = m.name;
-        nextSettings.defaultProviderRepo = m.provider;
-        nextSettings.defaultModelRepoId = String(m._id);
+        nextSettings.defaultModelRepo = m._id;
       }
     } else if (typeof body.defaultModelRepo === 'string') {
-      const m = await AIModel.findOne({ name: body.defaultModelRepo }).select('name provider').lean() as IAIModel | null;
+      const m = await AIModel.findOne({ name: body.defaultModelRepo }).lean() as IAIModel | null;
       if (m) {
-        nextSettings.defaultModelRepo = m.name;
-        nextSettings.defaultProviderRepo = m.provider;
-        nextSettings.defaultModelRepoId = String(m._id);
+        nextSettings.defaultModelRepo = m._id;
       }
     }
 
     if (prId) {
-      const m = await AIModel.findById(prId).select('name provider').lean() as IAIModel | null;
+      const m = await AIModel.findById(prId).lean() as IAIModel | null;
       if (m) {
-        nextSettings.defaultModelPr = m.name;
-        nextSettings.defaultProviderPr = m.provider;
-        nextSettings.defaultModelPrId = String(m._id);
+        nextSettings.defaultModelPr = m._id;
       }
     } else if (typeof body.defaultModelPr === 'string') {
-      const m = await AIModel.findOne({ name: body.defaultModelPr }).select('name provider').lean() as IAIModel | null;
+      const m = await AIModel.findOne({ name: body.defaultModelPr }).lean() as IAIModel | null;
       if (m) {
-        nextSettings.defaultModelPr = m.name;
-        nextSettings.defaultProviderPr = m.provider;
-        nextSettings.defaultModelPrId = String(m._id);
+        nextSettings.defaultModelPr = m._id;
       }
     }
     team.settings = nextSettings;

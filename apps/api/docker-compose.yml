@@ -61,7 +61,10 @@ services:
 
       - BETTERSTACK_SOURCE_TOKEN=${BETTERSTACK_SOURCE_TOKEN}
       - BETTERSTACK_INGESTING_HOST=${BETTERSTACK_INGESTING_HOST}
-    
+
+      - MAILERLITE_API_TOKEN=${MAILERLITE_API_TOKEN}
+      - MAILERLITE_GROUP_ID=${MAILERLITE_GROUP_ID}
+      
     volumes:
       # Mount logs directory for persistent logging
       - ./logs:/app/logs

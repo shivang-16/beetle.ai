@@ -27,6 +27,7 @@ import SubscriptionPlan from "../models/subscription_plan.model.js";
 import { createUser, CreateUserData } from "../queries/user.queries.js";
 import mongoose from "mongoose";
 import { logger } from "../utils/logger.js";
+import { upsertMailerLiteSubscriber } from "../services/mail/mailerlite/upsert_subscriber.js";
 
 declare global {
   namespace Express {
@@ -97,6 +98,17 @@ export const baseAuth = async (req: Request, res: Response, next: NextFunction) 
 
       user = await createUser(userData);
       logger.info(`New user created with username: ${user.username} and free subscription plan`);
+
+      // Upsert user to MailerLite 
+      if (user.email) {
+        upsertMailerLiteSubscriber(
+          user.email,
+          user.firstName || '',
+          user.lastName || ''
+        ).catch(() => {
+          logger.warn("Failed to upsert user to MailerLite");
+        });
+      }
     } else {
       logger.info(`User found in DB: ${user.username}`);
     }

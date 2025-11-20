@@ -69,61 +69,46 @@ const SettingsContent: React.FC<SettingsContentProps> = ({ scope = "user", teamS
         if (scope === "team" && orgId) {
           headers["X-Team-Id"] = orgId;
         }
-        if (scope === "team") {
-          const r = await fetch(`${_config.API_BASE_URL}/api/team/settings`, { headers });
-          if (r.ok) {
-            const j = await r.json();
-            const s = (j?.data || {}) as any;
-            const nameRepo = typeof s.defaultModelRepo === "string" ? s.defaultModelRepo : "";
-            const namePr = typeof s.defaultModelPr === "string" ? s.defaultModelPr : "";
-            setRepoModelName(nameRepo);
-            setPrModelName(namePr);
-          }
-          return;
+
+        // Fetch settings and available models in parallel
+        const settingsUrl = scope === "team"
+          ? `${_config.API_BASE_URL}/api/team/settings`
+          : `${_config.API_BASE_URL}/api/user/settings`;
+        
+        const [settingsRes, repoModelsRes, prModelsRes] = await Promise.all([
+          fetch(settingsUrl, { headers }),
+          fetch(`${_config.API_BASE_URL}/api/ai/models?mode=full_repo_analysis`, { headers }),
+          fetch(`${_config.API_BASE_URL}/api/ai/models?mode=pr_analysis`, { headers }),
+        ]);
+
+        // Process settings
+        if (settingsRes.ok) {
+          const settingsJson = await settingsRes.json();
+          const s = (settingsJson?.data || {}) as any;
+          
+          // Extract model IDs and names from settings
+          const repoModelId = typeof s.defaultModelRepo === "string" ? s.defaultModelRepo : "";
+          const prModelId = typeof s.defaultModelPr === "string" ? s.defaultModelPr : "";
+          const repoModelName = typeof s.defaultModelRepoName === "string" ? s.defaultModelRepoName : "";
+          const prModelName = typeof s.defaultModelPrName === "string" ? s.defaultModelPrName : "";
+          
+          setRepoModel(repoModelId);
+          setPrModel(prModelId);
+          setRepoModelName(repoModelName);
+          setPrModelName(prModelName);
         }
-        const res = await fetch(`${_config.API_BASE_URL}/api/user`, { headers });
-        if (res.ok) {
-          const json = await res.json();
-          const u = (json?.user || {}) as any;
-          const s = (u?.settings || {}) as any;
-          const idRepo = typeof s.defaultModelRepoId === "string" ? s.defaultModelRepoId : "";
-          const idPr = typeof s.defaultModelPrId === "string" ? s.defaultModelPrId : "";
-          const nameRepo = typeof s.defaultModelRepo === "string" ? s.defaultModelRepo : "";
-          const namePr = typeof s.defaultModelPr === "string" ? s.defaultModelPr : "";
-          setRepoModel(idRepo);
-          setPrModel(idPr);
-          setRepoModelName(nameRepo);
-          setPrModelName(namePr);
-          if (!idRepo && nameRepo) {
-            setLoadingRepoModels(true);
-            try {
-              const mRes = await fetch(`${_config.API_BASE_URL}/api/ai/models?mode=full_repo_analysis`, { headers });
-              if (mRes.ok) {
-                const mj = await mRes.json();
-                const arr = Array.isArray(mj?.data) ? mj.data : [];
-                setAvailableRepoModels(arr);
-                const found = arr.find((x: any) => x.name === nameRepo);
-                if (found) setRepoModel(found._id);
-              }
-            } finally {
-              setLoadingRepoModels(false);
-            }
-          }
-          if (!idPr && namePr) {
-            setLoadingPrModels(true);
-            try {
-              const mRes = await fetch(`${_config.API_BASE_URL}/api/ai/models?mode=pr_analysis`, { headers });
-              if (mRes.ok) {
-                const mj = await mRes.json();
-                const arr = Array.isArray(mj?.data) ? mj.data : [];
-                setAvailablePrModels(arr);
-                const found = arr.find((x: any) => x.name === namePr);
-                if (found) setPrModel(found._id);
-              }
-            } finally {
-              setLoadingPrModels(false);
-            }
-          }
+
+        // Process available models
+        if (repoModelsRes.ok) {
+          const repoModelsJson = await repoModelsRes.json();
+          const repoModels = Array.isArray(repoModelsJson?.data) ? repoModelsJson.data : [];
+          setAvailableRepoModels(repoModels);
+        }
+
+        if (prModelsRes.ok) {
+          const prModelsJson = await prModelsRes.json();
+          const prModels = Array.isArray(prModelsJson?.data) ? prModelsJson.data : [];
+          setAvailablePrModels(prModels);
         }
       } catch (_) {}
     };
@@ -200,14 +185,10 @@ const SettingsContent: React.FC<SettingsContentProps> = ({ scope = "user", teamS
       const settingsUrl = scope === "team"
         ? `${_config.API_BASE_URL}/api/team/settings`
         : `${_config.API_BASE_URL}/api/user/settings`;
-      const payload = scope === "team"
-        ? {
-            ...(repoModel ? { defaultModelRepoId: repoModel } : {}),
-            ...(prModel ? { defaultModelPrId: prModel } : {}),
-            defaultModelRepo: repoModelName,
-            defaultModelPr: prModelName,
-          }
-        : { defaultModelRepoId: repoModel, defaultModelPrId: prModel };
+      const payload = {
+        ...(repoModel ? { defaultModelRepoId: repoModel } : {}),
+        ...(prModel ? { defaultModelPrId: prModel } : {}),
+      };
       const settingsRes = await fetch(settingsUrl, {
         method: "PUT",
         headers,
@@ -374,6 +355,26 @@ const SettingsContent: React.FC<SettingsContentProps> = ({ scope = "user", teamS
             </CardHeader>
             <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+             
+                <div className="space-y-2">
+                  <Label htmlFor="pr-model">Model for Pull Request Analysis</Label>
+                  <Select value={prModel} onValueChange={(v) => { setPrModel(v); const found = availablePrModels.find((x) => x._id === v); if (found) setPrModelName(found.name); setDirty(true); }} onOpenChange={(open) => { if (open && availablePrModels.length === 0) { fetchAvailablePrModels(); } }}>
+                    <SelectTrigger id="pr-model">
+                      <SelectValue placeholder={prModelName || "Select model"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {loadingPrModels && (
+                        <SelectItem value="loading" disabled>Loading...</SelectItem>
+                      )}
+                      {!loadingPrModels && availablePrModels.length === 0 && (
+                        <SelectItem value="none" disabled>No models available</SelectItem>
+                      )}
+                      {availablePrModels.map((m) => (
+                        <SelectItem key={m._id} value={m._id}>{m.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="repo-model">Model for Repo Analysis</Label>
                   <Select value={repoModel} onValueChange={(v) => { setRepoModel(v); const found = availableRepoModels.find((x) => x._id === v); if (found) setRepoModelName(found.name); setDirty(true); }} onOpenChange={(open) => { if (open && availableRepoModels.length === 0) { fetchAvailableRepoModels(); } }}>
@@ -388,25 +389,6 @@ const SettingsContent: React.FC<SettingsContentProps> = ({ scope = "user", teamS
                         <SelectItem value="none" disabled>No models available</SelectItem>
                       )}
                       {availableRepoModels.map((m) => (
-                        <SelectItem key={m._id} value={m._id}>{m.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="pr-model">Model for PR Analysis</Label>
-                  <Select value={prModel} onValueChange={(v) => { setPrModel(v); const found = availablePrModels.find((x) => x._id === v); if (found) setPrModelName(found.name); setDirty(true); }} onOpenChange={(open) => { if (open && availablePrModels.length === 0) { fetchAvailablePrModels(); } }}>
-                    <SelectTrigger id="pr-model">
-                      <SelectValue placeholder={prModelName || "Select model"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {loadingPrModels && (
-                        <SelectItem value="loading" disabled>Loading...</SelectItem>
-                      )}
-                      {!loadingPrModels && availablePrModels.length === 0 && (
-                        <SelectItem value="none" disabled>No models available</SelectItem>
-                      )}
-                      {availablePrModels.map((m) => (
                         <SelectItem key={m._id} value={m._id}>{m.name}</SelectItem>
                       ))}
                     </SelectContent>

@@ -6,7 +6,6 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-console.log(process.env.GITHUB_APP_ID);
 // Initialize GitHub App
 export const octokitApp = new App({
   appId: process.env.GITHUB_APP_ID!,

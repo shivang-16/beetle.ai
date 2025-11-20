@@ -10,6 +10,7 @@ import mongoose from "mongoose";
 import { mailService } from "../mail/mail_service.js";
 import Team from "../../models/team.model.js";
 import User from "../../models/user.model.js";
+import AIModel, { IAIModel } from "../../models/ai_model.model.js";
 
 export interface StreamingCallbacks {
   onStdout?: (data: string) => Promise<void>;
@@ -49,9 +50,12 @@ export const executeAnalysis = async (
   // Ensure model/provider are available across try/catch
   let model: string;
   let provider: string;
+  let modelDoc: IAIModel | null = null;
 
   try {
     let teamDoc: any = null;
+    let modelId: mongoose.Types.ObjectId | string | undefined;
+    
     if (teamId && teamId !== 'null') {
       teamDoc = await Team.findById(teamId);
       if (!teamDoc) {
@@ -65,11 +69,9 @@ export const executeAnalysis = async (
       }
       const ts: any = teamDoc.settings || {};
       if (analysisType === "full_repo_analysis") {
-        model = ts.defaultModelRepo;
-        provider = ts.defaultProviderRepo;
+        modelId = ts.defaultModelRepo;
       } else {
-        model = ts.defaultModelPr;
-        provider = ts.defaultProviderPr;
+        modelId = ts.defaultModelPr;
       }
     } else {
       const userDoc = await User.findById(userId);
@@ -84,12 +86,35 @@ export const executeAnalysis = async (
       }
       const us: any = userDoc.settings || {};
       if (analysisType === "full_repo_analysis") {
-        model = us.defaultModelRepo;
-        provider = us.defaultProviderRepo;
+        modelId = us.defaultModelRepo;
       } else {
-        model = us.defaultModelPr;
-        provider = us.defaultProviderPr;
+        modelId = us.defaultModelPr;
       }
+    }
+
+    // Fetch model document using ObjectId
+    if (modelId) {
+      const modelObjectId = typeof modelId === 'string' ? new mongoose.Types.ObjectId(modelId) : modelId;
+      modelDoc = await AIModel.findById(modelObjectId).lean() as IAIModel | null;
+      if (!modelDoc) {
+        return {
+          success: false,
+          exitCode: -1,
+          sandboxId: null,
+          _id: new mongoose.Types.ObjectId().toString(),
+          error: "Model not found",
+        };
+      }
+      model = modelDoc.modelId;
+      provider = modelDoc.provider;
+    } else {
+      return {
+        success: false,
+        exitCode: -1,
+        sandboxId: null,
+        _id: new mongoose.Types.ObjectId().toString(),
+        error: "Model ID not found in settings",
+      };
     }
     const latestAnalysis = await Analysis.findOne({
       github_repositoryId: new mongoose.Types.ObjectId(github_repositoryId),
@@ -232,7 +257,23 @@ export const executeAnalysis = async (
     const dataParam = data ? JSON.stringify(data) : '{}';
     console.log("🔧 Formatted data parameter length:", dataParam.length);
     
-    const analysisCommand = `if [ -n "$GOOGLE_CREDENTIALS_JSON_BASE64" ]; then echo "$GOOGLE_CREDENTIALS_JSON_BASE64" | base64 -d > /workspace/google-credentials.json; export GOOGLE_APPLICATION_CREDENTIALS=/workspace/google-credentials.json; fi; cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" --user-id "${userId}" --github-repository-id ${github_repositoryId} --analysis-id "${_id.toString()}" --model "${model}" --provider "${provider}" --mode ${analysisType} --api-key ${'$GOOGLE_APPLICATION_CREDENTIALS'} --data '${dataParam.replace(/'/g, "'\"'\"'")}'`;
+    // Build command based on provider
+    let analysisCommand: string;
+    if (provider === 'vertex') {
+      // Vertex provider: use Google credentials
+      analysisCommand = `if [ -n "$GOOGLE_CREDENTIALS_JSON_BASE64" ]; then echo "$GOOGLE_CREDENTIALS_JSON_BASE64" | base64 -d > /workspace/google-credentials.json; export GOOGLE_APPLICATION_CREDENTIALS=/workspace/google-credentials.json; fi; cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" --user-id "${userId}" --github-repository-id ${github_repositoryId} --analysis-id "${_id.toString()}" --model "${model}" --provider "${provider}" --mode ${analysisType} --api-key ${'$GOOGLE_APPLICATION_CREDENTIALS'} --data '${dataParam.replace(/'/g, "'\"'\"'")}'`;
+    } else if (provider === 'bedrock') {
+      // Bedrock provider: use AWS Bedrock API key (no --provider flag for bedrock)
+      analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" --user-id "${userId}" --github-repository-id ${github_repositoryId} --analysis-id "${_id.toString()}" --model "${model}" --provider "${provider}" --mode ${analysisType} --api-key ${process.env.AWS_BEDROCK_API_KEY} --data '${dataParam.replace(/'/g, "'\"'\"'")}'`;
+    } else {
+      return {
+        success: false,
+        exitCode: -1,
+        sandboxId: null,
+        _id: _id.toString(),
+        error: `Unsupported provider: ${provider}`,
+      };
+    }
 
     if (callbacks?.onProgress) {
       await callbacks.onProgress("🚀 Starting workflow execution...");

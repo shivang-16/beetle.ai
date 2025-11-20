@@ -21,13 +21,13 @@ export default async function TeamAnalysisLayout({
 }: LayoutProps) {
   const resolvedParams = await params;
   const { teamSlug, repoId } = resolvedParams;
-  const analysisList = await getAnalysisWithId(repoId);
+  // const analysisList = await getAnalysisWithId(repoId);
 
   return (
     <div className="h-full w-full">
       <Suspense>
         <ResizablePanelGroup direction="horizontal">
-          {analysisList && analysisList.length > 0 && (
+          {/* {analysisList && analysisList.length > 0 && (
             <>
               <ResizablePanel
                 defaultSize={20}
@@ -39,7 +39,7 @@ export default async function TeamAnalysisLayout({
               </ResizablePanel>
               <ResizableHandle withHandle className="hidden md:block" />
             </>
-          )}
+          )} */}
           <ResizablePanel defaultSize={75} className="flex-1">
             <div className="h-full w-full">{children}</div>
           </ResizablePanel>

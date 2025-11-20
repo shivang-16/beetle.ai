@@ -104,10 +104,8 @@ const userSchema = new Schema<IUser>(
     settings: {
       type: Schema.Types.Mixed,
       default: {
-        defaultModelRepo: 'gemini-2.5-flash',
-        defaultProviderRepo: 'vertex',
-        defaultModelPr: 'gemini-2.5-pro',
-        defaultProviderPr: 'vertex',
+        defaultModelRepo: new mongoose.Types.ObjectId('6916caa7984764bbefcf67d9'),
+        defaultModelPr: new mongoose.Types.ObjectId('6916caa7984764bbefcf67dc'),
       },
     },
   },

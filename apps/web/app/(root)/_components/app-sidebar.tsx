@@ -1,6 +1,13 @@
 "use client";
 
-import { UserButton, OrganizationSwitcher, useAuth } from "@clerk/nextjs";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
+
+import { OrganizationSwitcher, useAuth } from "@clerk/nextjs";
+import { dark } from "@clerk/themes";
+
 import {
   ScanTextIcon,
   StarsIcon,
@@ -9,8 +16,7 @@ import {
   Settings,
   Bug,
 } from "lucide-react";
-import Link from "next/link";
-import { useEffect, useState } from "react";
+
 import BeetleLogo from "@/components/shared/beetle-logo";
 import { UpgradePlanDialog } from "@/components/shared/UpgradePlanDialog";
 import {
@@ -25,11 +31,9 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { _config } from "@/lib/_config";
-import { usePathname } from "next/navigation";
-import { useTheme } from "next-themes";
+
 import { cn } from "@/lib/utils";
-import { dark } from "@clerk/themes";
+import { _config } from "@/lib/_config";
 
 const items = [
   {
@@ -230,7 +234,7 @@ const AppSidebar = () => {
                 Checking plan…
               </div>
             ) : (
-              <div className="flex flex-col">
+              <div className="flex w-full flex-col">
                 <SidebarMenuButton asChild>
                   <Link
                     href="/report-issue"
@@ -271,7 +275,7 @@ const AppSidebar = () => {
                       elements: {
                         organizationSwitcherTrigger: cn(
                           "cursor-pointer",
-                          open ? "p-1" : "ml-1 w-7 h-7 overflow-hidden",
+                          open ? "p-1 w-full" : "ml-1 w-7 h-7 overflow-hidden",
                         ),
                       },
                     }}
