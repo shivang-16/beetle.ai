@@ -623,7 +623,18 @@ export function parseToolCall(
       return `"${val.replace(/"/g, '\\"')}"`;
     });
 
-    console.log({ type, payload });
+    // Handle cases where payload contains descriptive text before JSON
+    // e.g., "Selected 3 source files and 2 config files: ['file1', 'file2']"
+    // Extract the JSON part (array or object) from the payload
+    const jsonStartIndex = Math.min(
+      payload.indexOf("[") !== -1 ? payload.indexOf("[") : Infinity,
+      payload.indexOf("{") !== -1 ? payload.indexOf("{") : Infinity,
+    );
+
+    if (jsonStartIndex !== Infinity && jsonStartIndex > 0) {
+      // There's descriptive text before the JSON, extract just the JSON part
+      payload = payload.substring(jsonStartIndex);
+    }
 
     return {
       type,

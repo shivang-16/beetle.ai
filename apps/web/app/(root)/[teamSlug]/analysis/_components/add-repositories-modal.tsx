@@ -72,7 +72,7 @@ export function AddRepositoriesModal({ teamSlug }: AddRepositoriesModalProps) {
 
       if (result.success) {
         toast.success(
-          `Successfully added ${result.data?.modifiedCount || selectedRepos.size} repositories to team`
+          `Successfully added ${result.data?.modifiedCount || selectedRepos.size} repositories to team`,
         );
         setSelectedRepos(new Set());
         setOpen(false);
@@ -97,25 +97,26 @@ export function AddRepositoriesModal({ teamSlug }: AddRepositoriesModalProps) {
           <span className="hidden lg:block">Add Repositories</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+      <DialogContent className="flex max-h-[80vh] max-w-4xl flex-col overflow-hidden">
         <DialogHeader className="flex flex-row items-center justify-between">
           <DialogTitle>Add Repositories to Team</DialogTitle>
           <Button variant="outline" size="sm" asChild className="ml-auto">
             <a
-              href="https://github.com/apps/beetles-ai/installations/select_target"
+              href="https://github.com/apps/beetle-ai/installations/select_target"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2">
+              className="flex items-center gap-2"
+            >
               <ExternalLink className="h-4 w-4" />
               Add from GitHub
             </a>
           </Button>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4 flex-1 overflow-hidden">
+        <div className="flex flex-1 flex-col gap-4 overflow-hidden">
           {/* Search Bar */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
             <Input
               placeholder="Search repositories..."
               value={searchQuery}
@@ -125,7 +126,7 @@ export function AddRepositoriesModal({ teamSlug }: AddRepositoriesModalProps) {
           </div>
 
           {/* Repository List */}
-          <div className="flex-1 overflow-y-auto border rounded-lg">
+          <div className="flex-1 overflow-y-auto rounded-lg border">
             {loading ? (
               <div className="flex items-center justify-center p-8">
                 <Loader2 className="h-6 w-6 animate-spin" />
@@ -138,11 +139,12 @@ export function AddRepositoriesModal({ teamSlug }: AddRepositoriesModalProps) {
                   : "No repositories available"}
               </div>
             ) : (
-              <div className="p-4 space-y-3">
+              <div className="space-y-3 p-4">
                 {repositories.map((repo) => (
                   <div
                     key={repo.repositoryId}
-                    className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-neutral-800">
+                    className="flex items-center space-x-3 rounded-lg border p-3 hover:bg-neutral-800"
+                  >
                     <Checkbox
                       checked={selectedRepos.has(repo.repositoryId)}
                       onCheckedChange={() =>
@@ -176,7 +178,7 @@ export function AddRepositoriesModal({ teamSlug }: AddRepositoriesModalProps) {
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between pt-4 border-t">
+          <div className="flex items-center justify-between border-t pt-4">
             <div className="text-sm text-gray-500">
               {selectedRepos.size} repositories selected
             </div>
@@ -186,10 +188,11 @@ export function AddRepositoriesModal({ teamSlug }: AddRepositoriesModalProps) {
               </Button>
               <Button
                 onClick={handleAddRepositories}
-                disabled={selectedRepos.size === 0 || adding}>
+                disabled={selectedRepos.size === 0 || adding}
+              >
                 {adding ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Adding...
                   </>
                 ) : (
