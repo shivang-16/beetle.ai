@@ -62,7 +62,7 @@ export const baseTemplate = (content: string) => `
                   </a>
                 </div>
                 <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                  <a href="https://github.com/beetle-ai" style="color: #64748b; text-decoration: none;">
+                  <a href="https://github.com/beetles-ai" style="color: #64748b; text-decoration: none;">
                     <span style="font-size: 14px;">GitHub</span>
                   </a>
                   <a href="https://twitter.com/beetle_ai" style="color: #64748b; text-decoration: none;">

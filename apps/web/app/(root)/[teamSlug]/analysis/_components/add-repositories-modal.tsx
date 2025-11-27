@@ -102,7 +102,7 @@ export function AddRepositoriesModal({ teamSlug }: AddRepositoriesModalProps) {
           <DialogTitle>Add Repositories to Team</DialogTitle>
           <Button variant="outline" size="sm" asChild className="ml-auto">
             <a
-              href="https://github.com/apps/beetle-ai/installations/select_target"
+              href={`https://github.com/apps/${process.env.NEXT_PUBLIC_GITHUB_APP_NAME || "beetle-ai"}/installations/select_target`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2"

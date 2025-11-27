@@ -26,12 +26,12 @@ export default function ReportIssuePage() {
                 repository’s issues and file a new ticket.
                 <br />
                 <a
-                  href="https://github.com/beetle-ai/report-a-bug/issues/new"
+                  href="https://github.com/beetles-ai/report-a-bug/issues/new"
                   target="_blank"
                   rel="noreferrer"
                   className="text-primary underline"
                 >
-                  github.com/beetle-ai/report-a-bug/issues/new
+                  github.com/beetles-ai/report-a-bug/issues/new
                 </a>
               </li>
               <li>
@@ -75,7 +75,7 @@ export default function ReportIssuePage() {
         </div>
 
         <a
-          href="https://github.com/beetle-ai/report-a-bug/issues/new"
+          href="https://github.com/beetles-ai/report-a-bug/issues/new"
           target="_blank"
           rel="noreferrer"
           className="flex items-center justify-start gap-2"

@@ -23,7 +23,7 @@ const ConnectGithubCard = () => {
       <CardContent className="p-0">
         <Button className="cursor-pointer">
           <a
-            href="https://github.com/apps/beetle-ai/installations/select_target"
+            href={`https://github.com/apps/${process.env.NEXT_PUBLIC_GITHUB_APP_NAME || "beetle-ai"}/installations/select_target`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2"

@@ -93,14 +93,14 @@ const NoInstallationOnboarding = () => {
               title="Install the GitHub App"
               description="Authorize Beetle for your personal or organization account to access repositories."
               icon={IconBrandGithub}
-              href="https://github.com/apps/beetle-ai/installations/select_target"
+              href={`https://github.com/apps/${process.env.NEXT_PUBLIC_GITHUB_APP_NAME || "beetle-ai"}/installations/select_target`}
               cta="Install on GitHub"
             />
             <HowToCard
               title="Add and Sync Repositories"
               description="Add repos from GitHub and sync to fetch branches, issues, and PRs."
               icon={ScanTextIcon}
-              href="https://github.com/apps/beetle-ai/installations/select_target"
+              href={`https://github.com/apps/${process.env.NEXT_PUBLIC_GITHUB_APP_NAME || "beetle-ai"}/installations/select_target`}
               cta="Add from GitHub"
             />
             <HowToCard

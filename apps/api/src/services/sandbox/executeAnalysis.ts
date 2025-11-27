@@ -43,10 +43,10 @@ export const executeAnalysis = async (
   let sandboxRef: any | undefined;
   let runExitCode: number | undefined;
   let sandboxId: string = "";
-  let _id: mongoose.Types.ObjectId = preCreatedAnalysisId 
+  let _id: mongoose.Types.ObjectId = preCreatedAnalysisId
     ? new mongoose.Types.ObjectId(preCreatedAnalysisId)
     : new mongoose.Types.ObjectId();
-    
+
   // Ensure model/provider are available across try/catch
   let model: string;
   let provider: string;
@@ -55,17 +55,17 @@ export const executeAnalysis = async (
   try {
     let teamDoc: any = null;
     let modelId: mongoose.Types.ObjectId | string | undefined;
-    
-    if (teamId && teamId !== 'null') {
+
+    if (teamId && teamId !== "null") {
       teamDoc = await Team.findById(teamId);
       if (!teamDoc) {
         return {
-        success: false,
-        exitCode: -1,
-        sandboxId: null,
-        _id: new mongoose.Types.ObjectId().toString(),
-        error: "Team not found",
-      };;
+          success: false,
+          exitCode: -1,
+          sandboxId: null,
+          _id: new mongoose.Types.ObjectId().toString(),
+          error: "Team not found",
+        };
       }
       const ts: any = teamDoc.settings || {};
       if (analysisType === "full_repo_analysis") {
@@ -94,8 +94,13 @@ export const executeAnalysis = async (
 
     // Fetch model document using ObjectId
     if (modelId) {
-      const modelObjectId = typeof modelId === 'string' ? new mongoose.Types.ObjectId(modelId) : modelId;
-      modelDoc = await AIModel.findById(modelObjectId).lean() as IAIModel | null;
+      const modelObjectId =
+        typeof modelId === "string"
+          ? new mongoose.Types.ObjectId(modelId)
+          : modelId;
+      modelDoc = (await AIModel.findById(
+        modelObjectId
+      ).lean()) as IAIModel | null;
       if (!modelDoc) {
         return {
           success: false,
@@ -123,7 +128,7 @@ export const executeAnalysis = async (
     let owner = userId;
     if (teamDoc) {
       owner = teamDoc.ownerId;
-      console.log("setting owner form team")
+      console.log("setting owner form team");
     }
     // Authenticate GitHub repository
     const authResult = await authenticateGithubRepo(repoUrl, owner);
@@ -162,13 +167,21 @@ export const executeAnalysis = async (
             createPayload.pr_number = data.pr_number;
           }
           // Prefer provided pr_url, else construct from repoUrl + pr_number
-          if (data && typeof data.pr_url === "string" && data.pr_url.length > 0) {
+          if (
+            data &&
+            typeof data.pr_url === "string" &&
+            data.pr_url.length > 0
+          ) {
             createPayload.pr_url = data.pr_url;
           } else if (createPayload.pr_number && repoUrl) {
             createPayload.pr_url = `${repoUrl}/pull/${createPayload.pr_number}`;
           }
           // Store PR title if provided
-          if (data && typeof data.pr_title === "string" && data.pr_title.length > 0) {
+          if (
+            data &&
+            typeof data.pr_title === "string" &&
+            data.pr_title.length > 0
+          ) {
             createPayload.pr_title = data.pr_title;
           }
           // Options field should only be present for PR review context
@@ -212,15 +225,19 @@ export const executeAnalysis = async (
     }
 
     let sandbox;
-    if(latestAnalysis?.sandboxId) {
+    if (latestAnalysis?.sandboxId) {
       try {
         sandbox = await connectSandbox(latestAnalysis.sandboxId);
       } catch (error: any) {
         // If sandbox connection fails (e.g., NotFoundError after 30 days), create a new one
-        console.log(`⚠️ Failed to connect to existing sandbox ${latestAnalysis.sandboxId}: ${error.message}`);
+        console.log(
+          `⚠️ Failed to connect to existing sandbox ${latestAnalysis.sandboxId}: ${error.message}`
+        );
         console.log("🔧 Creating new sandbox...");
         if (callbacks?.onProgress) {
-          await callbacks.onProgress("⚠️ Existing sandbox unavailable, creating new one...");
+          await callbacks.onProgress(
+            "⚠️ Existing sandbox unavailable, creating new one..."
+          );
         }
         sandbox = await createSandbox();
       }
@@ -233,14 +250,13 @@ export const executeAnalysis = async (
 
     // Update analysis record with sandboxId
     try {
-      await Analysis.findOneAndUpdate(
-        { _id },
-        { sandboxId },
-        { new: true }
-      );
+      await Analysis.findOneAndUpdate({ _id }, { sandboxId }, { new: true });
       console.log(`📝 Analysis record updated with sandboxId: ${sandboxId}`);
     } catch (updateError) {
-      console.error("⚠️ Failed to update analysis record with sandboxId:", updateError);
+      console.error(
+        "⚠️ Failed to update analysis record with sandboxId:",
+        updateError
+      );
       // Continue execution as this is not critical
     }
 
@@ -249,22 +265,25 @@ export const executeAnalysis = async (
     }
 
     await initRedisBuffer(_id.toString());
-    
+
     // Debug: Log the data being passed
     // console.log("📊 Data parameter being passed to sandbox:", JSON.stringify(data, null, 2));
-    
+
     // Properly format the data parameter for shell command
-    const dataParam = data ? JSON.stringify(data) : '{}';
+    const dataParam = data ? JSON.stringify(data) : "{}";
     console.log("🔧 Formatted data parameter length:", dataParam.length);
-    
+
     // Build command based on provider
     let analysisCommand: string;
-    if (provider === 'vertex') {
+    if (provider === "vertex") {
       // Vertex provider: use Google credentials
-      analysisCommand = `if [ -n "$GOOGLE_CREDENTIALS_JSON_BASE64" ]; then echo "$GOOGLE_CREDENTIALS_JSON_BASE64" | base64 -d > /workspace/google-credentials.json; export GOOGLE_APPLICATION_CREDENTIALS=/workspace/google-credentials.json; fi; cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" --user-id "${userId}" --github-repository-id ${github_repositoryId} --analysis-id "${_id.toString()}" --model "${model}" --provider "${provider}" --mode ${analysisType} --api-key ${'$GOOGLE_APPLICATION_CREDENTIALS'} --data '${dataParam.replace(/'/g, "'\"'\"'")}'`;
-    } else if (provider === 'bedrock') {
+      analysisCommand = `if [ -n "$GOOGLE_CREDENTIALS_JSON_BASE64" ]; then echo "$GOOGLE_CREDENTIALS_JSON_BASE64" | base64 -d > /workspace/google-credentials.json; export GOOGLE_APPLICATION_CREDENTIALS=/workspace/google-credentials.json; fi; cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" --user-id "${userId}" --github-repository-id ${github_repositoryId} --analysis-id "${_id.toString()}" --model "${model}" --provider "${provider}" --mode ${analysisType} --api-key ${"$GOOGLE_APPLICATION_CREDENTIALS"} --data '${dataParam.replace(/'/g, "'\"'\"'")}'`;
+    } else if (provider === "bedrock") {
       // Bedrock provider: use AWS Bedrock API key (no --provider flag for bedrock)
       analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" --user-id "${userId}" --github-repository-id ${github_repositoryId} --analysis-id "${_id.toString()}" --model "${model}" --provider "${provider}" --mode ${analysisType} --api-key ${process.env.AWS_BEDROCK_API_KEY} --data '${dataParam.replace(/'/g, "'\"'\"'")}'`;
+    } else if (provider === "google") {
+      // Google provider: use Google API key
+      analysisCommand = `cd /workspace && stdbuf -oL -eL python -u main.py "${repoUrlForAnalysis}" --user-id "${userId}" --github-repository-id ${github_repositoryId} --analysis-id "${_id.toString()}" --model "${model}" --provider "${provider}" --mode ${analysisType} --api-key ${process.env.GOOGLE_API_KEY} --data '${dataParam.replace(/'/g, "'\"'\"'")}'`;
     } else {
       return {
         success: false,
@@ -286,12 +305,27 @@ export const executeAnalysis = async (
         const redact = (input: string) => {
           let s = input;
           s = s.replace(/\x1b\[[0-9;]*m/g, "");
-          s = s.replace(/x-access-token:[^@]+@github\.com/gi, "x-access-token:***@github.com");
-          s = s.replace(/(Authorization:\s*(?:Bearer|token)\s*)([A-Za-z0-9._-]+)/gi, "$1***");
+          s = s.replace(
+            /x-access-token:[^@]+@github\.com/gi,
+            "x-access-token:***@github.com"
+          );
+          s = s.replace(
+            /(Authorization:\s*(?:Bearer|token)\s*)([A-Za-z0-9._-]+)/gi,
+            "$1***"
+          );
           s = s.replace(/(GITHUB_TOKEN[=:\s]+)([A-Za-z0-9._-]+)/gi, "$1***");
-          s = s.replace(/(AWS_SECRET_ACCESS_KEY[=:\s]+)([A-Za-z0-9/+_=.-]+)/gi, "$1***");
-          s = s.replace(/(AWS_ACCESS_KEY_ID[=:\s]+)([A-Za-z0-9/+_=.-]+)/gi, "$1***");
-          s = s.replace(/(GOOGLE_CREDENTIALS_JSON_BASE64[=:\s]+)([A-Za-z0-9/+_=.-]+)/gi, "$1***");
+          s = s.replace(
+            /(AWS_SECRET_ACCESS_KEY[=:\s]+)([A-Za-z0-9/+_=.-]+)/gi,
+            "$1***"
+          );
+          s = s.replace(
+            /(AWS_ACCESS_KEY_ID[=:\s]+)([A-Za-z0-9/+_=.-]+)/gi,
+            "$1***"
+          );
+          s = s.replace(
+            /(GOOGLE_CREDENTIALS_JSON_BASE64[=:\s]+)([A-Za-z0-9/+_=.-]+)/gi,
+            "$1***"
+          );
           s = s.replace(/ghp_[A-Za-z0-9]{20,}/gi, "ghp_***");
           return s;
         };
@@ -313,12 +347,27 @@ export const executeAnalysis = async (
         const redact = (input: string) => {
           let s = input;
           s = s.replace(/\x1b\[[0-9;]*m/g, "");
-          s = s.replace(/x-access-token:[^@]+@github\.com/gi, "x-access-token:***@github.com");
-          s = s.replace(/(Authorization:\s*(?:Bearer|token)\s*)([A-Za-z0-9._-]+)/gi, "$1***");
+          s = s.replace(
+            /x-access-token:[^@]+@github\.com/gi,
+            "x-access-token:***@github.com"
+          );
+          s = s.replace(
+            /(Authorization:\s*(?:Bearer|token)\s*)([A-Za-z0-9._-]+)/gi,
+            "$1***"
+          );
           s = s.replace(/(GITHUB_TOKEN[=:\s]+)([A-Za-z0-9._-]+)/gi, "$1***");
-          s = s.replace(/(AWS_SECRET_ACCESS_KEY[=:\s]+)([A-Za-z0-9/+_=.-]+)/gi, "$1***");
-          s = s.replace(/(AWS_ACCESS_KEY_ID[=:\s]+)([A-Za-z0-9/+_=.-]+)/gi, "$1***");
-          s = s.replace(/(GOOGLE_CREDENTIALS_JSON_BASE64[=:\s]+)([A-Za-z0-9/+_=.-]+)/gi, "$1***");
+          s = s.replace(
+            /(AWS_SECRET_ACCESS_KEY[=:\s]+)([A-Za-z0-9/+_=.-]+)/gi,
+            "$1***"
+          );
+          s = s.replace(
+            /(AWS_ACCESS_KEY_ID[=:\s]+)([A-Za-z0-9/+_=.-]+)/gi,
+            "$1***"
+          );
+          s = s.replace(
+            /(GOOGLE_CREDENTIALS_JSON_BASE64[=:\s]+)([A-Za-z0-9/+_=.-]+)/gi,
+            "$1***"
+          );
           s = s.replace(/ghp_[A-Za-z0-9]{20,}/gi, "ghp_***");
           return s;
         };
@@ -352,9 +401,15 @@ export const executeAnalysis = async (
     // If analysis has already been marked as interrupted, skip finalization
     try {
       const current = await Analysis.findById(_id).lean();
-      if (current && !Array.isArray(current) && current.status === "interrupted") {
+      if (
+        current &&
+        !Array.isArray(current) &&
+        current.status === "interrupted"
+      ) {
         if (callbacks?.onProgress) {
-          await callbacks.onProgress("⛔ Analysis was interrupted. Skipping finalize.");
+          await callbacks.onProgress(
+            "⛔ Analysis was interrupted. Skipping finalize."
+          );
         }
         return {
           success: false,
@@ -461,9 +516,15 @@ export const executeAnalysis = async (
     // If analysis has already been marked as interrupted, skip error finalization
     try {
       const current = await Analysis.findById(_id).lean();
-      if (current && !Array.isArray(current) && current.status === "interrupted") {
+      if (
+        current &&
+        !Array.isArray(current) &&
+        current.status === "interrupted"
+      ) {
         if (callbacks?.onProgress) {
-          await callbacks.onProgress("⛔ Analysis was interrupted. Skipping error finalize.");
+          await callbacks.onProgress(
+            "⛔ Analysis was interrupted. Skipping error finalize."
+          );
         }
         return {
           success: false,

@@ -13,6 +13,7 @@ services:
     environment:
       # GitHub Configuration
       - GITHUB_APP_ID=${GITHUB_APP_ID}
+      - GITHUB_APP_NAME=${GITHUB_APP_NAME:-beetle-ai}
       - GITHUB_PRIVATE_KEY_BASE64=${GITHUB_PRIVATE_KEY_BASE64}
       - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}
       
