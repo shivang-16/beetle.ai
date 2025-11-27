@@ -35,11 +35,13 @@ export const RenderToolCall = ({
 
   if (result?.type === "READ_FILE") {
     return (
-      <div className="w-full break-words whitespace-pre-wrap">
-        <span>
-          {/* <Eye className="inline-block w-4 h-4 mr-1"/> {extractPath(result.result.file_path)} <span className="text-sm text-slate-500">{result.result.start_line ?? 0}-{result.result.end_line ?? 0}</span>  */}
-        </span>
-      </div>
+      // <div className="w-full break-words whitespace-pre-wrap">
+      //   <span>
+      //     {/* <Eye className="inline-block w-4 h-4 mr-1"/> {extractPath(result.result.file_path)} <span className="text-sm text-slate-500">{result.result.start_line ?? 0}-{result.result.end_line ?? 0}</span>  */}
+      //   </span>
+      // </div>
+
+      null
     );
   }
 
@@ -187,13 +189,13 @@ export const RenderToolCall = ({
                         </div>
                       ) : logItem.type === "TOOL_CALL" ? (
                         <div className="tool-call m-0 w-full text-sm whitespace-pre-wrap">
-                          {/* <RenderToolCall
+                          <RenderToolCall
                             log={logItem}
                             allLogs={filteredLogs}
                             repoId={repoId}
                             analysisId={analysisId}
                             isLoadedFromDb={isLoadedFromDb}
-                          /> */}
+                          />
                         </div>
                       ) : (
                         <div className="text-muted-foreground nothing w-full text-sm break-all whitespace-pre-wrap">
@@ -270,14 +272,16 @@ export const RenderToolCall = ({
 
   if (result?.type === "SELECT_FILES") {
     return (
-      <div className="w-full break-words whitespace-pre-wrap">
-        {/* <p>
-          <span className="px-2 py-1.5 border border-input font-medium rounded">
-            Select Files
-          </span>{" "}
-          {result.result}
-        </p> */}
-      </div>
+      // <div className="w-full break-words whitespace-pre-wrap">
+      //   {/* <p>
+      //     <span className="px-2 py-1.5 border border-input font-medium rounded">
+      //       Select Files
+      //     </span>{" "}
+      //     {result.result}
+      //   </p> */}
+      // </div>
+
+      null
     );
   }
 
@@ -326,18 +330,20 @@ export const RenderToolCall = ({
 
   if (result?.type === "GREP_FILE_CONTENT") {
     return (
-      <div className="w-full break-words whitespace-pre-wrap">
-        {/* <div className="border border-b-0 border-input py-3 px-1.5 rounded-t-md">
-          <span className="px-2 py-1.5 border border-input font-medium rounded">
-            Grep File
-          </span>
-        </div>
+      // <div className="w-full break-words whitespace-pre-wrap">
+      //   {/* <div className="border border-b-0 border-input py-3 px-1.5 rounded-t-md">
+      //     <span className="px-2 py-1.5 border border-input font-medium rounded">
+      //       Grep File
+      //     </span>
+      //   </div>
 
-        <div className="border border-input p-3 rounded-b-md bg-card space-y-2">
-          <p>Target string: {result.result.target_string}</p>
-          <p>Repo name: {result.result.repo_name}</p>
-        </div> */}
-      </div>
+      //   <div className="border border-input p-3 rounded-b-md bg-card space-y-2">
+      //     <p>Target string: {result.result.target_string}</p>
+      //     <p>Repo name: {result.result.repo_name}</p>
+      //   </div> */}
+      // </div>
+
+      null
     );
   }
 

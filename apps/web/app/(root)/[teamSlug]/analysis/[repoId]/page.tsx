@@ -19,18 +19,18 @@ const Page = async ({ params }: PageProps) => {
   const teamId = teamSlug; // This should be resolved to actual team ID
 
   // Fetch repo tree at page level to prevent refetching when logs change
-  // const repoTree = await getRepoTree(decodeURIComponent(repoId), teamId);
+  const repoTree = await getRepoTree(decodeURIComponent(repoId), teamId);
 
   return (
     <div className="flex h-full w-full">
       <div className="flex-1">
-        {/* <AnalysisViewer
+        <AnalysisViewer
           repoId={decodeURIComponent(repoId)}
           repoTree={repoTree.data}
           teamId={teamId}
-        /> */}
+        />
 
-        <ComingSoon />
+        {/* <ComingSoon /> */}
       </div>
     </div>
   );

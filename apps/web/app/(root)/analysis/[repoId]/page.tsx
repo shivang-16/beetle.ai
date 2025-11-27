@@ -16,19 +16,23 @@ const Page = async ({
   const branch = searchParamsData?.branch;
 
   // Fetch repo tree at page level to prevent refetching when logs change
-  // const repoTree = await getRepoTree(decodeURIComponent(repoId), teamId, branch);
+  const repoTree = await getRepoTree(
+    decodeURIComponent(repoId),
+    teamId,
+    branch,
+  );
 
   return (
     <div className="flex h-full w-full">
       <div className="flex-1">
-        {/* <AnalysisViewer 
-          repoId={decodeURIComponent(repoId)} 
-          repoTree={repoTree.data} 
-          branch={branch} 
-          teamId={teamId} 
-        /> */}
+        <AnalysisViewer
+          repoId={decodeURIComponent(repoId)}
+          repoTree={repoTree.data}
+          branch={branch}
+          teamId={teamId}
+        />
 
-        <ComingSoon />
+        {/* <ComingSoon /> */}
       </div>
     </div>
   );

@@ -15,25 +15,25 @@ export default async function AnalysisLayout({
   params: Promise<{ repoId: string }>;
 }) {
   const { repoId } = await params;
-  // const analysisList = await getAnalysisWithId(repoId);
+  const analysisList = await getAnalysisWithId(repoId);
 
   return (
-    <div className="h-screen">
+    <div className="h-full w-full">
       <Suspense>
-        <ResizablePanelGroup direction="horizontal" className="h-full">
-          {/* {analysisList && analysisList.length > 0 && (
+        <ResizablePanelGroup direction="horizontal">
+          {analysisList && analysisList.length > 0 && (
             <>
               <ResizablePanel
                 defaultSize={20}
-                minSize={0}
+                minSize={4}
                 maxSize={25}
-                hidden={true}
-                className="hidden md:block">
+                className="hidden md:block"
+              >
                 <AnalysisSidebar repoId={repoId} analysisList={analysisList} />
               </ResizablePanel>
               <ResizableHandle withHandle className="hidden md:block" />
             </>
-          )} */}
+          )}
           <ResizablePanel defaultSize={75} className="flex-1">
             <div className="h-full w-full">{children}</div>
           </ResizablePanel>
