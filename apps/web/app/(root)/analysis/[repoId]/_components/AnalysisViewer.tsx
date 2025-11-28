@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { _config } from "@/lib/_config";
+// import { _config } from "@/lib/_config";
 import RenderLogs from "./RenderLogs";
 
 import { RepoTree } from "@/types/types";

@@ -8,7 +8,10 @@
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types"
   },
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "devDependencies": {
     "prettier": "^3.6.2",
     "turbo": "^2.5.5",
@@ -19,7 +22,7 @@
       "strip-ansi": "6.0.1"
     }
   },
-  "packageManager": "pnpm@8.15.2",
+  "packageManager": "pnpm@10.24.0",
   "engines": {
     "node": ">=18"
   }

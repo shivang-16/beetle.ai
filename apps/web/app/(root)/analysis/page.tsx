@@ -8,7 +8,6 @@ import SyncRepositoriesButton from "./_components/SyncRepositoriesButton";
 import { Plus } from "lucide-react";
 import GithubOrgSwitcher from "./_components/GithubOrgSwitcher";
 import { logger } from "@/lib/logger";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 
 type RepoScope = "user" | "team";
 
@@ -32,9 +31,7 @@ const Page = async (props: {
       <div className="h-full p-4">
         <div className="flex items-center justify-between gap-2 border-b pb-4">
           <div className="flex items-center gap-3">
-            <SidebarTrigger className="md:hidden" />
-
-            <h2 className="text-2xl font-medium">Repositories</h2>
+            <h2 className="text-lg font-medium md:text-2xl">Repositories</h2>
           </div>
 
           <div className="flex justify-end gap-3">

@@ -12,14 +12,16 @@ import { ITreeNode } from "@/types/types";
 import { FileCode, FileJson, FileText } from "lucide-react";
 import React from "react";
 
-const RenderTreeNode = ({ 
-  node, 
-  onFileSelect, 
-  selectedFile 
-}: { 
+const RenderTreeNode = ({
+  node,
+  onFileSelect,
+  selectedFile,
+  setIsOpen,
+}: {
   node: ITreeNode;
   onFileSelect?: (filePath: string | null) => void;
   selectedFile?: string | null;
+  setIsOpen?: (isOpen: boolean) => void;
 }) => {
   const hasChildren = node.children && node.children.length > 0;
 
@@ -50,6 +52,9 @@ const RenderTreeNode = ({
       // Toggle selection: if already selected, deselect; otherwise select
       const isCurrentlySelected = selectedFile === node.path;
       onFileSelect(isCurrentlySelected ? null : node.path);
+      if (setIsOpen) {
+        setIsOpen(false);
+      }
     }
   };
 
@@ -60,8 +65,9 @@ const RenderTreeNode = ({
       nodeId={node.id}
       level={node.level}
       isLast={node.isLast}
-      parentPath={node.parentPath}>
-      <TreeNodeTrigger 
+      parentPath={node.parentPath}
+    >
+      <TreeNodeTrigger
         onClick={handleFileClick}
         className={isSelected ? "bg-accent/80" : ""}
       >
@@ -75,9 +81,9 @@ const RenderTreeNode = ({
       {hasChildren && (
         <TreeNodeContent hasChildren={hasChildren}>
           {node.children?.map((child) => (
-            <RenderTreeNode 
-              key={child.id} 
-              node={child} 
+            <RenderTreeNode
+              key={child.id}
+              node={child}
               onFileSelect={onFileSelect}
               selectedFile={selectedFile}
             />

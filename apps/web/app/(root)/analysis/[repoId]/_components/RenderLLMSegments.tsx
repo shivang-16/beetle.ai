@@ -552,7 +552,7 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
               return (
                 <div
                   key={`${i}-text-${segIndex}`}
-                  className="mb-2 w-full text-sm leading-7 whitespace-pre-wrap text-neutral-800 dark:text-neutral-200"
+                  className="mb-2 w-full max-w-full text-sm wrap-break-word whitespace-pre-wrap text-neutral-800 dark:text-neutral-200"
                 >
                   <Markdown
                     components={{
@@ -565,7 +565,12 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
                             language={match[1]}
                             style={vscDarkPlus}
                             customStyle={{
+                              maxWidth: "100%",
                               width: "100%",
+                              fontSize: "14px",
+                              whiteSpace: "pre-wrap",
+                              wordBreak: "break-word",
+                              overflowX: "auto",
                             }}
                           >
                             {removeLineNumberAnnotations(
@@ -576,7 +581,7 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
                           <code
                             {...rest}
                             className={cn(
-                              "w-full whitespace-pre-wrap",
+                              "w-full wrap-break-word whitespace-pre-wrap",
                               className,
                             )}
                           >
@@ -638,14 +643,14 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
             </div>
 
             {/* main content */}
-            <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <div className="flex w-full flex-1 flex-col gap-1">
               <GithubIssueDialog
                 title={githubIssue.title}
                 description={githubIssue.description}
                 trigger={
                   <Button
                     variant={"link"}
-                    className="text-md cursor-pointer justify-start truncate p-0 text-left font-bold text-black hover:underline dark:text-white"
+                    className="text-md h-auto cursor-pointer justify-start p-0 text-left font-bold whitespace-pre-wrap text-black hover:underline dark:text-white"
                   >
                     {githubIssue.title}
                   </Button>
@@ -741,15 +746,15 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
               <span className="truncate">{extractPath(file)}</span>
             </div>
 
-            <div className="p-0.5">
-              <pre className="font-mono text-xs leading-5">
+            <div className="w-full p-0.5">
+              <pre className="font-mono text-xs leading-5 wrap-break-word whitespace-pre-wrap">
                 {before.map((line, idx) => (
                   <div
                     key={`-b-${idx}`}
-                    className="flex items-start gap-2 rounded-sm border-l-4 border-red-600/70 bg-red-500/10 px-3 py-0.5 text-red-600"
+                    className="flex w-full items-start gap-2 rounded-sm border-l-4 border-red-600/70 bg-red-500/10 px-3 py-0.5 text-red-600"
                   >
                     <span className="select-none">-</span>
-                    <span className="text-foreground/90 whitespace-pre-wrap">
+                    <span className="text-foreground/90 wrap-break-word whitespace-pre-wrap">
                       {line || "\u00A0"}
                     </span>
                   </div>
@@ -760,7 +765,7 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
                     className="mt-0.5 flex items-start gap-2 rounded-sm border-l-4 border-emerald-600/70 bg-emerald-500/10 px-3 py-0.5 text-emerald-700 dark:text-emerald-400"
                   >
                     <span className="select-none">+</span>
-                    <span className="text-foreground/90 whitespace-pre-wrap">
+                    <span className="text-foreground/90 wrap-break-word whitespace-pre-wrap">
                       {line || "\u00A0"}
                     </span>
                   </div>
@@ -780,7 +785,47 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
             </Button>
           </div>
           {explanation && (
-            <div className="text-foreground/90 m-2 px-3">{explanation}</div>
+            <div className="text-foreground/90 m-2 wrap-break-word whitespace-pre-wrap">
+              <Markdown
+                components={{
+                  code(props) {
+                    const { children, className, ...rest } = props;
+                    const match = /language-(\w+)/.exec(className || "");
+                    return match ? (
+                      <SyntaxHighlighter
+                        PreTag="div"
+                        language={match[1]}
+                        style={vscDarkPlus}
+                        customStyle={{
+                          maxWidth: "100%",
+                          width: "100%",
+                          fontSize: "14px",
+                          whiteSpace: "pre-wrap",
+                          wordBreak: "break-word",
+                          overflowX: "auto",
+                        }}
+                      >
+                        {removeLineNumberAnnotations(
+                          String(children).replace(/\n$/, ""),
+                        )}
+                      </SyntaxHighlighter>
+                    ) : (
+                      <code
+                        {...rest}
+                        className={cn(
+                          "w-full wrap-break-word whitespace-pre-wrap",
+                          className,
+                        )}
+                      >
+                        {removeLineNumberAnnotations(String(children))}
+                      </code>
+                    );
+                  },
+                }}
+              >
+                {explanation}
+              </Markdown>
+            </div>
           )}
         </div>
       );
@@ -807,7 +852,7 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
             className="hover:bg-accent/40 flex w-full cursor-pointer items-center gap-3 p-4 text-left transition-colors"
           >
             {/* Warning triangle icon */}
-            <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center">
+            <div className="flex h-5 w-5 shrink-0 items-center justify-center">
               <svg
                 className="h-4 w-4 text-amber-500"
                 fill="currentColor"
@@ -832,7 +877,7 @@ export const RenderLLMSegments = React.memo(function RenderLLMSegments({
             </div>
 
             {/* Arrow icon */}
-            <div className="flex-shrink-0">
+            <div className="shrink-0">
               <svg
                 className={cn(
                   "text-muted-foreground h-4 w-4 transition-transform",

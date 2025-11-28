@@ -27,11 +27,11 @@ export default async function AnalysisLayout({
                 defaultSize={20}
                 minSize={4}
                 maxSize={25}
-                className="hidden md:block"
+                className="hidden lg:block"
               >
                 <AnalysisSidebar repoId={repoId} analysisList={analysisList} />
               </ResizablePanel>
-              <ResizableHandle withHandle className="hidden md:block" />
+              <ResizableHandle withHandle className="hidden lg:block" />
             </>
           )}
           <ResizablePanel defaultSize={75} className="flex-1">

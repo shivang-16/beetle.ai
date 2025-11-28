@@ -142,7 +142,7 @@ export const RenderToolCall = ({
           className="w-full border-none"
         >
           <AccordionTrigger className="cursor-pointer py-2 hover:no-underline data-[state=closed]:rounded-b-md">
-            <span className="flex flex-col text-gray-400 md:flex-row md:items-center">
+            <span className="flex flex-col text-gray-400 lg:flex-row lg:items-center">
               <span>
                 <Eye className="mr-2 inline-block size-4" />
                 <span className="font-medium">{normalizedFilePath}</span>
@@ -357,11 +357,11 @@ export const RenderToolCall = ({
         className="mb-2 inline-block w-full rounded px-2"
       >
         <AccordionItem value={`item-${id}`} className="w-full border-none">
-          <AccordionTrigger className="cursor-pointer rounded-t-md py-0 hover:no-underline data-[state=closed]:rounded-b-md">
+          <AccordionTrigger className="cursor-pointer rounded-t-md py-0 wrap-break-word whitespace-pre-wrap hover:no-underline data-[state=closed]:rounded-b-md">
             <span className="text-gray-400">
               <SearchCode className="mr-1 inline-block h-4 w-4" /> Searching
               Codebase{" "}
-              <span className="text-sm text-slate-500">
+              <span className="block text-sm wrap-break-word text-slate-500 lg:inline-block">
                 {result.result?.search_query}
               </span>{" "}
             </span>{" "}
@@ -389,7 +389,7 @@ export const RenderToolCall = ({
   }
 
   return (
-    <div className="w-full space-y-2 break-words whitespace-pre-wrap">
+    <div className="w-full space-y-2 wrap-break-word whitespace-pre-wrap">
       <p>{log.messages.join("\n")}</p>
     </div>
   );

@@ -13,10 +13,12 @@ const RepoFileTree = ({
   repoTree,
   onFileSelect,
   selectedFile,
+  setIsOpen,
 }: {
   repoTree: RepoTree;
   onFileSelect?: (filePath: string | null) => void;
   selectedFile?: string | null;
+  setIsOpen?: (isOpen: boolean) => void;
 }) => {
   const treeData = buildTreeStructure(repoTree?.tree || []) ?? [];
 
@@ -37,13 +39,15 @@ const RepoFileTree = ({
       onSelectionChange={(ids) =>
         logger.debug("Tree selection changed", { selectedIds: ids })
       }
-      className="hidden md:block max-w-56 overflow-y-auto output-scrollbar border-r">
-      <TreeView className="!p-0">
+      className="output-scrollbar max-w-56 overflow-y-auto border-r"
+    >
+      <TreeView className="p-0!">
         {repoTree && repoTree.repository && repoTree.repository.repo && (
           <Button
             variant={"secondary"}
-            className="bg-transparent cursor-pointer rounded-none w-full"
-            onClick={() => onFileSelect?.(null)}>
+            className="w-full cursor-pointer rounded-none bg-transparent"
+            onClick={() => onFileSelect?.(null)}
+          >
             <span className="w-full truncate text-left">
               {repoTree?.repository?.repo}
             </span>
@@ -56,6 +60,7 @@ const RepoFileTree = ({
               node={node}
               onFileSelect={onFileSelect}
               selectedFile={selectedFile}
+              setIsOpen={setIsOpen}
             />
           ))
         ) : (
