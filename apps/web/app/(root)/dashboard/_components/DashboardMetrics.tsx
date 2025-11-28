@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { DashboardData } from "@/types/dashboard";
-import { GitBranch, GitPullRequest, Bug } from "lucide-react";
 import { CartesianGrid, XAxis, YAxis, AreaChart, Area } from "recharts";
 import { format, parseISO } from "date-fns";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from "@/components/ui/chart";
@@ -10,22 +9,65 @@ interface DashboardMetricsProps {
 }
 
 export const DashboardMetrics = ({ data }: DashboardMetricsProps) => {
-  const rangeDays = data.trends?.range_days ?? 7;
 
   const prTrendData = (data.trends?.daily_pr_reviews ?? []).map((d) => ({
     date: format(parseISO(`${d.date}T00:00:00Z`), "MMM dd"),
     count: d.count,
   }));
 
-  const fullRepoTrendData = (data.trends?.daily_full_repo_reviews ?? []).map((d) => ({
-    date: format(parseISO(`${d.date}T00:00:00Z`), "MMM dd"),
-    count: d.count,
-  }));
+  // Calculate total PR reviews
+  const totalPRReviews = prTrendData.reduce((sum, d) => sum + d.count, 0);
+
 
   const prCommentsAvgTrendData = (data.trends?.daily_pr_comments_avg ?? []).map((d) => ({
     date: format(parseISO(`${d.date}T00:00:00Z`), "MMM dd"),
     count: d.count,
   }));
+
+  const prMergeTimeAvgTrendData = (data.trends?.daily_pr_merge_time_avg ?? []).map((d) => ({
+    date: format(parseISO(`${d.date}T00:00:00Z`), "MMM dd"),
+    count: d.count,
+  }));
+
+  // Debug: Log the raw data
+  console.log("Raw merge time data:", data.trends?.daily_pr_merge_time_avg);
+  console.log("Processed merge time data:", prMergeTimeAvgTrendData);
+
+  // Calculate average merge time
+  const avgMergeTimeHours = prMergeTimeAvgTrendData.length > 0
+    ? prMergeTimeAvgTrendData.reduce((sum, d) => sum + d.count, 0) / prMergeTimeAvgTrendData.length
+    : 0;
+  
+  console.log("Average merge time (hours):", avgMergeTimeHours);
+  
+  // Format merge time as days, hours, minutes, or seconds
+  const formatMergeTime = (hours: number) => {
+    const totalMinutes = hours * 60;
+    
+    if (totalMinutes < 1) {
+      // Less than 1 minute, show in seconds
+      const seconds = Math.round(totalMinutes * 60);
+      return `${seconds}s`;
+    }
+    
+    if (hours < 1) {
+      // Less than 60 minutes, show in minutes (ceiling to avoid 0)
+      const minutes = Math.ceil(totalMinutes);
+      return `${minutes}m`;
+    }
+    
+    const days = Math.floor(hours / 24);
+    const remainingHours = Math.round(hours % 24);
+    if (days > 0) {
+      return `${days}d ${remainingHours}h`;
+    }
+    return `${remainingHours}h`;
+  };
+
+  // Calculate average comments
+  const avgComments = prCommentsAvgTrendData.length > 0
+    ? prCommentsAvgTrendData.reduce((sum, d) => sum + d.count, 0) / prCommentsAvgTrendData.length
+    : 0;
 
   const singleSeriesConfig = {
     count: {
@@ -43,6 +85,9 @@ export const DashboardMetrics = ({ data }: DashboardMetricsProps) => {
           <CardDescription>Daily completed PR reviews</CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 -mt-2">
+            <p className="text-4xl font-bold">{totalPRReviews} <span className="text-sm">PR</span></p>
+          </div>
           <ChartContainer config={singleSeriesConfig}>
             <AreaChart
               accessibilityLayer
@@ -71,21 +116,24 @@ export const DashboardMetrics = ({ data }: DashboardMetricsProps) => {
         </CardContent>
       </Card>
 
-      {/* Trend Chart: Full Repo Reviews (Gradient Area) */}
+  {/* Trend Chart: Avg PR Merge Time */}
       <Card className="rounded-md">
         <CardHeader>
-          <CardTitle className="text-sm">Full Repo Reviews </CardTitle>
-          <CardDescription>Daily completed full repo reviews</CardDescription>
+          <CardTitle className="text-sm">Avg PR Merge Time </CardTitle>
+          <CardDescription>Daily average time to merge PRs (hours)</CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 -mt-2">
+            <p className="text-4xl font-bold">{formatMergeTime(avgMergeTimeHours)}</p>
+          </div>
           <ChartContainer config={singleSeriesConfig}>
             <AreaChart
               accessibilityLayer
-              data={fullRepoTrendData}
+              data={prMergeTimeAvgTrendData}
               margin={{ left: 12, right: 12, top: 12, bottom: 12 }}
             >
               <defs>
-                <linearGradient id="fillCountRepo" x1="0" y1="0" x2="0" y2="1">
+                <linearGradient id="fillCountMergeTime" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="var(--color-count)" stopOpacity={0.35} />
                   <stop offset="100%" stopColor="var(--color-count)" stopOpacity={0.05} />
                 </linearGradient>
@@ -99,7 +147,7 @@ export const DashboardMetrics = ({ data }: DashboardMetricsProps) => {
                 type="monotone"
                 stroke="var(--color-count)"
                 strokeWidth={2}
-                fill="url(#fillCountRepo)"
+                fill="url(#fillCountMergeTime)"
               />
             </AreaChart>
           </ChartContainer>
@@ -113,6 +161,9 @@ export const DashboardMetrics = ({ data }: DashboardMetricsProps) => {
           <CardDescription>Daily average comments across unique PRs</CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 -mt-2">
+            <p className="text-4xl font-bold">{avgComments.toFixed(1)}<span className="text-sm"> / PR</span></p>
+          </div>
           <ChartContainer config={singleSeriesConfig}>
             <AreaChart
               accessibilityLayer
@@ -140,6 +191,8 @@ export const DashboardMetrics = ({ data }: DashboardMetricsProps) => {
           </ChartContainer>
         </CardContent>
       </Card>
+
+    
     </div>
   );
 };

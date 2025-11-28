@@ -4,6 +4,9 @@ import React from "react";
 import ThemeToggle from "@/components/shared/theme-toggle";
 import { UserButton } from "@clerk/nextjs";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { ShieldCheck } from "lucide-react";
 
 const RootHeader = () => {
   return (
@@ -14,6 +17,11 @@ const RootHeader = () => {
 
       {/* Right side: bulb (theme toggle) and user avatar */}
       <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon" asChild>
+          <Link href="/security">
+            <ShieldCheck />
+          </Link>
+        </Button>
         <ThemeToggle />
         <UserButton
           appearance={{

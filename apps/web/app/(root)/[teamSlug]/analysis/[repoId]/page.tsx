@@ -1,7 +1,6 @@
 import React from "react";
 import { getRepoTree } from "../../../analysis/[repoId]/_actions/getRepoTree";
-import AnalysisViewer from "../../../analysis/[repoId]/_components/AnalysisViewer";
-import ComingSoon from "@/components/coming-soon";
+import AnalysisPageContent from "../../../analysis/[repoId]/_components/AnalysisPageContent";
 
 interface PageProps {
   params: Promise<{
@@ -22,17 +21,11 @@ const Page = async ({ params }: PageProps) => {
   const repoTree = await getRepoTree(decodeURIComponent(repoId), teamId);
 
   return (
-    <div className="flex h-full w-full">
-      <div className="flex-1">
-        <AnalysisViewer
-          repoId={decodeURIComponent(repoId)}
-          repoTree={repoTree.data}
-          teamId={teamId}
-        />
-
-        {/* <ComingSoon /> */}
-      </div>
-    </div>
+    <AnalysisPageContent
+      repoId={decodeURIComponent(repoId)}
+      repoTree={repoTree.data}
+      teamId={teamId}
+    />
   );
 };
 

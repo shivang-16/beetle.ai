@@ -1,6 +1,7 @@
 import { getInstallationOctokit } from '../../lib/githubApp.js';
 import { logger } from '../../utils/logger.js';
 import { GoogleGenAI } from '@google/genai';
+import Feedback from '../../models/feedback.model.js';
 
 export interface BeetleSuggestionContext {
   filePath?: string;
@@ -72,6 +73,92 @@ export function isLikelyReplyToBeetleConversation(body: string): boolean {
     quotesBeetle,
   });
   return hasBotMention || mentionsBeetle || quotesBeetle;
+}
+
+/**
+ * Extracts suggestion metadata from a Beetle comment
+ */
+export type ReplyIntent = 'QUESTION' | 'FEEDBACK' | 'SUGGESTION' | 'DISCUSSION';
+
+/**
+ * Parse the reply intent classification from the AI response
+ */
+export function parseReplyClassification(aiResponse: string): ReplyIntent | null {
+  const intentMatch = aiResponse.match(/\[INTENT:\s*(QUESTION|FEEDBACK|SUGGESTION|DISCUSSION)\]/i);
+  if (intentMatch) {
+    const intent = intentMatch[1].toUpperCase() as ReplyIntent;
+    logger.debug('Parsed reply intent from AI response', { intent });
+    return intent;
+  }
+  logger.debug('No intent classification found in AI response');
+  return null;
+}
+
+
+
+/**
+ * Save user feedback to database
+ */
+export async function saveFeedbackToDatabase(params: {
+  userId: string;
+  teamId?: string;
+  owner: string;
+  repo: string;
+  prNumber: number;
+  commentId: number;
+  userReplyText: string;
+  intent: ReplyIntent;
+  originalCommentBody: string;
+  parentPath?: string;
+  parentLine?: number;
+  diffHunk?: string;
+}): Promise<void> {
+  try {
+    const { userId, teamId, owner, repo, prNumber, commentId, userReplyText, intent, originalCommentBody, parentPath, parentLine, diffHunk } = params;
+    
+    const repoUrl = `https://github.com/${owner}/${repo}`;
+    
+    // Map intent to feedback type (suggestions are positive, feedback depends on sentiment)
+    // For now, treat suggestions as positive and feedback as negative by default
+    const feedbackType: 'positive' | 'negative' = intent === 'SUGGESTION' ? 'positive' : 'negative';
+    
+    const feedbackDoc = new Feedback({
+      userId,
+      teamId,
+      repoOwner: owner,
+      repoName: repo,
+      repoUrl,
+      prNumber,
+      commentId,
+      feedbackType,
+      feedbackContent: userReplyText,
+      replyType: 'text-reply',
+      originalCommentContext: {
+        body: originalCommentBody,
+        path: parentPath,
+        line: parentLine,
+        diffHunk,
+      },
+    });
+    
+    await feedbackDoc.save();
+    logger.info('Saved user feedback to database', {
+      userId,
+      owner,
+      repo,
+      prNumber,
+      commentId,
+      intent,
+      feedbackType,
+    });
+  } catch (error) {
+    logger.error('Failed to save feedback to database', {
+      error: error instanceof Error ? error.message : error,
+      owner: params.owner,
+      repo: params.repo,
+      prNumber: params.prNumber,
+    });
+  }
 }
 
 /**
@@ -169,6 +256,21 @@ ${extractedContext ? `--- Extracted Context ---\n${extractedContext}\n` : ''}${r
 ${userReplyBody}
 
 --- Instruction ---
+FIRST, classify the user's reply intent. Start your response with ONE of these tags:
+- [INTENT: QUESTION] - if the user is asking a question or seeking clarification
+- [INTENT: DISCUSSION] - if the user wants to discuss the approach or have a conversation
+- [INTENT: FEEDBACK] - if the user is reporting that something didn't work or providing negative feedback
+- [INTENT: SUGGESTION] - if the user is offering a suggestion or alternative approach
+
+THEN, craft your response based on the intent:
+- For QUESTION or DISCUSSION: Answer directly without acknowledgment
+- For FEEDBACK: Start with a brief acknowledgment using an emoji like ✍️, 📝, or similar, followed by your response to their feedback
+- For SUGGESTION: Start with a brief appreciation using an emoji like 💡, 🙏, or similar, followed by your response to their suggestion
+
+The acknowledgment should be natural and contextual to what the user said, not generic. Examples:
+- FEEDBACK: "Taking note of this! ✍️" or "Noted, thanks for the feedback! 📝"
+- SUGGESTION: "Great idea! 💡" or "Thanks for the suggestion! 🙏"
+
 Understand Beetle's original comment and the user's intent in the reply.
 Check the referenced code (diff hunks) if it's a review comment.
 Start directly with the answer — no greetings, apologies, or filler.
@@ -293,16 +395,44 @@ export async function respondToBeetleCommentReply(opts: {
     logger.debug('AI reply text preview', { preview: replyText.slice(0, 200), length: replyText.length });
     logger.info('AI reply text generated', { length: replyText.length });
 
+    // Parse the reply classification
+    const intent = parseReplyClassification(replyText);
+    logger.info('Parsed reply intent', { intent });
+
+    // Check if this is feedback or suggestion
+    const isFeedbackOrSuggestion = intent === 'FEEDBACK' || intent === 'SUGGESTION';
+    
+    // Save to database if it's feedback or suggestion
+    if (isFeedbackOrSuggestion && intent && opts.replyAuthorLogin) {
+      await saveFeedbackToDatabase({
+        userId: opts.replyAuthorLogin,
+        teamId: undefined, // teamId is optional
+        owner: opts.owner,
+        repo: opts.repo,
+        prNumber: opts.prNumber || 0,
+        commentId: opts.parentCommentId,
+        userReplyText: opts.userReplyBody,
+        intent,
+        originalCommentBody: opts.parentCommentBody,
+        parentPath: opts.parentPath,
+        parentLine: opts.parentLine,
+        diffHunk: opts.diffHunk,
+      });
+    }
+
+    // Remove the [INTENT: ...] tag from the reply text
+    let cleanedReplyText = replyText.replace(/\[INTENT:\s*(QUESTION|FEEDBACK|SUGGESTION|DISCUSSION)\]\s*/i, '').trim();
+
     // Skip posting if the AI produced an empty or generic fallback response
     const isGenericOrEmpty = (
-      replyText.trim().length < 20 ||
-      /^Acknowledged\b/i.test(replyText) ||
-      /^Missing context\b/i.test(replyText)
+      cleanedReplyText.trim().length < 20 ||
+      /^Acknowledged\b/i.test(cleanedReplyText) ||
+      /^Missing context\b/i.test(cleanedReplyText)
     );
     if (isGenericOrEmpty) {
       logger.warn('AI reply was empty or generic; not posting a comment', {
-        preview: replyText.slice(0, 120),
-        length: replyText.length,
+        preview: cleanedReplyText.slice(0, 120),
+        length: cleanedReplyText.length,
       });
       return;
     }
@@ -310,9 +440,14 @@ export async function respondToBeetleCommentReply(opts: {
     const octokit = getInstallationOctokit(opts.installationId);
     // Ensure the reply starts with an @mention of the replying user
     const mention = opts.replyAuthorLogin ? `@${opts.replyAuthorLogin}` : '';
-    const finalReplyBody = (mention && !replyText.trim().startsWith(mention))
-      ? `${mention} ${replyText}`
-      : replyText;
+    
+    // The AI now generates acknowledgments directly for feedback/suggestions
+    let finalReplyBody = cleanedReplyText;
+    
+    // Ensure mention is present
+    if (mention && !finalReplyBody.trim().startsWith(mention)) {
+      finalReplyBody = `${mention} ${finalReplyBody}`;
+    }
 
     // Always post a threaded reply to the review comment.
     logger.debug('Posting threaded reply to review comment', {
@@ -320,6 +455,8 @@ export async function respondToBeetleCommentReply(opts: {
       repo: opts.repo,
       comment_id: opts.parentCommentId,
       replyLength: finalReplyBody.length,
+      intent,
+      isFeedbackOrSuggestion,
     });
     try {
       await octokit.pulls.createReplyForReviewComment({
@@ -333,6 +470,8 @@ export async function respondToBeetleCommentReply(opts: {
         owner: opts.owner,
         repo: opts.repo,
         parentCommentId: opts.parentCommentId,
+        intent,
+        savedFeedback: isFeedbackOrSuggestion,
       });
     } catch (err) {
       const status = (err as any)?.status;

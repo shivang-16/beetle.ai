@@ -54,7 +54,7 @@ export function PullRequestsChart({ data }: PullRequestsChartProps) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <GitPullRequest className="h-5 w-5" />
-          Pull Requests Trend
+          Pull Requests Trend (Full Repo Review)
         </CardTitle>
         <CardDescription>
           Suggested vs Opened Pull Requests Over Time

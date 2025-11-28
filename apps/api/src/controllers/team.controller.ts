@@ -10,6 +10,7 @@ import { logger } from '../utils/logger.js';
 import Analysis from '../models/analysis.model.js';
 import GithubIssue from '../models/github_issue.model.js';
 import GithubPullRequest from '../models/github_pull_request.model.js';
+import mongoose from 'mongoose';
 
 const slugify = (name: string) =>
   name
@@ -381,6 +382,87 @@ export const getTeamDashboardInfo = async (req: Request, res: Response, next: Ne
             return out;
         };
 
+        // Build daily average merge time for merged PRs
+        const buildDailyAvgMergeTime = async (repoFullNames: string[]) => {
+            if (repoFullNames.length === 0) {
+                const out: { date: string; count: number }[] = [];
+                for (let i = 0; i < days; i++) {
+                    const d = new Date(rangeStart);
+                    d.setDate(rangeStart.getDate() + i);
+                    const key = formatDateKey(d);
+                    out.push({ date: key, count: 0 });
+                }
+                return out;
+            }
+
+            try {
+                const prCollection = mongoose.connection.db?.collection('pull_request_datas');
+                if (!prCollection) return [];
+
+                // Find all merged PRs for team's repositories within date range
+                // We need to get the earliest document per prKey for accurate createdAt
+                const mergedPRs = await prCollection.aggregate([
+                    {
+                        $match: {
+                            'repository.name': { $in: repoFullNames },
+                            state: 'merged',
+                            mergedAt: { $exists: true },
+                            createdAt: {
+                                $gte: rangeStart,
+                                $lte: now
+                            }
+                        }
+                    },
+                    {
+                        // Group by prKey to find earliest createdAt
+                        $group: {
+                            _id: '$prKey',
+                            earliestCreatedAt: { $min: '$createdAt' },
+                            mergedAt: { $first: '$mergedAt' },
+                            repository: { $first: '$repository' },
+                            pr: { $first: '$pr' }
+                        }
+                    }
+                ]).toArray();
+
+                // Group by date and calculate average merge time
+                const dayToMergeTimes: Record<string, number[]> = {};
+                
+                for (const prData of mergedPRs) {
+                    if (!prData.mergedAt || !prData.earliestCreatedAt) continue;
+
+                    const createdAt = new Date(prData.earliestCreatedAt);
+                    const mergedAt = new Date(prData.mergedAt);
+                    
+                    // Calculate merge time in hours (from earliest commit to merge)
+                    const mergeTimeHours = (mergedAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+                    
+                    // Only consider reasonable merge times (> 0 and < 30 days)
+                    if (mergeTimeHours > 0 && mergeTimeHours < 720) {
+                        const key = formatDateKey(createdAt);
+                        if (!dayToMergeTimes[key]) dayToMergeTimes[key] = [];
+                        dayToMergeTimes[key].push(mergeTimeHours);
+                    }
+                }
+
+                const out: { date: string; count: number }[] = [];
+                for (let i = 0; i < days; i++) {
+                    const d = new Date(rangeStart);
+                    d.setDate(rangeStart.getDate() + i);
+                    const key = formatDateKey(d);
+                    const mergeTimes = dayToMergeTimes[key] || [];
+                    const avg = mergeTimes.length > 0
+                        ? mergeTimes.reduce((sum, t) => sum + t, 0) / mergeTimes.length
+                        : 0;
+                    out.push({ date: key, count: Number(avg.toFixed(2)) });
+                }
+                return out;
+            } catch (error) {
+                console.error('Error calculating merge time:', error);
+                return [];
+            }
+        };
+
         // Get all repositories that belong to this team
         const repositories = await Github_Repository.find({ teams: teamId }).lean();
         const repositoryIds = repositories.map(repo => repo._id);
@@ -495,6 +577,10 @@ export const getTeamDashboardInfo = async (req: Request, res: Response, next: Ne
             };
         });
 
+        // Calculate merge time trends
+        const repoFullNames = repositories.map(repo => repo.fullName);
+        const daily_pr_merge_time_avg = await buildDailyAvgMergeTime(repoFullNames);
+
         const dashboardData = {
             total_repo_added,
             full_repo_review: {
@@ -518,6 +604,7 @@ export const getTeamDashboardInfo = async (req: Request, res: Response, next: Ne
                 daily_full_repo_reviews: buildDailyCounts(fullRepoAnalyses),
                 daily_pr_reviews: buildDailyCounts(prAnalyses),
                 daily_pr_comments_avg: buildDailyAvgCommentsForUniquePRs(prAnalyses),
+                daily_pr_merge_time_avg,
                 range_days: days
             }
         };

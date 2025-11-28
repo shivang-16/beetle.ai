@@ -19,6 +19,7 @@ export interface DashboardData {
     daily_full_repo_reviews: Array<{ date: string; count: number }>;
     daily_pr_reviews: Array<{ date: string; count: number }>;
     daily_pr_comments_avg?: Array<{ date: string; count: number }>;
+    daily_pr_merge_time_avg?: Array<{ date: string; count: number }>;
     range_days: number;
   };
 }

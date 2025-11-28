@@ -54,7 +54,7 @@ export function GitHubIssuesChart({ data }: GitHubIssuesChartProps) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Bug className="h-5 w-5" />
-          GitHub Issues Trend
+          GitHub Issues Trend (Full Repo Review)
         </CardTitle>
         <CardDescription>
           Suggested vs Opened Issues Over Time

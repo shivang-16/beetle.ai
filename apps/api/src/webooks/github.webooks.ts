@@ -3,10 +3,9 @@ import { Webhooks } from '@octokit/webhooks';
 import { logger } from '../utils/logger.js';
 import { getInstallationOctokit } from '../lib/githubApp.js';
 import { respondToBeetleCommentReply, isBeetleBotAuthor, isBeetleMentioned, isLikelyBeetleComment, isLikelyReplyToBeetleConversation } from '../services/analysis/commentReplyService.js';
-
-import { commentOnIssueOpened, create_github_installation, delete_github_installation, PrData } from '../queries/github.queries.js';
+import { commentOnIssueOpened, create_github_installation, delete_github_installation, PrData, handlePrMerged } from '../queries/github.queries.js';
   // Set up GitHub webhooks
-  export const webhooks = new Webhooks({ secret: process.env.GITHUB_WEBHOOK_SECRET! });
+export const webhooks = new Webhooks({ secret: process.env.GITHUB_WEBHOOK_SECRET! });
   
   // Handle installation created event
   webhooks.on('installation.created', async ({ payload }) => {
@@ -150,6 +149,17 @@ import { commentOnIssueOpened, create_github_installation, delete_github_install
   webhooks.on('pull_request.reopened', handlePullRequestAnalysis);
   // Trigger analysis when new commits are pushed to the PR
   webhooks.on('pull_request.synchronize', handlePullRequestAnalysis);
+
+  // Handle PR closed event to track merge time
+  webhooks.on('pull_request.closed', async ({ payload }) => {
+    logger.info('PR closed event received', {
+      action: payload.action,
+      prNumber: payload.pull_request?.number,
+      repository: payload.repository?.full_name,
+      merged: payload.pull_request?.merged
+    });
+    await handlePrMerged(payload);
+  });
 
   // Handle replies to PR review comments and respond when replying to Beetle comments
   webhooks.on('pull_request_review_comment.created', async ({ payload }) => {

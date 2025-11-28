@@ -1,7 +1,6 @@
 import React from "react";
 import { getRepoTree } from "./_actions/getRepoTree";
-import AnalysisViewer from "./_components/AnalysisViewer";
-import ComingSoon from "@/components/coming-soon";
+import AnalysisPageContent from "./_components/AnalysisPageContent";
 
 const Page = async ({
   params,
@@ -15,7 +14,7 @@ const Page = async ({
   const teamId = searchParamsData?.teamId;
   const branch = searchParamsData?.branch;
 
-  // Fetch repo tree at page level to prevent refetching when logs change
+  // Fetch repo tree at page level
   const repoTree = await getRepoTree(
     decodeURIComponent(repoId),
     teamId,
@@ -23,18 +22,12 @@ const Page = async ({
   );
 
   return (
-    <div className="flex h-full w-full">
-      <div className="flex-1">
-        <AnalysisViewer
-          repoId={decodeURIComponent(repoId)}
-          repoTree={repoTree.data}
-          branch={branch}
-          teamId={teamId}
-        />
-
-        {/* <ComingSoon /> */}
-      </div>
-    </div>
+    <AnalysisPageContent
+      repoId={decodeURIComponent(repoId)}
+      repoTree={repoTree.data}
+      branch={branch}
+      teamId={teamId}
+    />
   );
 };
 

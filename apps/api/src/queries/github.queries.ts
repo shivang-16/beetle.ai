@@ -206,6 +206,63 @@ export const commentOnIssueOpened = async (payload: any) => {
     }
   }
 
+// Handle PR merged event - update all documents with same prKey
+export const handlePrMerged = async (payload: any) => {
+  try {
+    const { pull_request, repository } = payload;
+    
+    if (!pull_request?.merged || !pull_request?.merged_at) {
+      logger.debug('PR closed but not merged, skipping merge update', {
+        prNumber: pull_request?.number,
+        repository: repository?.full_name,
+        merged: pull_request?.merged
+      });
+      return;
+    }
+
+    const prKey = `${repository.full_name}#${pull_request.number}`;
+    const mergedAt = new Date(pull_request.merged_at);
+
+    logger.info('Updating PR data for merged PR', {
+      prKey,
+      mergedAt,
+      repository: repository.full_name,
+      prNumber: pull_request.number
+    });
+
+    const prCollection = mongoose.connection.db?.collection('pull_request_datas');
+    if (!prCollection) {
+      logger.error('Unable to access pull_request_datas collection');
+      return;
+    }
+
+    // Update ALL documents with this prKey
+    const updateResult = await prCollection.updateMany(
+      { prKey },
+      {
+        $set: {
+          state: 'merged',
+          mergedAt: mergedAt,
+          updatedAt: new Date()
+        }
+      }
+    );
+
+    logger.info('Updated PR documents with merged state', {
+      prKey,
+      matchedCount: updateResult.matchedCount,
+      modifiedCount: updateResult.modifiedCount
+    });
+
+  } catch (error) {
+    logger.error('Error handling PR merged event', {
+      error: error instanceof Error ? error.message : error,
+      prNumber: payload?.pull_request?.number,
+      repository: payload?.repository?.full_name
+    });
+  }
+};
+
 
 // Get user's GitHub installation for token generation
 export const getUserGitHubInstallation = async (userId: string, owner: string) => {
@@ -597,6 +654,7 @@ export const PrData = async (payload: any) => {
       // Unique identifiers for dedupe and tracking
       prKey,
       latestCommitSha,
+      state: 'open', // Track PR state: open, closed, merged
       
       // Core Changes Data
       changes: {
@@ -942,7 +1000,8 @@ const ext = (filename?.split('.')?.pop() || '').toLowerCase();
             base_url: process.env.API_BASE_URL || "https://api.beetleai.dev",
             pr_number: pull_request.number,
             pr_url: prUrl,
-            pr_title: pull_request.title
+            pr_title: pull_request.title,
+            repo_url: repoUrl,
           },
           user.email,
           undefined,
