@@ -76,7 +76,7 @@ const HowToCard = ({
 const NoInstallationOnboarding = () => {
   return (
     <div className="h-full">
-      <div className="flex gap-4">
+      <div className="flex flex-col gap-4 md:flex-row">
         <ConnectGithubCard />
         <UpgradePlanCard />
       </div>

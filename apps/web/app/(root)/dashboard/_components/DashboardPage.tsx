@@ -10,6 +10,13 @@ import NoInstallationOnboarding from "@/app/(root)/dashboard/_components/NoInsta
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { getDashboardData } from "../_actions/getDashboardData";
 import { getUserInstallations } from "@/_actions/user-actions";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const DashboardPage = () => {
   const [days, setDays] = useState<number>(7);
@@ -34,31 +41,34 @@ const DashboardPage = () => {
   // Defer conditional rendering to the main content area so the header remains.
 
   return (
-    <div className="h-full p-5 space-y-6">
+    <div className="h-full space-y-6 p-5">
       {/* Top-right range selector */}
       <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Hello 👋 </h1>
 
-      <h1 className="text-3xl font-bold">Hello 👋 </h1>
-
-      <div className="flex items-center ">
-        <select
-          className="border border-gray-300 rounded-md px-2 py-1 text-sm"
-          value={days}
-          onChange={(e) => setDays(Number(e.target.value))}
-        >
-          <option value={7}>Last 7 days</option>
-          <option value={15}>Last 15 days</option>
-          <option value={30}>Last 30 days</option>
-          <option value={60}>Last 60 days</option>
-          <option value={90}>Last 90 days</option>
-        </select>
+        <div className="flex items-center">
+          <Select
+            defaultValue={days.toString()}
+            onValueChange={(value) => setDays(Number(value))}
+          >
+            <SelectTrigger className="gap-2 px-2 text-xs">
+              <SelectValue placeholder="Select days" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7">Last 7 days</SelectItem>
+              <SelectItem value="15">Last 15 days</SelectItem>
+              <SelectItem value="30">Last 30 days</SelectItem>
+              <SelectItem value="60">Last 60 days</SelectItem>
+              <SelectItem value="90">Last 90 days</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
-      </div>
 
-      {(!installations || installations.length === 0) ? (
+      {!installations || installations.length === 0 ? (
         <NoInstallationOnboarding />
       ) : !dashboardData.data ? (
-        <div className="h-full flex items-center justify-center px-4 py-5">
+        <div className="flex h-full items-center justify-center px-4 py-5">
           <p className="text-gray-600">No dashboard data available</p>
         </div>
       ) : (
@@ -67,14 +77,14 @@ const DashboardPage = () => {
           <DashboardMetrics data={dashboardData.data} />
 
           {/* Bento Layout: Charts on left, Recent Activity on right */}
-          <div className="flex flex-col lg:flex-row gap-6">
+          <div className="flex flex-col gap-6 lg:flex-row">
             {/* Left side - Recent Activity (takes 2 columns) */}
             <div className="w-full">
               <RecentActivity data={dashboardData.data} />
             </div>
 
             {/* Right side - Charts stacked (takes 1 column) */}
-            <div className="w-full flex flex-col gap-4">
+            <div className="flex w-full flex-col gap-4">
               <GitHubIssuesChart data={dashboardData.data} />
               <PullRequestsChart data={dashboardData.data} />
             </div>

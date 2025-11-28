@@ -5,13 +5,13 @@ import React from "react";
 
 const ConnectGithubCard = () => {
   return (
-    <Card className="relative mx-auto mb-8 w-full overflow-hidden p-5">
+    <Card className="relative mx-auto w-full overflow-hidden p-5 md:mb-8">
       {/* Decorative right-side background image */}
       <div
         aria-hidden
-        className="pointer-events-none absolute right-0 bottom-0 h-40 w-[100%] bg-[url('/@beetle.png')] bg-contain bg-right bg-no-repeat opacity-70 dark:opacity-60"
+        className="pointer-events-none absolute right-0 bottom-0 h-40 w-[100%] bg-[url('/@beetle.png')] mask-radial-from-50% bg-contain bg-right bg-no-repeat opacity-70 dark:opacity-60"
       />
-      <div>
+      <div className="relative z-10">
         <h2 className="text-xl font-bold">Connect GitHub to get started</h2>
         <span className="text-muted-foreground text-sm">
           {" "}
