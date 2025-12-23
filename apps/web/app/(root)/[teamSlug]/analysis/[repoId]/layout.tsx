@@ -29,12 +29,7 @@ export default async function TeamAnalysisLayout({
         <ResizablePanelGroup direction="horizontal">
           {analysisList && analysisList.length > 0 && (
             <>
-              <ResizablePanel
-                defaultSize={20}
-                minSize={4}
-                maxSize={25}
-                className="hidden md:block"
-              >
+        
                 <AnalysisSidebar repoId={repoId} analysisList={analysisList} />
               </ResizablePanel>
               <ResizableHandle withHandle className="hidden md:block" />
