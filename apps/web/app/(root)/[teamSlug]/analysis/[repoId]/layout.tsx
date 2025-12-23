@@ -30,8 +30,8 @@ export default async function TeamAnalysisLayout({
           {analysisList && analysisList.length > 0 && (
             <>
         
-                <AnalysisSidebar repoId={repoId} analysisList={analysisList} />
-              </ResizablePanel>
+<AnalysisSidebar repoId={repoId} analysisList={analysisList} />
+
               <ResizableHandle withHandle className="hidden md:block" />
             </>
           )}
