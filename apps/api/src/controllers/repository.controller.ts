@@ -66,11 +66,11 @@ export const updateRepoSettings = async (req: Request, res: Response, next: Next
             updatedFields: Object.keys(updateData)
         });
 
-        res.status(200).json({
-            success: true,
-            message: "Repository settings updated successfully",
-            data: updatedRepository
-        });
+        // res.status(200).json({
+        //     success: true,
+        //     message: "Repository settings updated successfully",
+        //     data: updatedRepository
+        // });
 
     } catch (error: any) {
         logger.error("Error updating repository settings", { 

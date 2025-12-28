@@ -5,21 +5,21 @@ import { sanitizePrompt, optimizeCustomRules } from '../utils/gemini.helper.js';
 export const getCustomContexts = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?._id;
-    const teamId = req.headers['x-team-id'] as string || req.team?.id || req.org?.id;
+    // const teamId = req.headers['x-team-id'] as string || req.team?.id || req.org?.id;
 
     if (!userId) {
       return res.status(401).json({ status: 'error', message: 'Unauthorized' });
     }
 
     const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
+    // const limit = parseInt(req.query.limit as string) || 10;
     const query = (req.query.query as string) || '';
     const skip = (page - 1) * limit;
 
-    const filter: Record<string, unknown> = {
-      createdBy: userId,
-      team: teamId || userId,
-    };
+    // const filter: Record<string, unknown> = {
+    //   createdBy: userId,
+    //   team: teamId || userId,
+    // };
 
     if (query) {
       filter.$or = [

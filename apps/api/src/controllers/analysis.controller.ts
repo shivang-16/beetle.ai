@@ -18,10 +18,10 @@ export const createAnalysis = async (
   next: NextFunction
 ) => {
   try {
-    logger.info("Creating analysis record", { 
-      userId: req.user?._id, 
-      github_repositoryId: req.body.github_repositoryId 
-    });
+    // logger.info("Creating analysis record", { 
+    //   userId: req.user?._id, 
+    //   github_repositoryId: req.body.github_repositoryId 
+    // });
 
     // Extract parameters from request body
     const {
@@ -42,11 +42,11 @@ export const createAnalysis = async (
       return next(new CustomError("Github repository not found", 404));
     }
 
-    // if (github_repository.analysisRequired === false) {
-    //   return next(
-    //     new CustomError("You haven't enabled analysis for this repository", 400)
-    //   );
-    // }
+    if (github_repository.analysisRequired === false) {
+      return next(
+        new CustomError("You haven't enabled analysis for this repository", 400)
+      );
+    }
 
     const repoUrl = `https://github.com/${github_repository.fullName}`;
     let userId = req.user._id;
