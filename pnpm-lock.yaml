@@ -121,8 +121,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       next:
-        specifier: 15.3.6
-        version: 15.3.6(react-dom@19.1.1)(react@19.1.1)
+        specifier: 15.3.8
+        version: 15.3.8(react-dom@19.1.1)(react@19.1.1)
       react:
         specifier: ^19.1.0
         version: 19.1.1
@@ -156,7 +156,7 @@ importers:
     dependencies:
       '@clerk/nextjs':
         specifier: ^6.32.0
-        version: 6.32.0(next@15.3.6)(react-dom@19.1.1)(react@19.1.1)
+        version: 6.32.0(next@15.3.8)(react-dom@19.1.1)(react@19.1.1)
       '@clerk/themes':
         specifier: ^2.4.18
         version: 2.4.19
@@ -168,7 +168,7 @@ importers:
         version: 6.0.2(react@19.1.1)
       '@logtail/next':
         specifier: ^0.2.1
-        version: 0.2.1(next@15.3.6)(react@19.1.1)
+        version: 0.2.1(next@15.3.8)(react@19.1.1)
       '@radix-ui/react-accordion':
         specifier: ^1.2.12
         version: 1.2.12(@types/react-dom@19.1.1)(@types/react@19.1.0)(react-dom@19.1.1)(react@19.1.1)
@@ -225,10 +225,10 @@ importers:
         version: 7.4.3
       '@vercel/analytics':
         specifier: ^1.5.0
-        version: 1.5.0(next@15.3.6)(react@19.1.1)
+        version: 1.5.0(next@15.3.8)(react@19.1.1)
       '@vercel/speed-insights':
         specifier: ^1.2.0
-        version: 1.2.0(next@15.3.6)(react@19.1.1)
+        version: 1.2.0(next@15.3.8)(react@19.1.1)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -260,8 +260,8 @@ importers:
         specifier: ^12.23.12
         version: 12.23.12(react-dom@19.1.1)(react@19.1.1)
       next:
-        specifier: 15.3.6
-        version: 15.3.6(react-dom@19.1.1)(react@19.1.1)
+        specifier: 15.3.8
+        version: 15.3.8(react-dom@19.1.1)(react@19.1.1)
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.1.1)(react@19.1.1)
@@ -984,7 +984,7 @@ packages:
       - react-dom
     dev: false
 
-  /@clerk/nextjs@6.32.0(next@15.3.6)(react-dom@19.1.1)(react@19.1.1):
+  /@clerk/nextjs@6.32.0(next@15.3.8)(react-dom@19.1.1)(react@19.1.1):
     resolution: {integrity: sha512-K35+Fxfe7F/VJCZQkpgMj2VCy020vqYIi0FQRtLcu7MsCAbllyHVj9lss1lx6oh3NjOOGpRe6EN71pO9wgqu+w==}
     engines: {node: '>=18.17.0'}
     peerDependencies:
@@ -996,7 +996,7 @@ packages:
       '@clerk/clerk-react': 5.47.0(react-dom@19.1.1)(react@19.1.1)
       '@clerk/shared': 3.25.0(react-dom@19.1.1)(react@19.1.1)
       '@clerk/types': 4.86.0
-      next: 15.3.6(react-dom@19.1.1)(react@19.1.1)
+      next: 15.3.8(react-dom@19.1.1)(react@19.1.1)
       react: 19.1.1
       react-dom: 19.1.1(react@19.1.1)
       server-only: 0.0.1
@@ -1553,14 +1553,14 @@ packages:
       serialize-error: 8.1.0
     dev: false
 
-  /@logtail/next@0.2.1(next@15.3.6)(react@19.1.1):
+  /@logtail/next@0.2.1(next@15.3.8)(react@19.1.1):
     resolution: {integrity: sha512-kvI7CNzei+fIErWOfMf/o3mgZkmGptR6W/C4850+oyXS0ouJO9C2+5a166Rd6ywzXb/lP9QPOABPS1r26dNnpQ==}
     engines: {node: '>=18'}
     peerDependencies:
       next: '>=14.0'
       react: '>=18.0.0'
     dependencies:
-      next: 15.3.6(react-dom@19.1.1)(react@19.1.1)
+      next: 15.3.8(react-dom@19.1.1)(react@19.1.1)
       react: 19.1.1
       use-deep-compare: 1.3.0(react@19.1.1)
       whatwg-fetch: 3.6.20
@@ -1666,8 +1666,8 @@ packages:
       - utf-8-validate
     dev: true
 
-  /@next/env@15.3.6:
-    resolution: {integrity: sha512-/cK+QPcfRbDZxmI/uckT4lu9pHCfRIPBLqy88MhE+7Vg5hKrEYc333Ae76dn/cw2FBP2bR/GoK/4DU+U7by/Nw==}
+  /@next/env@15.3.8:
+    resolution: {integrity: sha512-SAfHg0g91MQVMPioeFeDjE+8UPF3j3BvHjs8ZKJAUz1BG7eMPvfCKOAgNWJ6s1MLNeP6O2InKQRTNblxPWuq+Q==}
     dev: false
 
   /@next/eslint-plugin-next@15.5.3:
@@ -4103,7 +4103,7 @@ packages:
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
     dev: false
 
-  /@vercel/analytics@1.5.0(next@15.3.6)(react@19.1.1):
+  /@vercel/analytics@1.5.0(next@15.3.8)(react@19.1.1):
     resolution: {integrity: sha512-MYsBzfPki4gthY5HnYN7jgInhAZ7Ac1cYDoRWFomwGHWEX7odTEzbtg9kf/QSo7XEsEAqlQugA6gJ2WS2DEa3g==}
     peerDependencies:
       '@remix-run/react': ^2
@@ -4129,11 +4129,11 @@ packages:
       vue-router:
         optional: true
     dependencies:
-      next: 15.3.6(react-dom@19.1.1)(react@19.1.1)
+      next: 15.3.8(react-dom@19.1.1)(react@19.1.1)
       react: 19.1.1
     dev: false
 
-  /@vercel/speed-insights@1.2.0(next@15.3.6)(react@19.1.1):
+  /@vercel/speed-insights@1.2.0(next@15.3.8)(react@19.1.1):
     resolution: {integrity: sha512-y9GVzrUJ2xmgtQlzFP2KhVRoCglwfRQgjyfY607aU0hh0Un6d0OUyrJkjuAlsV18qR4zfoFPs/BiIj9YDS6Wzw==}
     requiresBuild: true
     peerDependencies:
@@ -4157,7 +4157,7 @@ packages:
       vue-router:
         optional: true
     dependencies:
-      next: 15.3.6(react-dom@19.1.1)(react@19.1.1)
+      next: 15.3.8(react-dom@19.1.1)(react@19.1.1)
       react: 19.1.1
     dev: false
 
@@ -7610,8 +7610,8 @@ packages:
       react-dom: 19.1.1(react@19.1.1)
     dev: false
 
-  /next@15.3.6(react-dom@19.1.1)(react@19.1.1):
-    resolution: {integrity: sha512-oI6D1zbbsh6JzzZFDCSHnnx6Qpvd1fSkVJu/5d8uluqnxzuoqtodVZjYvNovooznUq8udSAiKp7MbwlfZ8Gm6w==}
+  /next@15.3.8(react-dom@19.1.1)(react@19.1.1):
+    resolution: {integrity: sha512-L+4c5Hlr84fuaNADZbB9+ceRX9/CzwxJ+obXIGHupboB/Q1OLbSUapFs4bO8hnS/E6zV/JDX7sG1QpKVR2bguA==}
     engines: {node: ^18.18.0 || ^19.8.0 || >= 20.0.0}
     hasBin: true
     peerDependencies:
@@ -7631,7 +7631,7 @@ packages:
       sass:
         optional: true
     dependencies:
-      '@next/env': 15.3.6
+      '@next/env': 15.3.8
       '@swc/counter': 0.1.3
       '@swc/helpers': 0.5.15
       busboy: 1.6.0
