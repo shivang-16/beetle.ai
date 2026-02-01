@@ -13,6 +13,7 @@ import {
   FileText,
   AtSign,
   Trophy,
+  Unplug,
 } from "lucide-react";
 
 import BeetleLogo from "@/components/shared/beetle-logo";
@@ -62,6 +63,11 @@ const items = [
     title: "Leaderboard",
     url: "/leaderboard",
     icon: Trophy,
+  },
+  {
+    title: "Integrations",
+    url: "/integrations",
+    icon: Unplug,
   },
   {
     title: "Settings",

@@ -916,7 +916,7 @@ export const updateTeamSettings = async (req: Request, res: Response, next: Next
 
 export const getTeamRepositories = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { orgSlug, search } = req.query;
+    const { orgSlug, search, integration } = req.query;
   
     // Use team context from middleware
     const teamId = req.team?.id;
@@ -931,6 +931,12 @@ export const getTeamRepositories = async (req: Request, res: Response, next: Nex
 
     // Build query for repositories matching this teamId
     let query: any = { teamId };
+    
+    // Filter by integration/source if provided
+    if (integration && integration !== 'all' && typeof integration === 'string') {
+      query.source = integration; // 'github' or 'bitbucket'
+      logger.debug('Filtering repositories by integration', { integration, teamId });
+    }
     
     // If orgSlug is provided and not 'all', filter by organization
     if (orgSlug && orgSlug !== 'undefined' && orgSlug !== 'all' && typeof orgSlug === 'string') {

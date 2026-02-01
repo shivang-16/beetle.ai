@@ -462,7 +462,8 @@ export const getPrAnalysis = async (
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
-      .select("repoUrl model status pr_number pr_url pr_title createdAt errorLogs");
+      .populate("github_repositoryId", "source")
+      .select("repoUrl model status pr_number pr_url pr_title createdAt errorLogs github_repositoryId");
 
     return res.status(200).json({
       success: true,

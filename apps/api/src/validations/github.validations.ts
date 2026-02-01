@@ -46,19 +46,19 @@ export const createInstallationSchema = z.object({
   account: z.object({
     login: z.string(),
     id: z.number(),
-    type: z.string(),
+    type: z.enum(['User', 'Organization']),
     avatarUrl: z.string().optional(),
     htmlUrl: z.string().optional()
   }),
   sender: z.object({
     login: z.string(),
     id: z.number(),
-    type: z.string(),
+    type: z.enum(['User', 'Organization']),
     avatarUrl: z.string().optional(),
     htmlUrl: z.string().optional()
   }),
-  targetType: z.string(),
-  repositorySelection: z.string(),
+  targetType: z.enum(['User', 'Organization']),
+  repositorySelection: z.enum(['all', 'selected']),
   repositories: z.array(
     z.object({
       id: z.number(),

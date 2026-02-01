@@ -3,8 +3,13 @@ import { baseAuth } from "../middlewares/checkAuth.js";
 import { getRepoTree, getRepoInfo, openIssue, openPullRequest, getBranches, saveGithubIssue, savePatch, getGithubIssuesWithPullRequests, getIssueStates, syncRepositories } from "../controllers/github.controller.js";
 import { getAllUserInstallations } from "../queries/github.queries.js";
 import { updateRepoSettings, getRepoSettings, bulkUpdateRepoSettings } from "../controllers/repository.controller.js";
+import { handleInstallationCallback, linkInstallationToUser } from "../controllers/github.installation.controller.js";
 
 const router: Router = express.Router();
+
+// Installation callback - NO AUTH (public redirect from GitHub)
+router.get("/installation/callback", handleInstallationCallback);
+
 
 router.use(baseAuth)
 
@@ -44,6 +49,10 @@ router.get("/installations", async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to get installations" });
   }
 });
+
+// Link installation to user - REQUIRES AUTH
+router.post("/installation/link", linkInstallationToUser);
+
 
 // Protected routes
 // router.use(checkAuth);

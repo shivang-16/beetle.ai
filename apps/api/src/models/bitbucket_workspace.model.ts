@@ -26,6 +26,7 @@ export interface IBitbucket_Workspace extends Document {
   connectedAt: Date;          
   lastSyncedAt?: Date;        
   updatedAt: Date;
+  status: 'connected' | 'disconnected';
 }
 
 const BitbucketWorkspaceSchema = new Schema<IBitbucket_Workspace>({
@@ -89,6 +90,11 @@ const BitbucketWorkspaceSchema = new Schema<IBitbucket_Workspace>({
   updatedAt: {
     type: Date,
     default: Date.now
+  },
+  status: {
+    type: String,
+    enum: ['connected', 'disconnected'],
+    default: 'connected'
   }
 }, {
   timestamps: true

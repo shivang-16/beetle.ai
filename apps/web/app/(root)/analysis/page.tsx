@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import SyncRepositoriesButton from "./_components/SyncRepositoriesButton";
 import { Plus } from "lucide-react";
 import GithubOrgSwitcher from "./_components/GithubOrgSwitcher";
+import IntegrationFilter from "./_components/IntegrationFilter";
 import { logger } from "@/lib/logger";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 
@@ -15,13 +16,15 @@ const Page = async (props: {
     query?: string;
     teamId?: string;
     orgSlug?: string;
+    integration?: string;
   }>;
 }) => {
   const searchParams = await props.searchParams;
   const orgSlug = searchParams?.orgSlug || "all";
   const query = searchParams?.query || "";
   const teamId = searchParams?.teamId;
-  logger.info(`Analysis page loaded with query:`, { query, teamId });
+  const integration = searchParams?.integration || "all";
+  logger.info(`Analysis page loaded with query:`, { query, teamId, integration });
 
   return (
     <div className="max-w-8xl mx-auto min-h-svh w-full">
@@ -34,7 +37,8 @@ const Page = async (props: {
           </div>
 
           <div className="flex justify-end gap-3">
-            <GithubOrgSwitcher />
+            <IntegrationFilter />
+            {/* <GithubOrgSwitcher /> */}
             <SearchRepositories />
 
             <SyncRepositoriesButton />
@@ -52,11 +56,12 @@ const Page = async (props: {
         </div>
 
         <div className="output-scrollbar h-[calc(100%-3rem)] overflow-y-auto px-3">
-          <Suspense key={query} fallback={<RepositoryListSkeleton />}>
+          <Suspense key={`${query}-${integration}`} fallback={<RepositoryListSkeleton />}>
             <RepositoryList
               query={query}
               teamId={teamId}
               orgSlug={orgSlug}
+              integration={integration}
             />
           </Suspense>
         </div>
@@ -66,4 +71,5 @@ const Page = async (props: {
 };
 
 export default Page;
+
 
