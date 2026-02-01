@@ -8,6 +8,7 @@ export interface IUser extends Document {
   avatarUrl: string;
   email: string;
   password?: string;
+  ssoProvider?: 'github' | 'bitbucket' | 'google' | 'email' | 'extension';  // SSO provider used for signup
   activeTeamId?: mongoose.Types.ObjectId;
   subscriptionPlanId: mongoose.Schema.Types.ObjectId;
   subscriptionStatus?: "active" | "inactive" | "cancelled" | "free";
@@ -53,6 +54,12 @@ const userSchema = new Schema<IUser>(
     },
     password: {
       type: String,
+    },
+    ssoProvider: {
+      type: String,
+      enum: ['github', 'bitbucket', 'google', 'email', 'extension'],
+      required: false,
+      index: true,
     },
     activeTeamId: {
       type: mongoose.Schema.Types.ObjectId,

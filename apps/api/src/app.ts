@@ -7,6 +7,7 @@ import errorMiddleware from "./middlewares/error.js";
 import { webhooks } from "./webooks/github.webooks.js";
 import { clerkMiddleware } from "@clerk/express";
 import GithubRoutes from "./routes/github.routes.js";
+import BitbucketRoutes from "./routes/bitbucket.routes.js";  // NEW: Bitbucket routes
 import UserRoutes from "./routes/user.routes.js";
 import AnalysisRoutes from "./routes/analysis.routes.js";
 import TeamRoutes from "./routes/team.routes.js";
@@ -84,6 +85,7 @@ export function createApp(): Application {
 
   // API Routes
   app.use("/api/github", GithubRoutes);
+  app.use("/api/bitbucket", BitbucketRoutes);  // NEW: Bitbucket routes
   app.use("/api/user", UserRoutes);
   app.use("/api/analysis", AnalysisRoutes);
   app.use("/api/team", TeamRoutes);

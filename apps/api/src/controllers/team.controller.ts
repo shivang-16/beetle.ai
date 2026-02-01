@@ -12,6 +12,7 @@ import Analysis from '../models/analysis.model.js';
 import GithubIssue from '../models/github_issue.model.js';
 import GithubPullRequest from '../models/github_pull_request.model.js';
 import mongoose from 'mongoose';
+import { Bitbucket_Workspace } from '../models/bitbucket_workspace.model.js';
 import { getAllUserTeams } from '../middlewares/helpers/getUserTeam.js';
 import TeamInvitation from '../models/team_invitation.model.js';
 import { mailService } from '../services/mail/mail_service.js';
@@ -998,23 +999,38 @@ export const getTeamInstallations = async (req: Request, res: Response, next: Ne
     }
 
     // Find all installations for the team
-    const installations = await Github_Installation.find({ teamId }).sort({ installedAt: -1 });
+    const githubInstallations = await Github_Installation.find({ teamId });
+    const bitbucketWorkspaces = await Bitbucket_Workspace.find({ teamId });
 
-    if (!installations || installations.length === 0) {
+    if ((!githubInstallations || githubInstallations.length === 0) && 
+        (!bitbucketWorkspaces || bitbucketWorkspaces.length === 0)) {
       return next(new CustomError('No installations found', 404));
     }
 
-    // Extract account information
-    const accounts = installations.map(installation => ({
+    // Extract account information from GitHub installations
+    const githubAccounts = githubInstallations.map(installation => ({
       id: installation._id,
       login: installation.account.login,
       type: installation.account.type || 'Organization',
-      avatarUrl: installation.account.avatarUrl || null
+      avatarUrl: installation.account.avatarUrl || null,
+      source: 'github'
     }));
+
+    // Extract account information from Bitbucket workspaces
+    const bitbucketAccounts = bitbucketWorkspaces.map(workspace => ({
+      id: workspace._id,
+      login: workspace.workspaceSlug, // Use slug for login
+      type: workspace.account.type || 'workspace',
+      avatarUrl: workspace.account.avatarUrl || null,
+      source: 'bitbucket'
+    }));
+
+    // Combine accounts
+    const allAccounts = [...githubAccounts, ...bitbucketAccounts];
 
     res.status(200).json({
       success: true,
-      data: accounts
+      data: allAccounts
     });
   } catch (error) {
     logger.error(`getTeamInstallations error: ${error}`);

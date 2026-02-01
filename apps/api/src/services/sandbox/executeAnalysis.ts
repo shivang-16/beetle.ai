@@ -6,6 +6,7 @@ import {
 } from "../../utils/analysisStreamStore.js";
 import { connectSandbox, createSandbox } from "../../config/sandbox.js";
 import { authenticateGithubRepo } from "../../utils/authenticateGithubUrl.js";
+import { getBitbucketAccessToken } from "../../utils/bitbucketTokenManager.js";
 import Analysis from "../../models/analysis.model.js";
 import mongoose from "mongoose";
 import { mailService } from "../mail/mail_service.js";
@@ -34,6 +35,7 @@ export const executeAnalysis = async (
   userId: string,
   prompt = "Analyze this codebase for security vulnerabilities and code quality",
   analysisType: string,
+  source: "github" | "bitbucket" | "extension",
   callbacks?: StreamingCallbacks,
   data?: any,
   userEmail?: string,
@@ -156,22 +158,58 @@ export const executeAnalysis = async (
         await callbacks.onProgress("🔄 Extension analysis - using local workspace");
       }
     } else {
-      // Authenticate GitHub repository for other analysis types
-      console.log("🔐 Authenticating GitHub repository...");
-      const authResult = await authenticateGithubRepo(repoUrl, owner);
-      if (!authResult.success) {
-        return {
-          success: false,
-          exitCode: -1,
-          sandboxId: null,
-          _id: new mongoose.Types.ObjectId().toString(),
-          error: authResult.message,
-        };
-      }
-      repoUrlForAnalysis = authResult.repoUrl;
-      
-      if (callbacks?.onProgress) {
-        await callbacks.onProgress("✅ GitHub repository authenticated");
+      // Authenticate repository based on source parameter
+      if (source === "bitbucket") {
+        console.log("🔐 Authenticating Bitbucket repository...");
+        // Extract workspace slug from URL (e.g. https://bitbucket.org/workspace/repo)
+        const match = repoUrl.match(/bitbucket\.org\/([^\/]+)\//);
+        
+        if (match && match[1]) {
+          const workspaceSlug = match[1];
+          const tokenResult = await getBitbucketAccessToken(workspaceSlug);
+          
+          if (tokenResult.success && tokenResult.accessToken) {
+             // Construct authenticated URL: https://x-token-auth:{access_token}@bitbucket.org/{workspace}/{repo}
+             repoUrlForAnalysis = repoUrl.replace(
+               "https://bitbucket.org/",
+               `https://x-token-auth:${tokenResult.accessToken}@bitbucket.org/`
+             );
+             console.log("✅ Bitbucket repository authenticated");
+             if (callbacks?.onProgress) {
+               await callbacks.onProgress("✅ Bitbucket repository authenticated");
+             }
+          } else {
+             console.error("❌ Failed to get Bitbucket access token:", tokenResult.error);
+             return {
+               success: false,
+               exitCode: -1,
+               sandboxId: null,
+               _id: new mongoose.Types.ObjectId().toString(),
+               error: `Bitbucket authentication failed: ${tokenResult.error}`,
+             };
+          }
+        } else {
+          console.warn("⚠️ Could not extract workspace slug from Bitbucket URL");
+          repoUrlForAnalysis = repoUrl;
+        }
+      } else {
+        // Default to GitHub
+        console.log("🔐 Authenticating GitHub repository...");
+        const authResult = await authenticateGithubRepo(repoUrl, owner);
+        if (!authResult.success) {
+          return {
+            success: false,
+            exitCode: -1,
+            sandboxId: null,
+            _id: new mongoose.Types.ObjectId().toString(),
+            error: authResult.message,
+          };
+        }
+        repoUrlForAnalysis = authResult.repoUrl;
+        
+        if (callbacks?.onProgress) {
+          await callbacks.onProgress("✅ GitHub repository authenticated");
+        }
       }
     }
 
@@ -355,10 +393,16 @@ export const executeAnalysis = async (
             "x-access-token:***@github.com"
           );
           s = s.replace(
+            /x-token-auth:[^@]+@bitbucket\.org/gi,
+            "x-token-auth:***@bitbucket.org"
+          );
+          s = s.replace(
             /(Authorization:\s*(?:Bearer|token)\s*)([A-Za-z0-9._-]+)/gi,
             "$1***"
           );
           s = s.replace(/(GITHUB_TOKEN[=:\s]+)([A-Za-z0-9._-]+)/gi, "$1***");
+          s = s.replace(/(BITBUCKET_TOKEN[=:\s]+)([A-Za-z0-9._-]+)/gi, "$1***");
+          s = s.replace(/(BITBUCKET_ACCESS_TOKEN[=:\s]+)([A-Za-z0-9._-]+)/gi, "$1***");
           s = s.replace(
             /(AWS_SECRET_ACCESS_KEY[=:\s]+)([A-Za-z0-9/+_=.-]+)/gi,
             "$1***"
@@ -397,10 +441,16 @@ export const executeAnalysis = async (
             "x-access-token:***@github.com"
           );
           s = s.replace(
+            /x-token-auth:[^@]+@bitbucket\.org/gi,
+            "x-token-auth:***@bitbucket.org"
+          );
+          s = s.replace(
             /(Authorization:\s*(?:Bearer|token)\s*)([A-Za-z0-9._-]+)/gi,
             "$1***"
           );
           s = s.replace(/(GITHUB_TOKEN[=:\s]+)([A-Za-z0-9._-]+)/gi, "$1***");
+          s = s.replace(/(BITBUCKET_TOKEN[=:\s]+)([A-Za-z0-9._-]+)/gi, "$1***");
+          s = s.replace(/(BITBUCKET_ACCESS_TOKEN[=:\s]+)([A-Za-z0-9._-]+)/gi, "$1***");
           s = s.replace(
             /(AWS_SECRET_ACCESS_KEY[=:\s]+)([A-Za-z0-9/+_=.-]+)/gi,
             "$1***"

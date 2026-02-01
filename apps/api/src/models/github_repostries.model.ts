@@ -1,7 +1,8 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IGithub_Repository extends Document {
-    repositoryId: number;
+    source?: 'github' | 'bitbucket';  // NEW: platform source, defaults to 'github'
+    repositoryId: number | string;  // GitHub uses numbers, Bitbucket uses UUID strings
     fullName: string;
     private: boolean;
     defaultBranch?: string;
@@ -19,13 +20,19 @@ export interface IGithub_Repository extends Document {
 }       
 
 const RepositorySchema = new Schema<IGithub_Repository>({
+    source: {
+        type: String,
+        enum: ['github', 'bitbucket'],
+        default: 'github',
+        required: false
+    },
     github_installationId: {
         type: Schema.Types.ObjectId,
         ref: 'Github_Installation',
         required: true,
     },
     repositoryId: {
-        type: Number,
+        type: Schema.Types.Mixed,  // GitHub: number, Bitbucket: UUID string
         required: true,
         index: true
     },

@@ -252,6 +252,7 @@ export const startAnalysis = async (
       userId,
       prompt,
       "full_repo_analysis",
+      (github_repository as any).source || "github",
       callbacks,
       undefined,
       req.user?.email,

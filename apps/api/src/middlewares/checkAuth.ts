@@ -161,6 +161,19 @@ export const baseAuth = async (
           });
         }
 
+        // Detect SSO provider from Clerk external accounts
+        let ssoProvider: 'github' | 'bitbucket' | 'google' | 'email' = 'email';
+        if (clerkUser.externalAccounts && clerkUser.externalAccounts.length > 0) {
+          const primaryAccount = clerkUser.externalAccounts[0];
+          if (primaryAccount.provider === 'oauth_github') {
+            ssoProvider = 'github';
+          } else if (primaryAccount.provider === 'oauth_bitbucket' || primaryAccount.provider === 'bitbucket') {
+            ssoProvider = 'bitbucket';
+          } else if (primaryAccount.provider === 'oauth_google' || primaryAccount.provider === 'google') {
+            ssoProvider = 'google';
+          }
+        }
+
         const userData: CreateUserData = {
           _id: clerkUser.id,
           email: clerkUser.primaryEmailAddress?.emailAddress,
@@ -175,6 +188,7 @@ export const baseAuth = async (
             clerkUser.externalAccounts?.[0]?.username ||
             clerkUser.id.split("_")[1],
           avatarUrl: clerkUser.imageUrl,
+          ssoProvider: ssoProvider,
           subscriptionPlanId: freePlan._id,
           subscriptionStatus: "free" as const,
           subscriptionStartDate: new Date(),

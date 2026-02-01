@@ -1450,6 +1450,7 @@ const ext = (filename?.split('.')?.pop() || '').toLowerCase();
           githubInstallation.userId,
           prAnalysisPrompt,
           "pr_analysis",
+          "github",
           callbacks,
           {
             pr_data_id: prDataInsertedId,
