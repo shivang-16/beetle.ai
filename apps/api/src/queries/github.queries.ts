@@ -602,11 +602,12 @@ export const PrData = async (payload: any, options?: { skipBotCheck?: boolean })
          // Helper function to create a skipped analysis record
     const createSkippedAnalysis = async (skipReason: string) => {
       try {
-        const githubInstallation = await Github_Installation.findOne({ installationId: installation.id });
-        if (!githubInstallation?.userId) return null;
-        
-        const githubRepo = await Github_Repository.findOne({ fullName: repository.full_name });
-        if (!githubRepo) return null;
+        const [githubInstallation, githubRepo] = await Promise.all([
+          Github_Installation.findOne({ installationId: installation.id }),
+          Github_Repository.findOne({ fullName: repository.full_name })
+        ]);
+
+        if (!githubInstallation?.userId || !githubRepo) return null;
 
         const repoUrl = `https://github.com/${repository.full_name}`;
         const prUrl = `https://github.com/${repository.full_name}/pull/${pull_request.number}`;

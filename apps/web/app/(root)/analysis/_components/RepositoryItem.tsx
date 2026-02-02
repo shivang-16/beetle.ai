@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import BranchDropdown from "./BranchDropdown";
 import { logger } from "@/lib/logger";
 import { Settings } from "lucide-react";
-import { IconBrandGithub } from "@tabler/icons-react";
+import { IconBrandGithub, IconBrandBitbucket } from "@tabler/icons-react";
 
 interface RepositoryItemProps {
   repo: GithubRepository;
@@ -41,7 +41,11 @@ const RepositoryItem: React.FC<RepositoryItemProps> = ({ repo, teamId }) => {
         href={`/analysis/${encodeURIComponent(repo._id)}${teamId ? `?teamId=${teamId}` : ""}${selectedBranch !== "main" ? `${teamId ? "&" : "?"}branch=${selectedBranch}` : ""}`}
         className="flex items-center gap-3"
       >
-        <IconBrandGithub className="size-4 shrink-0" />
+        {repo.source === 'bitbucket' ? (
+          <IconBrandBitbucket className="size-4 shrink-0 " />
+        ) : (
+          <IconBrandGithub className="size-4 shrink-0" />
+        )}
         <div className="text-sm whitespace-pre-wrap md:text-base">
           {repo.fullName}
         </div>

@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { encrypt, decrypt } from '../utils/crypto.js';
 
 export interface IBitbucket_Workspace extends Document {
   workspaceUuid: string;      
@@ -54,10 +55,14 @@ const BitbucketWorkspaceSchema = new Schema<IBitbucket_Workspace>({
   accessToken: {
     type: String,
     required: true,
+    set: (v: string) => encrypt(v),
+    get: (v: string) => decrypt(v)
   },
   refreshToken: {
     type: String,
     required: false,
+    set: (v: string) => encrypt(v),
+    get: (v: string) => decrypt(v)
   },
   tokenExpiresAt: {
     type: Date,
@@ -77,7 +82,9 @@ const BitbucketWorkspaceSchema = new Schema<IBitbucket_Workspace>({
   },
   webhookSecret: {
     type: String,
-    required: false
+    required: false,
+    set: (v: string) => encrypt(v),
+    get: (v: string) => decrypt(v)
   },
   connectedAt: {
     type: Date,
@@ -97,7 +104,9 @@ const BitbucketWorkspaceSchema = new Schema<IBitbucket_Workspace>({
     default: 'connected'
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { getters: true },
+  toObject: { getters: true }
 });
 
 export const Bitbucket_Workspace = mongoose.model<IBitbucket_Workspace>('Bitbucket_Workspace', BitbucketWorkspaceSchema);

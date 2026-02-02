@@ -2,11 +2,11 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { IconBrandBitbucket } from "@tabler/icons-react";
+import { IconBrandBitbucket, IconBrandGithub } from "@tabler/icons-react";
 import React from "react";
 import { useUser } from "@clerk/nextjs";
 
-const ConnectBitbucketCard = () => {
+const ConnectCodeProviderCard = () => {
   const { user } = useUser();
   
   const handleConnectBitbucket = () => {
@@ -28,23 +28,34 @@ const ConnectBitbucketCard = () => {
         className="pointer-events-none absolute right-0 bottom-0 h-40 w-[100%] bg-[url('/@beetle.png')] bg-contain bg-right bg-no-repeat opacity-70 dark:opacity-60"
       />
       <div>
-        <h2 className="text-xl font-bold">Connect Bitbucket</h2>
+        <h2 className="text-xl font-bold">Connect your code provider</h2>
         <span className="text-muted-foreground text-sm">
-          {" "}
-          Connect your Bitbucket workspace to sync repositories, <br />{" "}
-          analyze pull requests, and track activity.
+          Connect your GitHub or Bitbucket account to sync repositories, <br />
+          analyze code, and track activity.
         </span>
       </div>
 
-      <CardContent className="p-0">
+      <CardContent className="p-0 flex gap-4">
+        <Button className="cursor-pointer bg-primary hover:bg-primary/90" asChild>
+          <a
+            href={`https://github.com/apps/${process.env.NEXT_PUBLIC_GITHUB_APP_NAME || "beetle-ai"}/installations/select_target`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2"
+          >
+            <IconBrandGithub className="h-4 w-4" />
+            GitHub
+          </a>
+        </Button>
+
         <Button 
-          className="cursor-pointer"
+          className="cursor-pointer bg-primary hover:bg-primary/90"
           onClick={handleConnectBitbucket}
           disabled={!user}
         >
           <div className="flex items-center gap-2">
             <IconBrandBitbucket className="h-4 w-4" />
-            Connect Bitbucket
+            Bitbucket
           </div>
         </Button>
       </CardContent>
@@ -52,4 +63,4 @@ const ConnectBitbucketCard = () => {
   );
 };
 
-export default ConnectBitbucketCard;
+export default ConnectCodeProviderCard;

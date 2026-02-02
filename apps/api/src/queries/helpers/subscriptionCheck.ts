@@ -81,8 +81,8 @@ export const checkDailyPrAnalysisLimit = async (userId: string): Promise<Subscri
     const { user, subscriptionPlan } = await getUserSubscriptionPlan(userId);
     
     if (!user || !subscriptionPlan) {
-      logger.warn("Could not fetch user or subscription plan for limit check", { userId });
-      return { allowed: true }; // Allow if we can't check (fail open)
+      logger.warn("Subscription check failed: could not fetch user or plan. Blocking access (fail-secure).", { userId });
+      return { allowed: false }; 
     }
 
     const sub = buildSubscriptionObject(user, subscriptionPlan);
@@ -99,10 +99,10 @@ export const checkDailyPrAnalysisLimit = async (userId: string): Promise<Subscri
       maxAllowed: featureResult.maxAllowed,
     };
   } catch (error) {
-    logger.warn("Failed to perform PR analysis daily limit check", { 
+    logger.error("Critical error in PR analysis daily limit check. Blocking access (fail-secure).", { 
       error: error instanceof Error ? error.message : error,
       userId 
     });
-    return { allowed: true }; // Fail open - don't block if check fails
+    return { allowed: false }; // Fail secure - block if check fails due to error
   }
 };

@@ -86,13 +86,14 @@ export const linkInstallationToUser = async (req: Request, res: Response, next: 
     installation.teamId = teamId;
     await installation.save();
 
+    console.log('Installation ID', installation._id);
+    console.log(teamId, 'teamId')
     // Also update all repositories associated with this installation
     await Github_Repository.updateMany(
       { github_installationId: installation._id },
       { 
         $set: { 
           teamId: teamId,
-          userId: userId.toString()
         } 
       }
     );

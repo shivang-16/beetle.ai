@@ -1004,9 +1004,11 @@ export const getTeamInstallations = async (req: Request, res: Response, next: Ne
       return next(new CustomError('Team context required', 400));
     }
 
-    // Find all installations for the team
-    const githubInstallations = await Github_Installation.find({ teamId });
-    const bitbucketWorkspaces = await Bitbucket_Workspace.find({ teamId });
+    // Find all installations for the team in parallel
+    const [githubInstallations, bitbucketWorkspaces] = await Promise.all([
+      Github_Installation.find({ teamId }),
+      Bitbucket_Workspace.find({ teamId })
+    ]);
 
     if ((!githubInstallations || githubInstallations.length === 0) && 
         (!bitbucketWorkspaces || bitbucketWorkspaces.length === 0)) {

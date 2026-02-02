@@ -86,12 +86,12 @@ export const handleOAuthCallback = async (req: Request, res: Response) => {
     // Check for OAuth errors
     if (oauthError) {
       logger.error('Bitbucket OAuth error', { error: oauthError });
-      return res.redirect(`${webAppUrl}/settings?bitbucket_error=${oauthError}`);
+      return res.redirect(`${webAppUrl}/integrations?bitbucket_error=${oauthError}`);
     }
 
     if (!code || !state) {
       logger.error('Missing code or state in OAuth callback');
-      return res.redirect(`${webAppUrl}/settings?bitbucket_error=missing_params`);
+      return res.redirect(`${webAppUrl}/integrations?bitbucket_error=missing_params`);
     }
 
     // Decode and verify state
@@ -100,7 +100,7 @@ export const handleOAuthCallback = async (req: Request, res: Response) => {
       stateData = JSON.parse(Buffer.from(state as string, 'base64').toString());
     } catch (err) {
       logger.error('Invalid state parameter', { state });
-      return res.redirect(`${webAppUrl}/settings?bitbucket_error=invalid_state`);
+      return res.redirect(`${webAppUrl}/integrations?bitbucket_error=invalid_state`);
     }
 
     const userId = stateData.userId;
@@ -109,14 +109,14 @@ export const handleOAuthCallback = async (req: Request, res: Response) => {
     const user = await User.findById(userId);
     if (!user) {
       logger.error('User not found for OAuth callback', { userId });
-      return res.redirect(`${webAppUrl}/settings?bitbucket_error=user_not_found`);
+      return res.redirect(`${webAppUrl}/integrations?bitbucket_error=user_not_found`);
     }
 
     // Exchange code for access token
     const tokenData = await exchangeCodeForToken(code as string);
     
     if (!tokenData) {
-      return res.redirect(`${webAppUrl}/settings?bitbucket_error=token_exchange_failed`);
+      return res.redirect(`${webAppUrl}/integrations?bitbucket_error=token_exchange_failed`);
     }
 
     const { access_token, refresh_token, expires_in } = tokenData;
@@ -126,7 +126,7 @@ export const handleOAuthCallback = async (req: Request, res: Response) => {
     
     if (!workspaces || workspaces.length === 0) {
       logger.warn('No Bitbucket workspaces found', { userId });
-      return res.redirect(`${webAppUrl}/settings?bitbucket_error=no_workspaces`);
+      return res.redirect(`${webAppUrl}/integrations?bitbucket_error=no_workspaces`);
     }
 
     // Use the first workspace (or user's personal workspace)
@@ -209,13 +209,13 @@ export const handleOAuthCallback = async (req: Request, res: Response) => {
     });
 
     // Redirect back to settings with success
-    res.redirect(`${webAppUrl}/settings?bitbucket_connected=true&repos=${syncedRepos}`);
+    res.redirect(`${webAppUrl}/integrations?bitbucket_connected=true&repos=${syncedRepos}`);
   } catch (error) {
     logger.error('Error handling Bitbucket OAuth callback', { 
       error: error instanceof Error ? error.message : error 
     });
     const webAppUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    res.redirect(`${webAppUrl}/settings?bitbucket_error=unknown`);
+    res.redirect(`${webAppUrl}/integrations?bitbucket_error=unknown`);
   }
 };
 

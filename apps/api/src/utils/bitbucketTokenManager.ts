@@ -124,9 +124,9 @@ async function refreshBitbucketAccessToken(
       },
       body: new URLSearchParams({
         grant_type: 'refresh_token',
-        refresh_token: workspace.refreshToken!,
-        client_id: process.env.BITBUCKET_CLIENT_ID || '',
-        client_secret: process.env.BITBUCKET_CLIENT_SECRET || '',
+        refresh_token: workspace.refreshToken || '',
+        client_id: process.env.BITBUCKET_CLIENT_ID!,
+        client_secret: process.env.BITBUCKET_CLIENT_SECRET!,
       }),
     });
 

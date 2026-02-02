@@ -1,8 +1,7 @@
 "use client";
 
 import React from "react";
-import ConnectGithubCard from "../../_components/connect-github-card";
-import ConnectBitbucketCard from "../../_components/connect-bitbucket-card";
+import ConnectCodeProviderCard from "../../_components/connect-code-provider-card";
 import UpgradePlanCard from "./UpgradePlanCard";
 import HowToInteractCard from "./HowToInteractCard";
 
@@ -10,11 +9,8 @@ const NoInstallationOnboarding = () => {
   return (
     <div className="h-full">
       <div className="flex gap-4">
-        <ConnectGithubCard />
+        <ConnectCodeProviderCard />
         <UpgradePlanCard />
-      </div>
-      <div className="mt-4">
-        <ConnectBitbucketCard />
       </div>
       <div className="mx-auto mt-4">
         <HowToInteractCard />

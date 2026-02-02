@@ -45,15 +45,12 @@ export const BitbucketPrData = async (payload: any, options?: { skipBotCheck?: b
 
     // Helper function to create a skipped analysis record
     const createSkippedAnalysis = async (skipReason: string) => {
-      const workspace = await Bitbucket_Workspace.findOne({ 
-        workspaceSlug: repository.workspace.slug 
-      });
-      if (!workspace?.userId) return null;
+      const [workspace, bitbucketRepo] = await Promise.all([
+        Bitbucket_Workspace.findOne({ workspaceSlug: repository.workspace.slug }),
+        Github_Repository.findOne({ fullName: repository.full_name })
+      ]);
 
-      const bitbucketRepo = await Github_Repository.findOne({ 
-        fullName: repository.full_name 
-      });
-      if (!bitbucketRepo) return null;
+      if (!workspace?.userId || !bitbucketRepo) return null;
 
       const repoUrl = repository.links.html.href;
       const prUrl = pullrequest.links.html.href;
@@ -88,12 +85,21 @@ export const BitbucketPrData = async (payload: any, options?: { skipBotCheck?: b
       return;
     }
 
+    // Get workspace for user/team lookup
+    const workspace = await Bitbucket_Workspace.findOne({ 
+      workspaceSlug: repository.workspace.slug 
+    });
+    
+    if (!workspace) {
+      logger.error("Workspace not found for Bitbucket PR", {
+        workspaceSlug: repository.workspace.slug,
+        repository: repository.full_name
+      });
+      return;
+    }
+
     // Early check: daily PR analysis limit
     try {
-      const workspace = await Bitbucket_Workspace.findOne({ 
-        workspaceSlug: repository.workspace.slug 
-      });
-      
       if (workspace?.userId) {
         const limitCheck = await checkDailyPrAnalysisLimit(workspace.userId);
 
@@ -124,18 +130,6 @@ export const BitbucketPrData = async (payload: any, options?: { skipBotCheck?: b
       });
     }
 
-    // Get workspace for user/team lookup
-    const workspace = await Bitbucket_Workspace.findOne({ 
-      workspaceSlug: repository.workspace.slug 
-    });
-    
-    if (!workspace) {
-      logger.error("Workspace not found for Bitbucket PR", {
-        workspaceSlug: repository.workspace.slug,
-        repository: repository.full_name
-      });
-      return;
-    }
 
     // Get valid access token (automatically refreshes if expired)
     const tokenResult = await getBitbucketAccessToken(repository.workspace.slug);
@@ -197,9 +191,8 @@ export const BitbucketPrData = async (payload: any, options?: { skipBotCheck?: b
           files: [] as any[]
         }));
 
-        // Fetch files for each commit
-        for (const commit of commitsList) {
-
+        // Fetch files for each commit in parallel
+        await Promise.all(commitsList.map(async (commit: any) => {
           try {
             // Fetch diffstat for file list
             const commitDiffstatUrl = `https://api.bitbucket.org/2.0/repositories/${repository.full_name}/diffstat/${commit.sha}`;
@@ -209,8 +202,6 @@ export const BitbucketPrData = async (payload: any, options?: { skipBotCheck?: b
                 'Accept': 'application/json'
               }
             });
-
-
 
             if (commitDiffstatResponse.ok) {
               const commitDiffstatData: any = await commitDiffstatResponse.json();
@@ -244,7 +235,6 @@ export const BitbucketPrData = async (payload: any, options?: { skipBotCheck?: b
                 };
               });
 
-
               commit.files = files;
               commit.stats.additions = files.reduce((sum: number, f: any) => sum + f.additions, 0);
               commit.stats.deletions = files.reduce((sum: number, f: any) => sum + f.deletions, 0);
@@ -256,7 +246,7 @@ export const BitbucketPrData = async (payload: any, options?: { skipBotCheck?: b
               error: err instanceof Error ? err.message : err
             });
           }
-        }
+        }));
 
        
         commits = commitsList;
