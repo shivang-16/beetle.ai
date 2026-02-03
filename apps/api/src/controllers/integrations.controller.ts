@@ -23,15 +23,11 @@ export const getTeamIntegrations = async (req: Request, res: Response, next: Nex
 
     logger.debug("Fetching team integrations", { teamId, userId });
 
-    // Fetch all GitHub installations for this team
-    const githubInstallations = await Github_Installation.find({ 
-      teamId
-    }).sort({ createdAt: -1 });
-
-    // Fetch all Bitbucket workspaces for this team
-    const bitbucketWorkspaces = await Bitbucket_Workspace.find({ 
-      teamId
-    }).sort({ createdAt: -1 });
+    // Fetch integrations in parallel
+    const [githubInstallations, bitbucketWorkspaces] = await Promise.all([
+      Github_Installation.find({ teamId }).sort({ createdAt: -1 }),
+      Bitbucket_Workspace.find({ teamId }).sort({ createdAt: -1 })
+    ]);
 
     const githubConnected = githubInstallations.some(i => i.status === 'connected');
     const bitbucketConnected = bitbucketWorkspaces.some(i => i.status === 'connected');
