@@ -22,11 +22,39 @@ export const disconnectIntegrationAction = async (id: string) => {
     const response = await apiPost(`/api/integrations/disconnect/${id}`);
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(error || "Failed to disconnect integration");
+      // throw new Error(error || "Failed to disconnect integration");
     }
     return await response.json();
   } catch (error) {
     logger.error("Error in disconnectIntegrationAction", { error, id });
+    return { success: false, message: error instanceof Error ? error.message : "Unknown error" };
+  }
+};
+
+export const disconnectInstallationAction = async (type: string, id: string | number) => {
+  try {
+    const response = await apiPost(`/api/integrations/disconnect-item`, { type, id });
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(error || "Failed to disconnect installation");
+    }
+    return await response.json();
+  } catch (error) {
+    logger.error("Error in disconnectInstallationAction", { error, type, id });
+    return { success: false, message: error instanceof Error ? error.message : "Unknown error" };
+  }
+};
+
+export const reconnectIntegrationAction = async (type: string) => {
+  try {
+    const response = await apiPost(`/api/integrations/reconnect`, { type });
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(error || "Failed to reconnect");
+    }
+    return await response.json();
+  } catch (error) {
+    logger.error("Error in reconnectIntegrationAction", { error, type });
     return { success: false, message: error instanceof Error ? error.message : "Unknown error" };
   }
 };
@@ -44,6 +72,20 @@ export const linkGitHubInstallationAction = async (installationId: string) => {
     return await response.json();
   } catch (error) {
     logger.error("Error in linkGitHubInstallationAction", { error, installationId });
+    return { success: false, message: error instanceof Error ? error.message : "Unknown error" };
+  }
+};
+
+export const reconnectInstallationAction = async (type: string, id: string | number) => {
+  try {
+    const response = await apiPost(`/api/integrations/reconnect-item`, { type, id });
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(error || "Failed to reconnect installation");
+    }
+    return await response.json();
+  } catch (error) {
+    logger.error("Error in reconnectInstallationAction", { error, type, id });
     return { success: false, message: error instanceof Error ? error.message : "Unknown error" };
   }
 };

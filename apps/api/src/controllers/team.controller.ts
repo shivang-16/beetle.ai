@@ -963,6 +963,14 @@ export const getTeamRepositories = async (req: Request, res: Response, next: Nex
       }
     }
 
+    // Get connected installation IDs to filter repositories
+    const connectedGithubIds = await Github_Installation.find({ teamId, status: 'connected' }).distinct('_id');
+    const connectedBitbucketIds = await Bitbucket_Workspace.find({ teamId, status: 'connected' }).distinct('_id');
+    const connectedIds = [...connectedGithubIds, ...connectedBitbucketIds];
+
+    // Restrict query to only connected installations
+    query.github_installationId = { $in: connectedIds };
+
     // Find repositories based on the query
     const repos = await Github_Repository.find(query)
       .sort({ fullName: 1 })

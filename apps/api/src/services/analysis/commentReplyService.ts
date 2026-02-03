@@ -2,6 +2,7 @@ import { getInstallationOctokit } from '../../lib/githubApp.js';
 import { logger } from '../../utils/logger.js';
 import Feedback from '../../models/feedback.model.js';
 import { generateWithGemini } from '../../utils/gemini.helper.js';
+import { getBitbucketAccessToken } from '../../utils/bitbucketTokenManager.js';
 
 export interface BeetleSuggestionContext {
   filePath?: string;
@@ -452,5 +453,133 @@ export async function respondToBeetleCommentReply(opts: {
     }
   } catch (error) {
     logger.error('Failed to respond to Beetle comment reply', { error: error instanceof Error ? error.message : error });
+  }
+}
+
+export async function respondToBitbucketBeetleCommentReply(opts: {
+  workspaceSlug: string;
+  repoSlug: string;
+  prId: number;
+  userReplyCommentId: number;
+  userReplyBody: string;
+  replyAuthorLogin?: string;
+  parentCommentId: number;
+  parentCommentBody: string;
+  parentPath?: string;
+  parentLine?: number;
+}): Promise<void> {
+  try {
+    const { workspaceSlug, repoSlug, prId, userReplyCommentId, userReplyBody, replyAuthorLogin, parentCommentId, parentCommentBody, parentPath, parentLine } = opts;
+    
+    logger.info('Responding to Bitbucket Beetle comment reply', {
+      workspaceSlug,
+      repoSlug,
+      prId,
+      userReplyCommentId,
+      parentCommentId,
+    });
+
+    const beetleMeta = extractSuggestionFromComment(parentCommentBody);
+    const repoFullName = `${workspaceSlug}/${repoSlug}`;
+    
+    const prompt = buildGeminiPrompt({
+      repoFullName,
+      prNumber: prId,
+      beetleCommentBody: parentCommentBody,
+      beetleMeta,
+      userReplyBody,
+      replyAuthorLogin,
+      parentPath,
+      parentLine,
+      // diffHunk is harder to get in Bitbucket webhook easily without extra fetch, skipping for now
+    });
+
+    const replyText = await generateReplyWithGemini(prompt, "bitbucket"); // Identifying source for logging if needed
+    
+    // Parse the reply classification
+    const intent = parseReplyClassification(replyText);
+    const isFeedbackOrSuggestion = intent === 'FEEDBACK' || intent === 'SUGGESTION';
+
+    if (isFeedbackOrSuggestion && intent && replyAuthorLogin) {
+      // Reuse saveFeedbackToDatabase? 
+      // It expects owner, repo, prNumber.
+      // owner = workspaceSlug.
+      await saveFeedbackToDatabase({
+        userId: replyAuthorLogin,
+        teamId: undefined,
+        owner: workspaceSlug,
+        repo: repoSlug,
+        prNumber: prId,
+        commentId: parentCommentId,
+        userReplyText: userReplyBody,
+        intent,
+        originalCommentBody: parentCommentBody,
+        parentPath,
+        parentLine,
+      });
+    }
+
+    let cleanedReplyText = replyText.replace(/\[INTENT:\s*(QUESTION|FEEDBACK|SUGGESTION|DISCUSSION)\]\s*/i, '').trim();
+    
+    const isGenericOrEmpty = (
+      cleanedReplyText.trim().length < 20 ||
+      /^Acknowledged\b/i.test(cleanedReplyText) ||
+      /^Missing context\b/i.test(cleanedReplyText)
+    );
+     if (isGenericOrEmpty) {
+      logger.warn('AI reply was empty or generic; not posting a comment', {
+        preview: cleanedReplyText.slice(0, 120),
+        length: cleanedReplyText.length,
+      });
+      return;
+    }
+
+    // Get Bitbucket Token
+    const tokenResult = await getBitbucketAccessToken(workspaceSlug);
+    if (!tokenResult.success || !tokenResult.accessToken) {
+       throw new Error(`Failed to get Bitbucket token: ${tokenResult.error}`);
+    }
+    const token = tokenResult.accessToken;
+
+    const mention = replyAuthorLogin ? `@${replyAuthorLogin}` : '';
+     if (mention && !cleanedReplyText.trim().startsWith(mention)) {
+      cleanedReplyText = `${mention} ${cleanedReplyText}`;
+    }
+
+    // Post Reply
+    const url = `https://api.bitbucket.org/2.0/repositories/${workspaceSlug}/${repoSlug}/pullrequests/${prId}/comments`;
+    const payload = {
+        content: {
+            raw: cleanedReplyText
+        },
+        parent: {
+            id: parentCommentId
+        }
+    };
+
+    const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload)
+    });
+
+    if (!resp.ok) {
+        const errText = await resp.text();
+        throw new Error(`Failed to post reply to Bitbucket: ${resp.status} ${errText}`);
+    }
+
+    logger.info('Posted Beetle AI reply to Bitbucket comment', {
+        workspaceSlug,
+        repoSlug,
+        parentCommentId,
+        intent
+    });
+
+  } catch (error) {
+    logger.error('Error responding to Bitbucket Beetle comment reply', { error: error instanceof Error ? error.message : error });
   }
 }

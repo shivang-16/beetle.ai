@@ -7,6 +7,8 @@ import Analysis from '../models/analysis.model.js';
 import mongoose from 'mongoose';
 import SubscriptionPlan from '../models/subscription_plan.model.js';
 import { FeatureAccessChecker } from '../middlewares/helpers/checkAccessService.js';
+import AIModel from '../models/ai_model.model.js';
+import Team from '../models/team.model.js';
 import {
   isPrAuthorBot,
   createSkippedAnalysis as createSkippedAnalysisHelper,
@@ -24,7 +26,7 @@ import { executeAnalysis, StreamingCallbacks } from '../services/sandbox/execute
 import { createParserState, parseStreamingResponse, finalizeParsing } from "../utils/responseParser.js";
 import { BitbucketPRCommentService } from '../services/analysis/bitbucketPrCommentService.js';
 import { initAnalysisCommentCounter } from "../utils/analysisStreamStore.js";
-
+import { Sandbox } from '@e2b/code-interpreter';
 /**
  * Process Bitbucket PR webhook data and format it like GitHub PR data
  * This ensures both GitHub and Bitbucket PRs can be processed identically
@@ -92,6 +94,14 @@ export const BitbucketPrData = async (payload: any, options?: { skipBotCheck?: b
     
     if (!workspace) {
       logger.error("Workspace not found for Bitbucket PR", {
+        workspaceSlug: repository.workspace.slug,
+        repository: repository.full_name
+      });
+      return;
+    }
+
+    if (workspace.status === 'disconnected') {
+      logger.info('Bitbucket workspace is disconnected, skipping PR analysis silently', {
         workspaceSlug: repository.workspace.slug,
         repository: repository.full_name
       });
@@ -331,6 +341,9 @@ export const BitbucketPrData = async (payload: any, options?: { skipBotCheck?: b
     const prKey = generatePrKey(repository.full_name, pullrequest.id);
     const latestCommitSha = getLatestCommitSha(commits, pullrequest.source.commit.hash);
 
+    const reviewedLinesOfCode = filesChanged.reduce((sum: number, f: any) => sum + f.changes, 0);
+  
+
     // Format data to match GitHub PR structure
     const modelAnalysisData: any = {
       // Essential PR Information
@@ -486,6 +499,45 @@ export const BitbucketPrData = async (payload: any, options?: { skipBotCheck?: b
 
       const prAnalysisPrompt = `Analyze this Bitbucket pull request:\n\nPR: ${pullrequest.title}\nRepo: ${repository.full_name}\nFiles: ${filesChanged.length}, Commits: ${commits.length}`;
 
+      // Determine model to use
+      let modelId = (user.settings as any)?.defaultModelPr;
+      if (teamIdForPrData) {
+        const team = await Team.findById(teamIdForPrData);
+        if (team?.settings?.defaultModelPr) {
+          modelId = team.settings.defaultModelPr;
+        }
+      }
+
+      let model = 'gpt-4o'; // Default fallback
+      if (modelId) {
+        const modelDoc = await AIModel.findById(modelId);
+        if (modelDoc) {
+          model = modelDoc.modelId;
+        }
+      }
+
+      // Create Analysis record upfront with 'running' status
+      await Analysis.create({
+        _id: preAnalysisId,
+        analysis_type: "pr_analysis",
+        userId: workspace.userId,
+        teamId: teamIdForPrData,
+        repoUrl,
+        github_repositoryId: bitbucketRepoForTeam._id,
+        status: "running",
+        model,
+        prompt: prAnalysisPrompt,
+        pr_number: pullrequest.id,
+        pr_url: prUrl,
+        pr_title: pullrequest.title,
+        reviewedLinesOfCode: reviewedLinesOfCode
+      });
+      
+      logger.info('Created Analysis record for Bitbucket PR', { 
+        analysisId: preAnalysisId, 
+        reviewedLinesOfCode 
+      });
+
       // Initialize parser state
       const parserState = createParserState();
 
@@ -560,6 +612,7 @@ export const BitbucketPrData = async (payload: any, options?: { skipBotCheck?: b
           pr_url: prUrl,
           pr_title: pullrequest.title,
           repo_url: repoUrl,
+          reviewedLinesOfCode,
         },
         user.email,
         teamIdForPrData,
@@ -621,3 +674,169 @@ function parseDiffToFilePatches(fullDiff: string): Record<string, string> {
   
   return filePatchesMap;
 }
+
+/**
+ * Handle Bitbucket PR Merged event
+ */
+export const handleBitbucketPrMerged = async (payload: any) => {
+    try {
+        const { pullrequest, repository } = payload;
+        
+        // Check if merged
+        // Bitbucket 'pullrequest:fulfilled' implies merged usually, but check state
+        if (pullrequest.state !== 'MERGED') {
+             return;
+        }
+
+        const prKey = generatePrKey(repository.full_name, pullrequest.id);
+        const mergedAt = new Date(pullrequest.updated_on); // Bitbucket uses updated_on or activity match
+
+        const prCollection = mongoose.connection.db?.collection('pull_request_datas');
+        if (!prCollection) return;
+
+        await prCollection.updateMany(
+            { prKey },
+            {
+                $set: {
+                    state: 'merged',
+                    mergedAt: mergedAt,
+                    updatedAt: new Date()
+                }
+            }
+        );
+        logger.info('Updated Bitbucket PR data for merge', { prKey });
+
+    } catch (error) {
+        logger.error('Error handling Bitbucket PR merged', { error });
+    }
+};
+
+/**
+ * Handle stop analysis command for Bitbucket
+ */
+export const handleBitbucketStopAnalysis = async (params: {
+    workspaceSlug: string; // The workspace slug (e.g. 'atlassian')
+    repoSlug: string;
+    prId: number;
+    userLogin?: string; // Who commanded it
+}) => {
+    try {
+        const { workspaceSlug, repoSlug, prId, userLogin } = params;
+        const repoFullName = `${workspaceSlug}/${repoSlug}`;
+
+        logger.info('Stopping analysis for Bitbucket PR', { repoFullName, prId });
+
+        // 1. Find the repository doc to get ID
+        const bbRepo = await Github_Repository.findOne({ fullName: repoFullName });
+        let interruptedCount = 0;
+        let killedSandboxes = 0;
+
+        if (bbRepo) {
+             const runningAnalyses = await Analysis.find({
+                github_repositoryId: bbRepo._id,
+                pr_number: prId,
+                status: 'running',
+            }).select('_id sandboxId');
+
+            for (const analysis of runningAnalyses) {
+                if (analysis.sandboxId) {
+                    try {
+                        await Sandbox.kill(analysis.sandboxId);
+                        killedSandboxes++;
+                    } catch (e) { /* ignore */ }
+                }
+            }
+
+            const result = await Analysis.updateMany(
+                {
+                    github_repositoryId: bbRepo._id,
+                    pr_number: prId,
+                    status: 'running'
+                },
+                {
+                    $set: {
+                        status: 'interrupted',
+                        errorLogs: `Stopped by user ${userLogin || ''} via @beetle stop`
+                    }
+                }
+            );
+            interruptedCount = result.modifiedCount || 0;
+        }
+
+        // 2. Post confirmation comment
+        const tokenResult = await getBitbucketAccessToken(workspaceSlug);
+        if (tokenResult.success && tokenResult.accessToken) {
+             const message = interruptedCount > 0
+                ? `🛑 Analysis stopped. ${interruptedCount} processes interrupted.`
+                : `ℹ️ No running analysis found to stop.`;
+            
+            await fetch(`https://api.bitbucket.org/2.0/repositories/${workspaceSlug}/${repoSlug}/pullrequests/${prId}/comments`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${tokenResult.accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ content: { raw: message } })
+            });
+        }
+
+        return { success: true, interruptedCount };
+
+    } catch (error) {
+        logger.error('Error handling Bitbucket stop analysis', { error });
+        throw error;
+    }
+};
+
+/**
+ * Handle Bitbucket repository created event
+ */
+export const handleBitbucketRepositoryCreated = async (payload: any) => {
+    try {
+        const { repository } = payload;
+        
+        if (!repository) return;
+        
+        const workspaceUuid = repository.workspace?.uuid;
+        const workspaceSlug = repository.workspace?.slug;
+
+        // Find workspace
+        const workspace = await Bitbucket_Workspace.findOne({ 
+             $or: [ { workspaceUuid }, { workspaceSlug } ] 
+        });
+
+        if (!workspace) {
+            logger.warn('Bitbucket workspace not found for repo created event', { workspaceSlug });
+            return;
+        }
+
+        // Check idempotency
+        const existingRepo = await Github_Repository.findOne({
+            source: 'bitbucket',
+            repositoryId: repository.uuid // Bitbucket repo ID
+        });
+        
+        if (existingRepo) {
+             logger.info('Bitbucket repository already exists, skipping', { fullName: repository.full_name });
+             return;
+        }
+
+        await Github_Repository.create({
+            source: 'bitbucket',
+            repositoryId: repository.uuid,
+            fullName: repository.full_name,
+            private: repository.is_private,
+            defaultBranch: repository.mainbranch?.name || 'main',
+            github_installationId: workspace._id, 
+            teamId: workspace.teamId,
+            
+            trackGithubIssues: false,
+            trackGithubPullRequests: true
+        });
+        
+        logger.info('Successfully added new Bitbucket repository to DB', { fullName: repository.full_name });
+
+    } catch (error) {
+        logger.error('Error handling Bitbucket repo created', { error });
+    }
+};

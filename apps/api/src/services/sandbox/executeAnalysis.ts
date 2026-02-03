@@ -258,6 +258,11 @@ export const executeAnalysis = async (
           if (data && typeof data.options === "object") {
             createPayload.options = data.options;
           }
+          
+          // Include reviewedLinesOfCode if provided
+          if (data && typeof data.reviewedLinesOfCode === 'number') {
+            createPayload.reviewedLinesOfCode = data.reviewedLinesOfCode;
+          }
         }
 
         // For extension analysis, include extension_data_id and reviewedLinesOfCode

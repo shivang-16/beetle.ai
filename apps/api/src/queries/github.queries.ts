@@ -283,6 +283,76 @@ export const handlePrMerged = async (payload: any) => {
 };
 
 /**
+ * Handle repository created event
+ * Adds the new repository to our database linked to the installation
+ */
+export const handleRepositoryCreated = async (payload: any) => {
+  try {
+    const { repository, installation } = payload;
+    
+    if (!repository || !installation) {
+      logger.warn('Missing data for repository.created event');
+      return;
+    }
+
+    logger.info('Processing repository created event', {
+      repoFullName: repository.full_name,
+      installationId: installation.id
+    });
+
+    // 1. Find the installation to get teamId
+    const installationDoc = await Github_Installation.findOne({ installationId: installation.id });
+    
+    if (!installationDoc) {
+      logger.warn('Installation not found for repository created event', { installationId: installation.id });
+      // We can still create the repo logic if we want, but teamId will be missing.
+      // Better to return or create with null teamId.
+    }
+
+    // 2. Check if repo already exists (idempotency)
+    const existingRepo = await Github_Repository.findOne({ 
+      source: 'github', 
+      repositoryId: repository.id 
+    });
+
+    if (existingRepo) {
+      logger.info('Repository already exists in DB, skipping create', { repoId: repository.id });
+      return;
+    }
+
+    // 3. Create new Github_Repository document
+    const [owner, repoName] = repository.full_name.split('/');
+    
+    const newRepoData: any = {
+      source: 'github',
+      repositoryId: repository.id,
+      fullName: repository.full_name,
+      private: repository.private,
+      defaultBranch: repository.default_branch || 'main',
+      github_installationId: installationDoc?._id, // Link to internal installation ID
+      teamId: installationDoc?.teamId, // Inherit teamId from installation
+      
+      // Defaults from schema will apply automatically for:
+      // analysisType, analysisFrequency, trackGithubPullRequests etc.
+      trackGithubIssues: false, // Default
+      trackGithubPullRequests: true
+    };
+
+    if (installationDoc) {
+       await Github_Repository.create(newRepoData);
+       logger.info('Successfully added new GitHub repository to DB', { fullName: repository.full_name });
+    } else {
+       logger.warn('Skipping DB insertion because installation doc was missing');
+    }
+
+  } catch (error) {
+    logger.error('Error handling repository.created', { 
+      error: error instanceof Error ? error.message : error 
+    });
+  }
+};
+
+/**
  * Handle stop analysis command from PR comment
  * Interrupts any running analyses for the specified PR
  */
@@ -599,6 +669,20 @@ export const PrData = async (payload: any, options?: { skipBotCheck?: boolean })
       skipBotCheck,
     });
 
+    // Verify installation exists and is connected
+    const githubInstallation = await Github_Installation.findOne({ installationId: installation.id });
+    if (!githubInstallation) {
+      logger.warn('Installation not found for PR data', { installationId: installation.id });
+      // Proceeding might fail later implicitly, but safer to return or let flow handle missing doc
+      // Existing code fetches it later again.
+    } else if (githubInstallation.status === 'disconnected') {
+      logger.info('Installation is disconnected, skipping PR analysis silently', { 
+        installationId: installation.id, 
+        repository: repository?.full_name 
+      });
+      return;
+    }
+
          // Helper function to create a skipped analysis record
     const createSkippedAnalysis = async (skipReason: string) => {
       try {
@@ -685,7 +769,6 @@ export const PrData = async (payload: any, options?: { skipBotCheck?: boolean })
 
     // Early check: daily PR analysis limit
     try {
-      const githubInstallation = await Github_Installation.findOne({ installationId: installation.id });
       if (githubInstallation?.userId) {
         const user = await User.findById(githubInstallation.userId);
         const [owner, repo] = repository.full_name.split('/');

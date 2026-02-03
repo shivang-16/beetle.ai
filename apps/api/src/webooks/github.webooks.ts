@@ -3,7 +3,7 @@ import { Webhooks } from '@octokit/webhooks';
 import { logger } from '../utils/logger.js';
 import { getInstallationOctokit } from '../lib/githubApp.js';
 import { respondToBeetleCommentReply, isBeetleBotAuthor, isBeetleMentioned, isLikelyBeetleComment, isLikelyReplyToBeetleConversation } from '../services/analysis/commentReplyService.js';
-import { commentOnIssueOpened, create_github_installation, delete_github_installation, PrData, handlePrMerged, handleStopAnalysis } from '../queries/github.queries.js';
+import { commentOnIssueOpened, create_github_installation, delete_github_installation, PrData, handlePrMerged, handleStopAnalysis, handleRepositoryCreated } from '../queries/github.queries.js';
   // Set up GitHub webhooks
 export const webhooks = new Webhooks({ secret: process.env.GITHUB_WEBHOOK_SECRET! });
   
@@ -22,7 +22,7 @@ export const webhooks = new Webhooks({ secret: process.env.GITHUB_WEBHOOK_SECRET
       });
       
       const accountLogin = 'login' in account ? account.login : account.slug;
-      const accountType = 'type' in account ? account.type : 'Organization';
+      const accountType = ('type' in account ? account.type : 'Organization') as "User" | "Organization";
       
       logger.info('App installed for account', { 
         accountLogin, 
@@ -42,7 +42,7 @@ export const webhooks = new Webhooks({ secret: process.env.GITHUB_WEBHOOK_SECRET
         sender: {
           login: payload.sender.login,
           id: payload.sender.id,
-          type: payload.sender.type,
+          type: payload.sender.type as "User" | "Organization",
           avatarUrl: payload.sender.avatar_url,
           htmlUrl: payload.sender.html_url
         },
@@ -388,6 +388,30 @@ export const webhooks = new Webhooks({ secret: process.env.GITHUB_WEBHOOK_SECRET
     }
   });
   
+  // Handle repositories added to installation (manual selection update)
+  webhooks.on('installation_repositories.added', async ({ payload }) => {
+    logger.info('Installation repositories added event received', { 
+      installationId: payload.installation.id,
+      count: payload.repositories_added.length 
+    });
+
+    for (const repo of payload.repositories_added) {
+      // Reuse handleRepositoryCreated with compatible payload wrapper
+      await handleRepositoryCreated({
+        repository: repo,
+        installation: payload.installation
+      });
+    }
+  });
+
+  // Handle repository created event
+  webhooks.on('repository.created', async ({ payload }) => {
+    logger.debug('Repository created event received', { 
+      repository: payload.repository?.full_name 
+    });
+    await handleRepositoryCreated(payload);
+  });
+
   // Log all webhook events
   webhooks.onAny(({ name, payload }) => {
     logger.debug('Webhook event received', { eventName: name });

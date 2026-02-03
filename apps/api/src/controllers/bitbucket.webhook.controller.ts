@@ -3,7 +3,14 @@ import { Request, Response, NextFunction } from 'express';
 import { logger } from '../utils/logger.js';
 import { Bitbucket_Workspace } from '../models/bitbucket_workspace.model.js';
 import crypto from 'crypto';
-import { BitbucketPrData } from '../queries/bitbucket.queries.js';
+import { 
+  BitbucketPrData, 
+  handleBitbucketStopAnalysis, 
+  handleBitbucketPrMerged,
+  handleBitbucketRepositoryCreated
+} from '../queries/bitbucket.queries.js';
+import { respondToBitbucketBeetleCommentReply } from '../services/analysis/commentReplyService.js';
+import { getBitbucketAccessToken } from '../utils/bitbucketTokenManager.js';
 
 /**
  * Verify Bitbucket webhook signature
@@ -115,8 +122,8 @@ export const handleBitbucketWebhook = async (
         await handlePullRequestCreated(req.body);
         break;
         
-      case 'pullrequest:updated':
-        await handlePullRequestUpdated(req.body);
+      case 'repo:push':
+        await detectNewCommit(req.body);
         break;
         
       case 'pullrequest:fulfilled':
@@ -129,6 +136,10 @@ export const handleBitbucketWebhook = async (
         
       case 'pullrequest:comment_created':
         await handlePullRequestCommentCreated(req.body);
+        break;
+
+      case 'repo:created':
+        await handleBitbucketRepositoryCreated(req.body);
         break;
         
       default:
@@ -171,27 +182,61 @@ async function handlePullRequestCreated(payload: any) {
 }
 
 /**
- * Handle pullrequest:updated event
+ * Handle repo:push event (detect new commits)
  */
-async function handlePullRequestUpdated(payload: any) {
+async function detectNewCommit(payload: any) {
   try {
-    const pr = payload.pullrequest;
     const repository = payload.repository;
+    const push = payload.push;
     
-    logger.info('Processing PR updated event', {
-      prId: pr.id,
-      prTitle: pr.title,
-      repoFullName: repository.full_name
+    if (!push || !push.changes) return;
+
+    logger.info('Processing repo:push event', {
+      repoFullName: repository.full_name,
+      changesCount: push.changes.length
     });
-    
-    // Import BitbucketPrData dynamically
-    const { BitbucketPrData } = await import('../queries/bitbucket.queries.js');
-    
-    // Re-analyze PR with new changes
-    await BitbucketPrData(payload);
-    
+
+    const workspaceSlug = repository.workspace?.slug;
+    if (!workspaceSlug) return;
+
+    const tokenResult = await getBitbucketAccessToken(workspaceSlug);
+    if (!tokenResult.success || !tokenResult.accessToken) return;
+
+    const repoSlug = repository.full_name.split('/')[1];
+
+    for (const change of push.changes) {
+      if (change.new && change.new.type === 'branch') {
+        const branchName = change.new.name;
+        // Search for open PRs with this source branch
+        const q = `source.branch.name="${branchName}" AND state="OPEN"`;
+        const searchUrl = `https://api.bitbucket.org/2.0/repositories/${workspaceSlug}/${repoSlug}/pullrequests?q=${encodeURIComponent(q)}`;
+        
+        const response = await fetch(searchUrl, {
+          headers: { 'Authorization': `Bearer ${tokenResult.accessToken}` }
+        });
+
+        if (response.ok) {
+          const data: any = await response.json();
+          const openPrs = data.values || [];
+          
+          if (openPrs.length > 0) {
+            logger.info(`Found ${openPrs.length} open PRs for pushed branch ${branchName}`, {
+               prIds: openPrs.map((p: any) => p.id)
+            });
+
+            for (const pr of openPrs) {
+              await BitbucketPrData({
+                pullrequest: pr,
+                repository: repository,
+                actor: payload.actor
+              });
+            }
+          }
+        }
+      }
+    }
   } catch (error) {
-    logger.error('Error handling PR updated event', { error });
+    logger.error('Error handling repo:push event', { error });
   }
 }
 
@@ -209,7 +254,7 @@ async function handlePullRequestMerged(payload: any) {
       repoFullName: repository.full_name
     });
     
-    // TODO: Update PR status in database
+    await handleBitbucketPrMerged(payload);
     
   } catch (error) {
     logger.error('Error handling PR merged event', { error });
@@ -254,13 +299,83 @@ async function handlePullRequestCommentCreated(payload: any) {
     
     // Check if comment mentions @beetle or similar
     const commentText = comment.content?.raw || '';
-    if (commentText.includes('@beetle')) {
-      logger.info('Beetle mentioned in PR comment', {
-        prId: pr.id,
-        commentText
-      });
-      
-      // TODO: Trigger analysis or respond to comment
+    const workspaceSlug = repository.workspace.slug;
+    const repoSlug = repository.full_name.split('/')[1];
+
+    if (/@(beetle-ai|beetle)\s+stop\b/i.test(commentText)) {
+       await handleBitbucketStopAnalysis({
+           workspaceSlug,
+           repoSlug,
+           prId: pr.id,
+           userLogin: comment.user?.nickname
+       });
+       return;
+    } 
+
+    if (/@(beetle-ai|beetle)(?!\s+stop\b)/i.test(commentText)) {
+       logger.info('Beetle mentioned in PR comment - triggering analysis', {
+         prId: pr.id,
+         commentText: commentText.slice(0, 50)
+       });
+       
+       await BitbucketPrData(payload, { skipBotCheck: true });
+       return;
+    }
+    
+    // Handle threaded replies
+    if (comment.parent && comment.parent.id) {
+       const tokenResult = await getBitbucketAccessToken(workspaceSlug);
+       if (tokenResult.success && tokenResult.accessToken) {
+            const parentResp = await fetch(`https://api.bitbucket.org/2.0/repositories/${workspaceSlug}/${repoSlug}/pullrequests/${pr.id}/comments/${comment.parent.id}`, {
+                headers: { Authorization: `Bearer ${tokenResult.accessToken}` }
+            });
+            if (parentResp.ok) {
+                const parentData: any = await parentResp.json();
+                const parentBody = parentData.content?.raw || '';
+                const parentAuthor = parentData.user?.nickname || parentData.user?.display_name;
+
+              
+                const isBeetleMsg = parentBody.toLowerCase().includes('beetle') || 
+                                    parentBody.includes('```suggestion') || 
+                                    parentBody.includes('**File**:') || 
+                                    parentBody.includes('Copy this prompt') ||
+                                    parentBody.includes('Suggested Fix') ||
+                                    parentBody.includes('Confidence:') || 
+                                    parentBody.includes('Prompt for AI');
+
+                // Log parent body for debugging heuristic failures
+                logger.debug('Checking if parent comment is Beetle message', {
+                   prId: pr.id,
+                   parentCommentId: comment.parent.id, 
+                   isBeetleMsg,
+                   parentBodyPreview: parentBody.slice(0, 100)
+                });
+
+                const tagsBeetle = /@(beetle-ai|beetle)/i.test(commentText) || isBeetleMsg;
+
+                if (!tagsBeetle) {
+                     logger.debug('Bitbucket reply ignored (not targeting Beetle)', { 
+                         prId: pr.id,
+                         commentId: comment.id,
+                         parentAuthor,
+                         isBeetleMsg
+                     });
+                } else {
+                     await respondToBitbucketBeetleCommentReply({
+                        workspaceSlug,
+                        repoSlug,
+                        prId: pr.id,
+                        userReplyCommentId: comment.id,
+                        userReplyBody: commentText,
+                        replyAuthorLogin: comment.user?.nickname,
+                        parentCommentId: comment.parent.id,
+                        parentCommentBody: parentBody,
+                        parentPath: parentData.inline?.path,
+                        parentLine: parentData.inline?.to || parentData.inline?.from 
+                    });
+                }
+            }
+       }
     }
     
   } catch (error) {

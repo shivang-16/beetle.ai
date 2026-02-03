@@ -422,7 +422,9 @@ async function createWorkspaceWebhook(
             'pullrequest:fulfilled',
             'pullrequest:approved',
             'pullrequest:comment_created',
-            'pullrequest:comment_updated'
+            'pullrequest:comment_updated',
+            'repo:created',
+            'repo:imported'
           ],
           secret: webhookSecret
         })
