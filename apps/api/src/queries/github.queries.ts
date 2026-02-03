@@ -33,20 +33,27 @@ export const create_github_installation = async (payload: CreateInstallationInpu
              const existingInstallation = await Github_Installation.findOne({ installationId: input.installationId });
              
              if (existingInstallation) {
-                 return new CustomError('Installation already exists', 409);
+                 logger.info('Installation already exists, updating it', { installationId: input.installationId });
+                 // Update existing installation instead of erroring
+                 existingInstallation.repositorySelection = input.repositorySelection;
+                 existingInstallation.permissions = input.permissions;
+                 existingInstallation.events = input.events;
+                 existingInstallation.status = 'connected';
+                 await existingInstallation.save();
+                 return existingInstallation;
              }
-            
-             const user = await User.findOne(
-              { username: { $regex: new RegExp(`^${input.sender.login}$`, "i") } }
-             );
 
-             // Get user's activeTeamId to attach to installation and repositories
-             const teamId = user?.activeTeamId ? String(user.activeTeamId) : undefined;
+             // DO NOT match by username - this will be set via the callback endpoint
+             // Leave userId and teamId as null initially
+             logger.info('Creating installation without user assignment (will be linked via callback)', {
+               installationId: input.installationId,
+               accountLogin: input.account.login
+             });
 
              const installation_data = {
               installationId: input.installationId,
-              userId: user ? user._id.toString() : null,
-              teamId: teamId,
+              userId: null, // Will be set via callback endpoint
+              teamId: null, // Will be set via callback endpoint
                  account: {
                      login: input.account.login,
                      id: input.account.id,
@@ -74,6 +81,7 @@ export const create_github_installation = async (payload: CreateInstallationInpu
              await installation.save();
      
              // Fetch default branch information for each repository
+             // Note: teamId will be null initially, will be updated when user links the installation
              if (input.repositories && input.repositories.length > 0) {
                  const octokit = await getInstallationOctokit(input.installationId);
                  
@@ -95,7 +103,8 @@ export const create_github_installation = async (payload: CreateInstallationInpu
                                  fullName: repo.fullName,
                                  private: repo.private,
                                  defaultBranch: repoDetails.data.default_branch,
-                                 teamId: teamId || undefined
+                                 teamId: null, // Will be updated when installation is linked to user
+                                 source: 'github'
                              };
                          } catch (error) {
                              console.error(`Failed to fetch default branch for ${repo.fullName}:`, error);
@@ -106,7 +115,8 @@ export const create_github_installation = async (payload: CreateInstallationInpu
                                  fullName: repo.fullName,
                                  private: repo.private,
                                  defaultBranch: 'main',
-                                 teamId: teamId || undefined
+                                 teamId: null,
+                                 source: 'github'
                              };
                          }
                      })
@@ -115,7 +125,9 @@ export const create_github_installation = async (payload: CreateInstallationInpu
                  await Github_Repository.insertMany(repositoriesWithDefaultBranch);
              }
 
-             logger.info("GitHub installation created and user updated", { installationId: input.installationId, teamId });
+             logger.info("GitHub installation created (pending user link via callback)", { 
+               installationId: input.installationId 
+             });
              return installation;
     } catch (error) {
         logger.error("Error creating GitHub installation", { error: error instanceof Error ? error.message : error });
@@ -266,6 +278,76 @@ export const handlePrMerged = async (payload: any) => {
       error: error instanceof Error ? error.message : error,
       prNumber: payload?.pull_request?.number,
       repository: payload?.repository?.full_name
+    });
+  }
+};
+
+/**
+ * Handle repository created event
+ * Adds the new repository to our database linked to the installation
+ */
+export const handleRepositoryCreated = async (payload: any) => {
+  try {
+    const { repository, installation } = payload;
+    
+    if (!repository || !installation) {
+      logger.warn('Missing data for repository.created event');
+      return;
+    }
+
+    logger.info('Processing repository created event', {
+      repoFullName: repository.full_name,
+      installationId: installation.id
+    });
+
+    // 1. Find the installation to get teamId
+    const installationDoc = await Github_Installation.findOne({ installationId: installation.id });
+    
+    if (!installationDoc) {
+      logger.warn('Installation not found for repository created event', { installationId: installation.id });
+      // We can still create the repo logic if we want, but teamId will be missing.
+      // Better to return or create with null teamId.
+    }
+
+    // 2. Check if repo already exists (idempotency)
+    const existingRepo = await Github_Repository.findOne({ 
+      source: 'github', 
+      repositoryId: repository.id 
+    });
+
+    if (existingRepo) {
+      logger.info('Repository already exists in DB, skipping create', { repoId: repository.id });
+      return;
+    }
+
+    // 3. Create new Github_Repository document
+    const [owner, repoName] = repository.full_name.split('/');
+    
+    const newRepoData: any = {
+      source: 'github',
+      repositoryId: repository.id,
+      fullName: repository.full_name,
+      private: repository.private,
+      defaultBranch: repository.default_branch || 'main',
+      github_installationId: installationDoc?._id, // Link to internal installation ID
+      teamId: installationDoc?.teamId, // Inherit teamId from installation
+      
+      // Defaults from schema will apply automatically for:
+      // analysisType, analysisFrequency, trackGithubPullRequests etc.
+      trackGithubIssues: false, // Default
+      trackGithubPullRequests: true
+    };
+
+    if (installationDoc) {
+       await Github_Repository.create(newRepoData);
+       logger.info('Successfully added new GitHub repository to DB', { fullName: repository.full_name });
+    } else {
+       logger.warn('Skipping DB insertion because installation doc was missing');
+    }
+
+  } catch (error) {
+    logger.error('Error handling repository.created', { 
+      error: error instanceof Error ? error.message : error 
     });
   }
 };
@@ -587,14 +669,29 @@ export const PrData = async (payload: any, options?: { skipBotCheck?: boolean })
       skipBotCheck,
     });
 
+    // Verify installation exists and is connected
+    const githubInstallation = await Github_Installation.findOne({ installationId: installation.id });
+    if (!githubInstallation) {
+      logger.warn('Installation not found for PR data', { installationId: installation.id });
+      // Proceeding might fail later implicitly, but safer to return or let flow handle missing doc
+      // Existing code fetches it later again.
+    } else if (githubInstallation.status === 'disconnected') {
+      logger.info('Installation is disconnected, skipping PR analysis silently', { 
+        installationId: installation.id, 
+        repository: repository?.full_name 
+      });
+      return;
+    }
+
          // Helper function to create a skipped analysis record
     const createSkippedAnalysis = async (skipReason: string) => {
       try {
-        const githubInstallation = await Github_Installation.findOne({ installationId: installation.id });
-        if (!githubInstallation?.userId) return null;
-        
-        const githubRepo = await Github_Repository.findOne({ fullName: repository.full_name });
-        if (!githubRepo) return null;
+        const [githubInstallation, githubRepo] = await Promise.all([
+          Github_Installation.findOne({ installationId: installation.id }),
+          Github_Repository.findOne({ fullName: repository.full_name })
+        ]);
+
+        if (!githubInstallation?.userId || !githubRepo) return null;
 
         const repoUrl = `https://github.com/${repository.full_name}`;
         const prUrl = `https://github.com/${repository.full_name}/pull/${pull_request.number}`;
@@ -672,7 +769,6 @@ export const PrData = async (payload: any, options?: { skipBotCheck?: boolean })
 
     // Early check: daily PR analysis limit
     try {
-      const githubInstallation = await Github_Installation.findOne({ installationId: installation.id });
       if (githubInstallation?.userId) {
         const user = await User.findById(githubInstallation.userId);
         const [owner, repo] = repository.full_name.split('/');
@@ -1450,6 +1546,7 @@ const ext = (filename?.split('.')?.pop() || '').toLowerCase();
           githubInstallation.userId,
           prAnalysisPrompt,
           "pr_analysis",
+          "github",
           callbacks,
           {
             pr_data_id: prDataInsertedId,

@@ -12,6 +12,7 @@ export interface GithubRepository {
   autoFixBugs: boolean;
   createdAt: string;
   updatedAt: string;
+  source?: 'github' | 'bitbucket';
 }
 
 export interface RepoInfo {

@@ -9,7 +9,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { IconBrandGithub } from "@tabler/icons-react";
+import { IconBrandGithub, IconBrandBitbucket } from "@tabler/icons-react";
 import { StarsIcon, ScanTextIcon, AtSign, PlayIcon } from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "@clerk/nextjs";
@@ -31,6 +31,7 @@ const HowToCard = ({
   imageAlt,
   href,
   cta,
+  actions,
   points,
   isSignedIn,
   isExternal = true,
@@ -42,6 +43,7 @@ const HowToCard = ({
   imageAlt?: string;
   href?: string;
   cta?: string;
+  actions?: React.ReactNode;
   points?: React.ReactNode[];
   isSignedIn?: boolean;
   isExternal?: boolean;
@@ -66,23 +68,27 @@ const HowToCard = ({
             ))}
           </ul>
         )}
-        {actualHref && cta && (
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            className="mt-2 cursor-pointer"
-          >
-            {isExternal && isSignedIn !== false ? (
-              <a href={actualHref} target="_blank" rel="noopener noreferrer">
-                {cta}
-              </a>
-            ) : (
-              <Link href={actualHref}>
-                {cta}
-              </Link>
-            )}
-          </Button>
+        {actions ? (
+          <div className="mt-2 flex flex-wrap gap-2">{actions}</div>
+        ) : (
+          actualHref && cta && (
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="mt-2 cursor-pointer"
+            >
+              {isExternal && isSignedIn !== false ? (
+                <a href={actualHref} target="_blank" rel="noopener noreferrer">
+                  {cta}
+                </a>
+              ) : (
+                <Link href={actualHref}>
+                  {cta}
+                </Link>
+              )}
+            </Button>
+          )
         )}
       </CardContent>
       {imageSrc && (
@@ -102,7 +108,7 @@ const HowToCard = ({
 
 const HowToInteractCard = () => {
   const [hasInstallations, setHasInstallations] = useState<boolean | null>(null);
-  const { getToken, isSignedIn } = useAuth();
+  const { getToken, isSignedIn, userId } = useAuth();
 
   useEffect(() => {
     let cancelled = false;
@@ -144,11 +150,38 @@ const HowToInteractCard = () => {
         {!hasInstallations && (
           <>
             <HowToCard
-              title="Install the GitHub App"
-              description="Authorize Beetle for your personal or organization account to access repositories."
+              title="Connect Code Provider"
+              description="Authorize Beetle to access your repositories on GitHub or Bitbucket."
               icon={IconBrandGithub}
-              href={githubAppUrl}
-              cta="Install on GitHub"
+              actions={
+                <>
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="cursor-pointer"
+                  >
+                    <a href={githubAppUrl} target="_blank" rel="noopener noreferrer">
+                      <IconBrandGithub className="mr-2 h-4 w-4" />
+                      GitHub
+                    </a>
+                  </Button>
+                  <Button
+                    asChild
+                    variant="outline"
+                    size="sm"
+                    className="cursor-pointer"
+                  >
+                    <a 
+                      href={isSignedIn ? `${_config.API_BASE_URL}/api/bitbucket/oauth/connect?userId=${userId}` : "/sign-in"} 
+                      target={isSignedIn ? "_self" : "_self"}
+                    >
+                      <IconBrandBitbucket className="mr-2 h-4 w-4 text-blue-500" />
+                      Bitbucket
+                    </a>
+                  </Button>
+                </>
+              }
               isSignedIn={isSignedIn}
               isExternal={isSignedIn === true}
             />

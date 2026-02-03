@@ -7,7 +7,7 @@ import { getPrAnalyses } from "../../analysis/_actions/getPrAnalyses";
 import { CircleCheck, CircleX, Ellipsis, ExternalLink, GitPullRequestIcon, ChevronLeft, ChevronRight, Search, SkipForward, AlertTriangle } from "lucide-react";
 import { statusClasses } from "@/lib/utils/statusClasses";
 import { formatDistanceToNow } from "date-fns";
-import { IconBrandGithub } from "@tabler/icons-react";
+import { IconBrandGithub, IconBrandBitbucket } from "@tabler/icons-react";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,10 @@ const PrAnalysisList = () => {
     pr_title?: string;
     createdAt?: string;
     errorLogs?: string;
+    github_repositoryId?: {
+      _id: string;
+      source?: 'github' | 'bitbucket';
+    };
   }>>([]);
 
   const [page, setPage] = useState(1);
@@ -64,13 +68,17 @@ const PrAnalysisList = () => {
     fetchData();
   }, [page, limit, query]);
 
-  const repoName = (url?: string) => {
-    if (!url) return "";
+  const repoName = (urlString?: string) => {
+    if (!urlString) return "";
     try {
-      const parts = url.replace("https://github.com/", "").split("/");
-      return parts.slice(0, 2).join("/");
+      const url = new URL(urlString);
+      const pathParts = url.pathname.split("/").filter(Boolean);
+      if (pathParts.length >= 2) {
+        return `${pathParts[0]}/${pathParts[1]}`;
+      }
+      return urlString;
     } catch {
-      return url;
+      return urlString;
     }
   };
 
@@ -142,7 +150,11 @@ const PrAnalysisList = () => {
                   </div>
                 </div>
                 <div className="col-span-3 text-sm truncate flex items-center gap-2">
-                  <IconBrandGithub className="h-4 w-4 flex-shrink-0" />
+                  {item.github_repositoryId?.source === 'bitbucket' ? (
+                    <IconBrandBitbucket className="h-4 w-4 flex-shrink-0 " />
+                  ) : (
+                    <IconBrandGithub className="h-4 w-4 flex-shrink-0" />
+                  )}
                   {item?.repoUrl ? (
                     <a
                       href={item.repoUrl}

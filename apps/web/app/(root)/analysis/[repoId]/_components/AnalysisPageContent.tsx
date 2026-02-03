@@ -39,7 +39,7 @@ const AnalysisPageContent: React.FC<AnalysisPageContentProps> = ({
       {/* Tab Switcher */}
       <div className="flex border-b border-border bg-background px-4">
         <TabButton id="filemap" label="File Map" />
-        <TabButton id="analysis" label="Analysis" />
+        {/* <TabButton id="analysis" label="Analysis" /> */}
       </div>
 
       {/* Tab Content */}

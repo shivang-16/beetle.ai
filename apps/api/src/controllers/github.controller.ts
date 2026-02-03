@@ -12,6 +12,8 @@ import Team from "../models/team.model.js";
 import { logger } from "../utils/logger.js";
 import { randomUUID } from "crypto";
 import { Github_Installation } from "../models/github_installations.model.js";
+import { getBitbucketAccessToken } from "../utils/bitbucketTokenManager.js";
+import { Bitbucket_Workspace } from "../models/bitbucket_workspace.model.js";
 
 export const getRepoTree = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -27,7 +29,55 @@ export const getRepoTree = async (req: Request, res: Response, next: NextFunctio
     if (!github_repository) {
       return next(new CustomError("Github repository not found", 404));
     }
+
+    // Handle Bitbucket Repositories
+    if (github_repository.source === 'bitbucket') {
+      const workspace = await Bitbucket_Workspace.findById(github_repository.github_installationId);
+      if (!workspace) {
+        return next(new CustomError("Bitbucket workspace not found", 404));
+      }
+
+      const tokenResult = await getBitbucketAccessToken(workspace.workspaceSlug);
+      if (!tokenResult.success) {
+        throw new CustomError(tokenResult.error || 'Failed to authenticate with Bitbucket', 401);
+      }
+      const token = tokenResult.accessToken;
+
+      const branchToUse = branch || github_repository.defaultBranch || 'main';
+      const [workspaceSlug, repoSlug] = github_repository.fullName.split('/');
+      
+      // Fetch src (root directory)
+      const url = `https://api.bitbucket.org/2.0/repositories/${workspaceSlug}/${repoSlug}/src/${branchToUse}/?pagelen=100`;
+      const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      
+      if (!resp.ok) {
+        throw new CustomError(`Failed to fetch Bitbucket tree: ${resp.statusText}`, resp.status);
+      }
+      
+      const data: any = await resp.json();
+      
+      const treeData = (data.values || []).map((item: any) => ({
+        path: item.path,
+        type: item.type === 'commit_directory' ? 'tree' : 'blob',
+        size: item.size || 0,
+        sha: item.commit?.hash || 'unknown', 
+        url: item.links?.self?.href
+      }));
+
+      return res.json({
+        success: true,
+        data: { 
+          repository: { 
+            owner: workspaceSlug, 
+            repo: repoSlug, 
+            url: `https://bitbucket.org/${workspaceSlug}/${repoSlug}` 
+          }, 
+          tree: treeData 
+        }
+      });
+    }
     
+    // Handle GitHub Repositories (Original Logic)
     const repoUrl = `https://github.com/${github_repository.fullName}`;
 
     let userId = req.user?._id;

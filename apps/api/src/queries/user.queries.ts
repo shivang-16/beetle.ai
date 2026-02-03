@@ -9,15 +9,16 @@ export interface CreateUserData {
   lastName?: string;
   username: string;
   avatarUrl?: string;
+  ssoProvider?: 'github' | 'bitbucket' | 'google' | 'email' | 'extension';
   subscriptionPlanId?: mongoose.Schema.Types.ObjectId | string;
   subscriptionStatus?: 'active' | 'inactive' | 'cancelled' | 'free';
   subscriptionStartDate?: Date;
   subscriptionEndDate?: Date;
 }
 
-export const createUser = async (data: CreateUserData) => {
+export const createUser = async (userData: CreateUserData) => {
     try {
-        const user = await User.create(data);
+        const user = await User.create(userData);
 
         const github_installations = await Github_Installation.find({ "sender.login": user.username });
 

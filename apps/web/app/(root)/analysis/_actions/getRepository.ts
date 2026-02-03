@@ -6,12 +6,19 @@ import { logger } from "@/lib/logger";
 
 export const getRepository = async (
   query: string,
-  orgSlug?: string
+  orgSlug?: string,
+  integration?: string
 ) => {
   try {
+    // Build query params
+    const params = new URLSearchParams();
+    if (orgSlug) params.set("orgSlug", orgSlug);
+    if (query) params.set("search", query);
+    if (integration && integration !== "all") params.set("integration", integration);
+
     // Fetch repositories using team route - teamId is automatically included via headers
     const repoRes = await apiGet(
-      `/api/team/repositories?orgSlug=${orgSlug}&search=${query}`,
+      `/api/team/repositories?${params.toString()}`,
       {
         cache: "force-cache",
         next: { tags: ["repository_list"] },
@@ -23,6 +30,7 @@ export const getRepository = async (
   } catch (error) {
     logger.error("Failed to fetch repositories", { 
       query, 
+      integration,
       error: error instanceof Error ? error.message : error 
     });
 

@@ -9,6 +9,7 @@ import { getDashboardData } from "./_actions/getDashboardData";
 import DashboardPage from "./_components/DashboardPage";
 import { Loader2Icon } from "lucide-react";
 import { getTeamInstallations } from "@/_actions/user-actions";
+import { GitHubInstallationHandler } from "./_components/GitHubInstallationHandler";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,9 @@ const Page = async () => {
 
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
+      {/* GitHub installation callback handler */}
+      <GitHubInstallationHandler />
+      
       <div className="h-full w-full mx-auto">
         <ErrorBoundary
           fallback={

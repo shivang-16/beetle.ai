@@ -1,0 +1,349 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { getIntegrationsAction, disconnectInstallationAction, reconnectIntegrationAction, reconnectInstallationAction } from "@/_actions/integrations";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Github, Link2, Unlink, AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { IconBrandBitbucket } from "@tabler/icons-react";
+import { InstallationItem } from "./_components/InstallationItem";
+
+interface Installation {
+  installationId?: number;
+  workspaceSlug?: string;
+  login: string;
+  avatarUrl?: string;
+  type?: string;
+  displayName?: string;
+  status?: 'connected' | 'disconnected';
+}
+
+interface Integration {
+  id: string;
+  name: string;
+  description: string;
+  status: 'connected' | 'disconnected';
+  url: string;
+  installations: Installation[];
+  count: number;
+}
+
+const IntegrationsPage = () => {
+  const [integrations, setIntegrations] = useState<Integration[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [reconnectingId, setReconnectingId] = useState<string | null>(null);
+
+  const fetchIntegrations = async () => {
+    try {
+      setLoading(true);
+      const result = await getIntegrationsAction();
+      console.log(result, "here is the result from action")
+      if (result.success) {
+        setIntegrations(result.data);
+      } else {
+        toast.error(result.message || "Failed to fetch integrations");
+      }
+    } catch (error) {
+      console.error("Error fetching integrations:", error);
+      toast.error("An error occurred while fetching integrations");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+      fetchIntegrations();
+  }, []);
+
+  const handleConnect = async (integrationId: string, url: string) => {
+    try {
+      setReconnectingId(integrationId);
+      const result = await reconnectIntegrationAction(integrationId);
+      
+      if (result.success) {
+        if (result.restored) {
+          toast.success("Successfully reconnected previous installations");
+          fetchIntegrations();
+        } else {
+          // Redirect to new connection flow
+          window.location.href = result.redirectUrl || url;
+        }
+      } else {
+        toast.error(result.message || "Connection check failed");
+        // Fallback to direct URL
+        window.open(url, "_blank");
+      }
+    } catch (error) {
+       console.error("Connection error:", error);
+       window.open(url, "_blank");
+    } finally {
+      setReconnectingId(null);
+    }
+  };
+
+  const handleManageClick = (integration: Integration) => {
+    setSelectedIntegration(integration);
+    setIsDialogOpen(true);
+  };
+
+  const handleDisconnectItem = async (type: string, id: string | number) => {
+    try {
+      const result = await disconnectInstallationAction(type, id);
+      if (result.success) {
+        toast.success("Disconnected successfully");
+        
+        if (selectedIntegration) {
+          const updatedInstallations = selectedIntegration.installations.map(inst => {
+             const instId = type === 'github' ? inst.installationId : inst.workspaceSlug;
+             if (instId === id) {
+                 return { ...inst, status: 'disconnected' as const };
+             }
+             return inst;
+          });
+          
+          setSelectedIntegration({
+            ...selectedIntegration,
+            installations: updatedInstallations,
+            count: updatedInstallations.filter(i => i.status === 'connected').length,
+            status: updatedInstallations.some(i => i.status === 'connected') ? 'connected' : 'disconnected'
+          });
+          
+          // Refresh main list
+          fetchIntegrations();
+        }
+      } else {
+        toast.error(result.message || "Failed to disconnect");
+      }
+    } catch (error) {
+      console.error("Error disconnecting:", error);
+      toast.error("An error occurred");
+    }
+  };
+
+  const handleReconnectItem = async (type: string, id: string | number) => {
+    try {
+        const result = await reconnectInstallationAction(type, id);
+        if (result.success) {
+            toast.success("Reconnected successfully");
+            
+            if (selectedIntegration) {
+                const updatedInstallations = selectedIntegration.installations.map(inst => {
+                     const instId = type === 'github' ? inst.installationId : inst.workspaceSlug;
+                     if (instId === id) {
+                         return { ...inst, status: 'connected' as const };
+                     }
+                     return inst;
+                });
+                
+                setSelectedIntegration({
+                    ...selectedIntegration,
+                    installations: updatedInstallations,
+                    count: updatedInstallations.filter(i => i.status === 'connected').length,
+                    status: 'connected'
+                });
+                fetchIntegrations();
+            }
+        } else {
+            toast.error(result.message || "Failed to reconnect");
+        }
+    } catch (error) {
+        console.error("Error reconnecting:", error);
+        toast.error("An error occurred");
+    }
+  };
+
+  return (
+    <div className=" mx-auto min-h-svh w-full p-6">
+      <div className="flex items-center gap-3 w mb-8">
+        <SidebarTrigger className="md:hidden" />
+        <div className="flex items-center justify-between w-full gap-2 border-b pb-4">
+            <div>
+              <h2 className="text-2xl font-medium">Integrations</h2>
+              <p className="text-muted-foreground text-sm mt-1">
+                Connect your code providers.
+              </p>
+            </div>
+          </div>
+      </div>
+
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {[1, 2].map((i) => (
+            <Card key={i} className="animate-pulse bg-card/50">
+              <div className="h-48"></div>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {integrations.map((integration) => (
+            <Card key={integration.id} className="overflow-hidden border-border/50 bg-card hover:bg-card/80 transition-all">
+              <CardHeader className="flex flex-row items-center gap-3">
+                <div className="p-0 rounded-lg bg-secondary/50">
+                  {integration.id === "github" ? (
+                    <Github className="h-6 w-6" />
+                  ) : (
+                    <IconBrandBitbucket className="h-6 w-6" />
+                  )}
+                </div>
+                <div>
+                  <CardTitle className="text-sm">{integration.name}</CardTitle>
+                  <CardDescription className="line-clamp-1 text-xs">
+                    {integration.count > 0 
+                      ? `${integration.count} ${integration.count === 1 ? 'installation' : 'installations'}` 
+                      : "Not connected"}
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground mb-2">
+                  {integration.description}
+                </p>
+                {integration.installations.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+                    {integration.installations.slice(0, 5).map((inst, idx) => (
+                      <InstallationItem
+                        key={idx}
+                        avatarUrl={inst.avatarUrl}
+                        login={inst.login}
+                        displayName={inst.displayName}
+                        profileUrl={integration.id === 'github' 
+                          ? `https://github.com/${inst.login}` 
+                          : `https://bitbucket.org/${inst.workspaceSlug || inst.login}`}
+                      />
+                    ))}
+                    {integration.installations.length > 5 && (
+                      <p className="text-[10px] text-muted-foreground/60 self-center">
+                        +{integration.installations.length - 5} more
+                      </p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+              <CardFooter className="flex justify-between items-center border-t border-border/50 bg-secondary/20 h-10">
+                <div className="flex items-center gap-2">
+                  <div className={`h-2 w-2 rounded-full ${integration.status === 'connected' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-muted-foreground/30'}`} />
+                  <span className="text-xs font-medium uppercase tracking-wider opacity-70">
+                    {integration.status}
+                  </span>
+                </div>
+                
+                {integration.status === 'connected' ? (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="gap-2 border-secondary/20 hover:bg-secondary/30"
+                    onClick={() => handleManageClick(integration)}
+                  >
+                    <Unlink className="h-4 w-4" />
+                    Manage
+                  </Button>
+                ) : (
+                  <Button 
+                    variant="default" 
+                    size="sm" 
+                    disabled={reconnectingId === integration.id}
+                    className="gap-2"
+                    onClick={() => handleConnect(integration.id, integration.url)}
+                  >
+                    {reconnectingId === integration.id ? (
+                      <span className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full mr-1"/>
+                    ) : (
+                      <Link2 className="h-4 w-4" />
+                    )}
+                    Connect
+                  </Button>
+                )}
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-orange-500" />
+              Manage {selectedIntegration?.name} Connections
+            </DialogTitle>
+            <DialogDescription>
+              View and manage your active connections. Disconnecting will stop Beetle from accessing repositories associated with that connection.
+            </DialogDescription>
+          </DialogHeader>
+            
+          <div className="mt-4 flex flex-col gap-3 max-h-[400px] overflow-y-auto">
+             {selectedIntegration?.installations.map((inst, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 border rounded-lg bg-card/50">
+                    <div className="flex items-center gap-3">
+                         <div className="h-8 w-8 rounded-full overflow-hidden bg-secondary">
+                            {inst.avatarUrl ? (
+                                <img src={inst.avatarUrl} alt={inst.login} className="h-full w-full object-cover" />
+                            ) : (
+                                <div className="h-full w-full flex items-center justify-center text-xs font-bold">
+                                    {inst.login.substring(0, 2).toUpperCase()}
+                                </div>
+                            )}
+                         </div>
+                         <div>
+                            <p className="font-medium text-sm">{inst.displayName || inst.login}</p>
+                            <p className="text-xs text-muted-foreground">
+                                {inst.type || 'Account'} 
+                                {inst.status === 'disconnected' && <span className="ml-2 text-red-500">(Disconnected)</span>}
+                            </p>
+                         </div>
+                    </div>
+                    {inst.status === 'disconnected' ? (
+                        <Button 
+                            variant="default" 
+                            size="sm"
+                            className="bg-primary text-primary-foreground hover:bg-primary/90"
+                            onClick={() => handleReconnectItem(
+                                selectedIntegration.id, 
+                                selectedIntegration.id === 'github' ? inst.installationId! : inst.workspaceSlug!
+                            )}
+                        >
+                            Connect
+                        </Button>
+                    ) : (
+                        <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="border-red-500 text-red-500 hover:bg-transparent hover:text-red-600"
+                            onClick={() => handleDisconnectItem(
+                                selectedIntegration.id, 
+                                selectedIntegration.id === 'github' ? inst.installationId! : inst.workspaceSlug!
+                            )}
+                        >
+                            Disconnect
+                        </Button>
+                    )}
+                </div>
+             ))}
+             {selectedIntegration?.installations.length === 0 && (
+                 <p className="text-center text-muted-foreground py-4">No connections found.</p>
+             )}
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default IntegrationsPage;

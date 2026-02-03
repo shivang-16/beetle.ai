@@ -12,6 +12,7 @@ import Analysis from '../models/analysis.model.js';
 import GithubIssue from '../models/github_issue.model.js';
 import GithubPullRequest from '../models/github_pull_request.model.js';
 import mongoose from 'mongoose';
+import { Bitbucket_Workspace } from '../models/bitbucket_workspace.model.js';
 import { getAllUserTeams } from '../middlewares/helpers/getUserTeam.js';
 import TeamInvitation from '../models/team_invitation.model.js';
 import { mailService } from '../services/mail/mail_service.js';
@@ -915,7 +916,7 @@ export const updateTeamSettings = async (req: Request, res: Response, next: Next
 
 export const getTeamRepositories = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { orgSlug, search } = req.query;
+    const { orgSlug, search, integration } = req.query;
   
     // Use team context from middleware
     const teamId = req.team?.id;
@@ -930,6 +931,12 @@ export const getTeamRepositories = async (req: Request, res: Response, next: Nex
 
     // Build query for repositories matching this teamId
     let query: any = { teamId };
+    
+    // Filter by integration/source if provided
+    if (integration && integration !== 'all' && typeof integration === 'string') {
+      query.source = integration; // 'github' or 'bitbucket'
+      logger.debug('Filtering repositories by integration', { integration, teamId });
+    }
     
     // If orgSlug is provided and not 'all', filter by organization
     if (orgSlug && orgSlug !== 'undefined' && orgSlug !== 'all' && typeof orgSlug === 'string') {
@@ -955,6 +962,14 @@ export const getTeamRepositories = async (req: Request, res: Response, next: Nex
         query.$or = searchConditions;
       }
     }
+
+    // Get connected installation IDs to filter repositories
+    const connectedGithubIds = await Github_Installation.find({ teamId, status: 'connected' }).distinct('_id');
+    const connectedBitbucketIds = await Bitbucket_Workspace.find({ teamId, status: 'connected' }).distinct('_id');
+    const connectedIds = [...connectedGithubIds, ...connectedBitbucketIds];
+
+    // Restrict query to only connected installations
+    query.github_installationId = { $in: connectedIds };
 
     // Find repositories based on the query
     const repos = await Github_Repository.find(query)
@@ -997,24 +1012,41 @@ export const getTeamInstallations = async (req: Request, res: Response, next: Ne
       return next(new CustomError('Team context required', 400));
     }
 
-    // Find all installations for the team
-    const installations = await Github_Installation.find({ teamId }).sort({ installedAt: -1 });
+    // Find all installations for the team in parallel
+    const [githubInstallations, bitbucketWorkspaces] = await Promise.all([
+      Github_Installation.find({ teamId }),
+      Bitbucket_Workspace.find({ teamId })
+    ]);
 
-    if (!installations || installations.length === 0) {
+    if ((!githubInstallations || githubInstallations.length === 0) && 
+        (!bitbucketWorkspaces || bitbucketWorkspaces.length === 0)) {
       return next(new CustomError('No installations found', 404));
     }
 
-    // Extract account information
-    const accounts = installations.map(installation => ({
+    // Extract account information from GitHub installations
+    const githubAccounts = githubInstallations.map(installation => ({
       id: installation._id,
       login: installation.account.login,
       type: installation.account.type || 'Organization',
-      avatarUrl: installation.account.avatarUrl || null
+      avatarUrl: installation.account.avatarUrl || null,
+      source: 'github'
     }));
+
+    // Extract account information from Bitbucket workspaces
+    const bitbucketAccounts = bitbucketWorkspaces.map(workspace => ({
+      id: workspace._id,
+      login: workspace.workspaceSlug, // Use slug for login
+      type: workspace.account.type || 'workspace',
+      avatarUrl: workspace.account.avatarUrl || null,
+      source: 'bitbucket'
+    }));
+
+    // Combine accounts
+    const allAccounts = [...githubAccounts, ...bitbucketAccounts];
 
     res.status(200).json({
       success: true,
-      data: accounts
+      data: allAccounts
     });
   } catch (error) {
     logger.error(`getTeamInstallations error: ${error}`);

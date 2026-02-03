@@ -13,6 +13,10 @@ export interface PrAnalysisItem {
   pr_title?: string;
   createdAt?: string;
   errorLogs?: string;
+  github_repositoryId?: {
+    _id: string;
+    source?: 'github' | 'bitbucket';
+  };
 }
 
 export interface GetPrAnalysesOptions {

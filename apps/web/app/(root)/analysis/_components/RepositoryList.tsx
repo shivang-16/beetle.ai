@@ -55,20 +55,23 @@ const RepositoryList = async ({
   query,
   teamId,
   orgSlug,
+  integration,
 }: {
   query: string;
   teamId?: string;
   orgSlug?: string;
+  integration?: string;
 }) => {
   let data: GithubRepository[] | undefined;
 
   try {
-    const res = await getRepository(query, orgSlug);
+    const res = await getRepository(query, orgSlug, integration);
     data = (res?.data || []).reverse();
   } catch (error) {
     logger.error("Failed to fetch repositories in RepositoryList", {
       query,
       teamId,
+      integration,
       error: error instanceof Error ? error.message : error,
     });
   }

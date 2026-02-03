@@ -9,6 +9,29 @@ const nextConfig = {
   // Updated configuration for newer Next.js versions
   serverExternalPackages: ['winston'],
   
+  // Configure image domains for avatars
+  images: {
+    dangerouslyAllowSVG: true,
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'avatars.githubusercontent.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'secure.gravatar.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'bitbucket.org',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.bitbucket.org',
+      },
+    ],
+  },
+  
   // Configure Better Stack rewrites with proper external destinations
   async rewrites() {
     return [

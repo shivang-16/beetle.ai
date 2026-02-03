@@ -26,6 +26,7 @@ export interface IGithub_Installation extends Document {
   updatedAt: Date;
   suspendedAt?: Date;
   suspendedBy?: string;
+  status: 'connected' | 'disconnected';
 }
 
 const InstallationSchema = new Schema<IGithub_Installation>({
@@ -86,6 +87,11 @@ const InstallationSchema = new Schema<IGithub_Installation>({
   suspendedBy: {
     type: String,
     required: false
+  },
+  status: {
+    type: String,
+    enum: ['connected', 'disconnected'],
+    default: 'connected'
   }
 }, {
   timestamps: true

@@ -207,6 +207,7 @@ export const createExtensionReview = async (req: Request, res: Response): Promis
         userId, // userId
         prompt,
         effectiveAnalysisType, // analysisType
+        "extension",
         callbacks,
         {
           extension_data_id: extensionData._id,
