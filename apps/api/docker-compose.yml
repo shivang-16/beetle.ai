@@ -72,6 +72,8 @@ services:
       - BITBUCKET_CLIENT_SECRET=${BITBUCKET_CLIENT_SECRET}
       - BITBUCKET_OAUTH_CALLBACK_URL=${BITBUCKET_OAUTH_CALLBACK_URL}
       
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      
     volumes:
       # Mount logs directory for persistent logging
       - ./logs:/app/logs
