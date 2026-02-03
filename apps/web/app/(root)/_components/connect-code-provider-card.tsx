@@ -16,7 +16,7 @@ const ConnectCodeProviderCard = () => {
     }
     
     // Redirect to backend OAuth endpoint with userId
-    const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "https://redbird-polished-whippet.ngrok-free.app";
+    const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
     window.location.href = `${apiUrl}/api/bitbucket/oauth/connect?userId=${user.id}`;
   };
 
