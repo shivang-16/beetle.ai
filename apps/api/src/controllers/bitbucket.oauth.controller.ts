@@ -134,7 +134,9 @@ export const handleOAuthCallback = async (req: Request, res: Response) => {
     const tokenExpiresAt = new Date(Date.now() + (expires_in || 3600) * 1000);
 
     // Process ALL workspaces
-    await Promise.all(workspaces.map(async (wsData: any) => {
+    // Process ALL workspaces using Promise.allSettled to ensure partial success
+    const results = await Promise.allSettled(workspaces.map(async (wsData: any) => {
+      try {
         const existing = await Bitbucket_Workspace.findOne({ 
              workspaceSlug: wsData.slug 
         });
@@ -188,9 +190,19 @@ export const handleOAuthCallback = async (req: Request, res: Response) => {
                 workspace: workspaceDoc.workspaceSlug,
                 error: syncErr
             });
+            // Don't throw here, as we successfully saved the workspace
         }
-
+        return workspaceDoc.workspaceSlug;
+      } catch (wsError) {
+        logger.error(`Failed to process workspace ${wsData.slug}`, { error: wsError });
+        throw wsError; // Re-throw to mark as rejected in allSettled
+      }
     }));
+
+    // Log summary
+    const successful = results.filter(r => r.status === 'fulfilled').length;
+    const failed = results.filter(r => r.status === 'rejected').length;
+    logger.info('Bitbucket workspace processing complete', { successful, failed, total: workspaces.length });
 
     res.redirect(`${webAppUrl}/integrations?bitbucket_connected=true&open_bitbucket_manage=true`);
   } catch (error) {

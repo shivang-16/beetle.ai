@@ -71,9 +71,10 @@ const IntegrationsPage = () => {
   }, []);
 
   // Check for auto-open query param - RUNS WHEN INTEGRATIONS LOAD
+  // Check for auto-open query param - RUNS WHEN INTEGRATIONS LOAD
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('open_bitbucket_manage') === 'true' && integrations.length > 0) {
+    if (params.get('open_bitbucket_manage') === 'true' && integrations.length > 0 && !isDialogOpen) {
         const bitbucketIntegration = integrations.find(i => i.id === 'bitbucket');
         if (bitbucketIntegration) {
             setSelectedIntegration(bitbucketIntegration);
@@ -84,7 +85,7 @@ const IntegrationsPage = () => {
             window.history.replaceState({}, '', newUrl);
         }
     }
-  }, [integrations]);
+  }, [integrations, isDialogOpen]);
 
   // Clear available when dialog closes
   useEffect(() => {
