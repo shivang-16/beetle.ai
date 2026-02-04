@@ -643,6 +643,12 @@ export const BitbucketPrData = async (payload: any, options?: { skipBotCheck?: b
               });
           } else {
              // Success
+             
+             // Check if no actionable comments were posted
+             if (prCommentService.getNonSummaryCommentsPosted() === 0) {
+                 await prCommentService.postNoIssuesFoundComment();
+             }
+
              await updateBitbucketCommitStatus({
                  accessToken: currentAccessToken, 
                  repoFullName: repository.full_name, 
