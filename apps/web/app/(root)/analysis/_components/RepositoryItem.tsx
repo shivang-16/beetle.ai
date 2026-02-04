@@ -71,12 +71,12 @@ const RepositoryItem: React.FC<RepositoryItemProps> = ({ repo, teamId }) => {
             <Settings className="h-4 w-4" />
           </Link>
         </Button>
-        <BranchDropdown
+        {/* <BranchDropdown
           repositoryId={repo._id}
           teamId={teamId}
           selectedBranch={selectedBranch}
           onBranchChange={handleBranchChange}
-        />
+        /> */}
       </div>
     </div>
   );

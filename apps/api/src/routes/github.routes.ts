@@ -1,6 +1,6 @@
 import express, { Router } from "express";
 import { baseAuth } from "../middlewares/checkAuth.js";
-import { getRepoTree, getRepoInfo, openIssue, openPullRequest, getBranches, saveGithubIssue, savePatch, getGithubIssuesWithPullRequests, getIssueStates, syncRepositories } from "../controllers/github.controller.js";
+import { getRepoTree, getRepoInfo, openIssue, openPullRequest, getBranches, saveGithubIssue, savePatch, getGithubIssuesWithPullRequests, getIssueStates } from "../controllers/github.controller.js";
 import { getAllUserInstallations } from "../queries/github.queries.js";
 import { updateRepoSettings, getRepoSettings, bulkUpdateRepoSettings } from "../controllers/repository.controller.js";
 import { handleInstallationCallback, linkInstallationToUser } from "../controllers/github.installation.controller.js";
@@ -32,8 +32,7 @@ router.get("/repository/:repoId/settings", getRepoSettings);
 router.put("/repository/:repoId/settings", updateRepoSettings);
 router.put("/repository/settings/bulk", bulkUpdateRepoSettings);
 
-// Sync repositories route (auth required) - syncs all user installations
-router.post("/sync", syncRepositories);
+
 
 // Debug endpoint to check installations
 router.get("/installations", async (req, res) => {

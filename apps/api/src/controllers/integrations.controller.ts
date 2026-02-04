@@ -3,11 +3,10 @@ import { Github_Installation } from "../models/github_installations.model.js";
 import { Bitbucket_Workspace } from "../models/bitbucket_workspace.model.js";
 import { logger } from "../utils/logger.js";
 import { CustomError } from "../middlewares/error.js";
+import { syncGithubRepositories } from "./github.controller.js";
+import { syncBitbucketRepositories } from "./bitbucket.oauth.controller.js";
+import { getBitbucketAccessToken } from "../utils/bitbucketTokenManager.js";
 
-/**
- * Get team integrations (GitHub and Bitbucket)
- * Returns all integrations for the current team
- */
 export const getTeamIntegrations = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?._id;
@@ -153,6 +152,9 @@ export const reconnectIntegration = async (req: Request, res: Response, next: Ne
           { status: 'connected' }
         );
         restoredCount = disconnected.length;
+
+        // Trigger sync for restored GitHub installations
+        await syncGithubRepositories(userId, teamId);
       } else {
         // Prepare redirect URL for new connection
         redirectUrl = `https://github.com/apps/${process.env.GITHUB_APP_NAME || "beetle-ai"}/installations/select_target`;
@@ -167,6 +169,24 @@ export const reconnectIntegration = async (req: Request, res: Response, next: Ne
           { status: 'connected' }
         );
         restoredCount = disconnected.length;
+
+        // Trigger sync for restored Bitbucket workspaces
+        for (const workspace of disconnected) {
+            try {
+                const tokenResult = await getBitbucketAccessToken(workspace.workspaceSlug);
+                if (tokenResult.success && tokenResult.accessToken) {
+                    await syncBitbucketRepositories(
+                        userId,
+                        String(workspace._id),
+                        workspace.workspaceSlug,
+                        tokenResult.accessToken,
+                        teamId
+                    );
+                }
+            } catch (err) {
+                logger.error("Failed to sync bitbucket workspace after reconnect", { error: err, workspace: workspace.workspaceSlug });
+            }
+        }
       } else {
         redirectUrl = `${process.env.API_BASE_URL || 'http://localhost:3001'}/api/bitbucket/oauth/connect?userId=${userId}`;
       }
@@ -230,6 +250,13 @@ export const reconnectInstallation = async (req: Request, res: Response, next: N
  * Disconnect a team integration (Legacy/Full Disconnect)
  * @deprecated Use disconnectInstallation for granular control
  */
+
+
+
+/**
+ * Disconnect a team integration (Legacy/Full Disconnect)
+ * @deprecated Use disconnectInstallation for granular control
+ */
 export const disconnectIntegration = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?._id;
@@ -261,5 +288,76 @@ export const disconnectIntegration = async (req: Request, res: Response, next: N
   } catch (error) {
     logger.error("Error disconnecting integration", { error });
     next(new CustomError("Failed to disconnect integration", 500));
+  }
+};
+
+/**
+ * Sync all repositories for all connected integrations
+ */
+export const syncAllRepositories = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user?._id;
+    const teamId = req.team?.id;
+
+    if (!userId) {
+      return next(new CustomError("Unauthorized", 401));
+    }
+
+    logger.debug("Starting unified repository sync", { userId, teamId });
+
+    // 1. Sync GitHub
+    const githubStats = await syncGithubRepositories(userId, teamId);
+
+    // 2. Sync Bitbucket
+    const bitbucketWorkspaces = await Bitbucket_Workspace.find({ 
+      userId, 
+      status: 'connected'
+    });
+    
+    let bitbucketUpdated = 0;
+    
+    for (const workspace of bitbucketWorkspaces) {
+        try {
+            // Get fresh token
+            const tokenResult = await getBitbucketAccessToken(workspace.workspaceSlug);
+            if (tokenResult.success && tokenResult.accessToken) {
+                 const count = await syncBitbucketRepositories(
+                    userId,
+                    String(workspace._id),
+                    workspace.workspaceSlug,
+                    tokenResult.accessToken,
+                    teamId
+                );
+                bitbucketUpdated += count;
+            }
+        } catch (e) {
+            logger.error('Failed to sync bitbucket workspace during unified sync', { 
+                workspace: workspace.workspaceSlug, 
+                error: e instanceof Error ? e.message : e 
+            });
+        }
+    }
+
+    // Combine results
+    const results = {
+        github: githubStats,
+        bitbucket: {
+            updated: bitbucketUpdated
+        },
+        totalUpdated: githubStats.updated + githubStats.created + bitbucketUpdated,
+        message: `Synced ${githubStats.totalRepositories} GitHub repos and ${bitbucketUpdated} Bitbucket repos.`
+    };
+
+    logger.info("Unified sync completed", results);
+
+    res.json({
+      success: true,
+      message: results.message,
+      data: results
+    });
+
+  } catch (error) {
+    logger.error("Error in unified sync", { error });
+    next(new CustomError("Failed to sync repositories", 500));
   }
 };
