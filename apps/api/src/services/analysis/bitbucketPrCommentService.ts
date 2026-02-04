@@ -460,10 +460,7 @@ export class BitbucketPRCommentService {
       const body = [
         '✅ **No issues found**',
         '',
-        'You\'re good to merge this PR! Great job!',
-        '',
-        footerContent,
-        linksSection
+        'You\'re good to merge this PR! Great job!'
       ].join('\n');
 
       await this.makeBitbucketRequest('POST', `/pullrequests/${this.context.pullRequestId}/comments`, {
