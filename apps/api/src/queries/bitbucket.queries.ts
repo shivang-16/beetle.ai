@@ -566,6 +566,15 @@ export const BitbucketPrData = async (payload: any, options?: { skipBotCheck?: b
       // Post start comment
       await prCommentService.postAnalysisStartedComment(commits, filesChanged);
 
+      // Post "In Progress" status check
+      await updateBitbucketCommitStatus({
+         accessToken: currentAccessToken, 
+         repoFullName: repository.full_name, 
+         commitSha: pullrequest.source.commit.hash, 
+         state: 'INPROGRESS', 
+         description: 'Review started...'
+      });
+
       const callbacks: StreamingCallbacks = {
         onStdout: async (data: string) => {
           logger.debug(`Bitbucket PR analysis stdout: ${data.slice(0, 200)}`, { prId: pullrequest.id, data });
@@ -625,6 +634,22 @@ export const BitbucketPrData = async (payload: any, options?: { skipBotCheck?: b
           
           if (!result.success) {
              await prCommentService.postSkippedComment(`Analysis failed with error: ${result.error}`);
+             await updateBitbucketCommitStatus({
+                 accessToken: currentAccessToken, 
+                 repoFullName: repository.full_name, 
+                 commitSha: pullrequest.source.commit.hash, 
+                 state: 'FAILED', 
+                 description: 'Analysis failed'
+              });
+          } else {
+             // Success
+             await updateBitbucketCommitStatus({
+                 accessToken: currentAccessToken, 
+                 repoFullName: repository.full_name, 
+                 commitSha: pullrequest.source.commit.hash, 
+                 state: 'SUCCESSFUL', 
+                 description: 'Review completed'
+              });
           }
       }).catch(async (error) => {
         logger.error("Analysis execution failed", {
@@ -632,6 +657,13 @@ export const BitbucketPrData = async (payload: any, options?: { skipBotCheck?: b
           error: error instanceof Error ? error.message : error
         });
         await prCommentService.postSkippedComment(`Analysis failed with error: ${error.message}`);
+        await updateBitbucketCommitStatus({
+             accessToken: currentAccessToken, 
+             repoFullName: repository.full_name, 
+             commitSha: pullrequest.source.commit.hash, 
+             state: 'FAILED', 
+             description: 'execution error'
+          });
       });
     }
 
@@ -839,4 +871,51 @@ export const handleBitbucketRepositoryCreated = async (payload: any) => {
     } catch (error) {
         logger.error('Error handling Bitbucket repo created', { error });
     }
+};
+
+/**
+ * Helper to update commit build status in Bitbucket
+ */
+export const updateBitbucketCommitStatus = async (params: {
+  accessToken: string;
+  repoFullName: string; // "workspace/repo"
+  commitSha: string;
+  state: 'INPROGRESS' | 'SUCCESSFUL' | 'FAILED';
+  key?: string;
+  name?: string;
+  description?: string;
+  url?: string;
+}) => {
+  try {
+    const { 
+        accessToken, 
+        repoFullName, 
+        commitSha, 
+        state, 
+        key = 'beetle-ai-review', 
+        name = 'Beetle Review', 
+        description = 'AI Code Review',
+        url = 'https://beetleai.dev'
+    } = params;
+
+    const [workspace, repo] = repoFullName.split('/');
+    if (!workspace || !repo) return;
+
+    await fetch(`https://api.bitbucket.org/2.0/repositories/${workspace}/${repo}/commit/${commitSha}/statuses/build`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        key,
+        state,
+        description,
+        url,
+        name
+      })
+    });
+  } catch (e) {
+    logger.error('Failed to update Bitbucket status', { error: e });
+  }
 };
