@@ -519,6 +519,8 @@ export const connectBitbucketWorkspace = async (req: Request, res: Response, nex
         const now = new Date();
         const tokenExpiresAt = peerWorkspace.tokenExpiresAt; // Use peer's expiry approx
 
+        let activeWorkspace;
+
         if (existing) {
              existing.status = 'connected';
              existing.accessToken = tokenResult.accessToken!;
@@ -527,9 +529,9 @@ export const connectBitbucketWorkspace = async (req: Request, res: Response, nex
              existing.userId = userId.toString();
              existing.teamId = teamId;
              existing.updatedAt = now;
-             await existing.save();
+             activeWorkspace = await existing.save();
         } else {
-            await Bitbucket_Workspace.create({
+            activeWorkspace = await Bitbucket_Workspace.create({
                 workspaceUuid: wsData.uuid,
                 workspaceSlug: wsData.slug,
                 userId: userId,
@@ -550,17 +552,21 @@ export const connectBitbucketWorkspace = async (req: Request, res: Response, nex
         }
 
         // 5. Trigger Sync
-        // We run this asynchronously to not block the response too long, or maybe we wait
-        // The user wants feedback, so let's wait but maybe not for full sync if it's huge. 
-        // But for consistency let's just await it effectively.
-        
-        await syncBitbucketRepositories(
-            userId.toString(),
-            existing ? (existing as any)._id.toString() : ((await Bitbucket_Workspace.findOne({ teamId, workspaceSlug })) as any)._id.toString(),
-            workspaceSlug,
-            tokenResult.accessToken!,
-            teamId
-        );
+        try {
+            await syncBitbucketRepositories(
+                userId.toString(),
+                (activeWorkspace as any)._id.toString(),
+                workspaceSlug,
+                tokenResult.accessToken!,
+                teamId
+            );
+        } catch (syncError) {
+             logger.error("Failed to sync Bitbucket repositories after connection", { 
+                 error: syncError, 
+                 workspaceSlug 
+             });
+             // We continue success response but maybe with a warning (optional)
+        }
 
         res.json({
             success: true,
