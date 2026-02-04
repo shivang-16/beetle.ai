@@ -130,87 +130,69 @@ export const handleOAuthCallback = async (req: Request, res: Response) => {
       return res.redirect(`${webAppUrl}/integrations?bitbucket_error=no_workspaces`);
     }
 
-    // Use the first workspace (or user's personal workspace)
-    const primaryWorkspace = workspaces[0];
-
     // Calculate token expiration
     const tokenExpiresAt = new Date(Date.now() + (expires_in || 3600) * 1000);
 
-    // Check if workspace already exists
-    const existingWorkspace = await Bitbucket_Workspace.findOne({ 
-      workspaceSlug: primaryWorkspace.slug 
-    });
+    // Process ALL workspaces
+    await Promise.all(workspaces.map(async (wsData: any) => {
+        const existing = await Bitbucket_Workspace.findOne({ 
+             workspaceSlug: wsData.slug 
+        });
 
-    let workspace;
-    if (existingWorkspace) {
-      // Update existing workspace with new tokens
-      existingWorkspace.accessToken = access_token;
-      existingWorkspace.refreshToken = refresh_token || '';
-      existingWorkspace.tokenExpiresAt = tokenExpiresAt;
-      existingWorkspace.userId = userId; // Update userId in case it changed
-      existingWorkspace.teamId = user.activeTeamId ? String(user.activeTeamId) : undefined;
-      existingWorkspace.updatedAt = new Date();
-      workspace = await existingWorkspace.save();
-      
-      logger.info('Updated existing Bitbucket workspace', { 
-        userId, 
-        workspaceSlug: workspace.workspaceSlug 
-      });
-    } else {
-      // Create new workspace
-      workspace = await Bitbucket_Workspace.create({
-        workspaceUuid: primaryWorkspace.uuid,
-        workspaceSlug: primaryWorkspace.slug,
-        userId: userId,
-        teamId: user.activeTeamId ? String(user.activeTeamId) : undefined,
-        accessToken: access_token,
-        refreshToken: refresh_token || '',
-        tokenExpiresAt: tokenExpiresAt,
-        account: {
-          displayName: primaryWorkspace.name || primaryWorkspace.slug,
-          uuid: primaryWorkspace.uuid,
-          type: primaryWorkspace.type || 'workspace',
-          avatarUrl: primaryWorkspace.links?.avatar?.href,
-        },
-        scopes: [], // Will be populated from token response if available
-        connectedAt: new Date(),
-      });
+        const newStatus = existing?.status === 'connected' ? 'connected' : 'disconnected';
 
-      logger.info('Created new Bitbucket workspace', { 
-        userId, 
-        workspaceSlug: workspace.workspaceSlug 
-      });
-    }
+        let workspaceDoc;
+        if (existing) {
+             existing.accessToken = access_token;
+             existing.refreshToken = refresh_token || '';
+             existing.tokenExpiresAt = tokenExpiresAt;
+             existing.userId = userId;
+             existing.status = existing.status || 'disconnected'; 
+             existing.updatedAt = new Date();
+             workspaceDoc = await existing.save();
+        } else {
+             workspaceDoc = await Bitbucket_Workspace.create({
+                workspaceUuid: wsData.uuid,
+                workspaceSlug: wsData.slug,
+                userId: userId,
+                teamId: user.activeTeamId ? String(user.activeTeamId) : undefined,
+                accessToken: access_token,
+                refreshToken: refresh_token || '',
+                tokenExpiresAt: tokenExpiresAt,
+                account: {
+                    displayName: wsData.name || wsData.slug,
+                    uuid: wsData.uuid,
+                    type: wsData.type || 'workspace',
+                    avatarUrl: wsData.links?.avatar?.href,
+                },
+                scopes: [], 
+                connectedAt: new Date(),
+                status: 'disconnected' // Explicitly disconnected as requested
+            });
+        }
 
-    // Sync repositories
-    const syncedRepos = await syncBitbucketRepositories(
-      userId,
-      String(workspace._id),
-      workspace.workspaceSlug,
-      access_token,
-      user.activeTeamId ? String(user.activeTeamId) : undefined
-    );
+        try {
+            await syncBitbucketRepositories(
+                userId,
+                String(workspaceDoc._id),
+                workspaceDoc.workspaceSlug,
+                access_token,
+                user.activeTeamId ? String(user.activeTeamId) : undefined
+            );
+            logger.info('Bitbucket repositories synced for workspace', { 
+                workspace: workspaceDoc.workspaceSlug,
+                status: workspaceDoc.status
+            });
+        } catch (syncErr) {
+            logger.error('Failed to auto-sync repositories on connect', { 
+                workspace: workspaceDoc.workspaceSlug,
+                error: syncErr
+            });
+        }
 
-    logger.info('Bitbucket repositories synced', { 
-      userId, 
-      workspaceSlug: workspace.workspaceSlug,
-      syncedRepos 
-    });
+    }));
 
-    // Create workspace webhook
-    createWorkspaceWebhook(
-      workspace.workspaceSlug,
-      access_token,
-      String(workspace._id)
-    ).catch((err) => {
-      logger.warn('Failed to create workspace webhook', {
-        error: err instanceof Error ? err.message : err,
-        workspaceSlug: workspace.workspaceSlug
-      });
-    });
-
-    // Redirect back to settings with success
-    res.redirect(`${webAppUrl}/integrations?bitbucket_connected=true&repos=${syncedRepos}`);
+    res.redirect(`${webAppUrl}/integrations?bitbucket_connected=true&open_bitbucket_manage=true`);
   } catch (error) {
     logger.error('Error handling Bitbucket OAuth callback', { 
       error: error instanceof Error ? error.message : error 
@@ -278,7 +260,7 @@ async function exchangeCodeForToken(code: string): Promise<{
  */
 async function fetchBitbucketWorkspaces(accessToken: string): Promise<any[]> {
   try {
-    const response = await fetch('https://api.bitbucket.org/2.0/workspaces', {
+    const response = await fetch('https://api.bitbucket.org/2.0/workspaces?pagelen=100', {
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Accept': 'application/json'

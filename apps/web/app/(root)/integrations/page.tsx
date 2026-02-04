@@ -5,7 +5,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { getIntegrationsAction, disconnectInstallationAction, reconnectIntegrationAction, reconnectInstallationAction, getAvailableBitbucketWorkspacesAction, connectBitbucketWorkspaceAction } from "@/_actions/integrations";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Github, Link2, Unlink, AlertTriangle, Plus, Loader2 } from "lucide-react";
+import { Github, Link2, Unlink, Plus, Loader2, Plug } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -55,6 +55,36 @@ const IntegrationsPage = () => {
   const [availableWorkspaces, setAvailableWorkspaces] = useState<AvailableWorkspace[]>([]);
   const [isLoadingAvailable, setIsLoadingAvailable] = useState(false);
   const [isConnectingNew, setIsConnectingNew] = useState<string | null>(null);
+
+  // Check for error query params - RUNS ONCE ON MOUNT
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('bitbucket_error') === 'no_workspaces') {
+         // Use setTimeout to ensure toast library is ready/mounted if needed, though usually not required
+         setTimeout(() => {
+             toast.warning("No workspaces found. Please create a new workspace in Bitbucket and try again.");
+         }, 100);
+         
+         const newUrl = window.location.pathname;
+         window.history.replaceState({}, '', newUrl);
+    }
+  }, []);
+
+  // Check for auto-open query param - RUNS WHEN INTEGRATIONS LOAD
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('open_bitbucket_manage') === 'true' && integrations.length > 0) {
+        const bitbucketIntegration = integrations.find(i => i.id === 'bitbucket');
+        if (bitbucketIntegration) {
+            setSelectedIntegration(bitbucketIntegration);
+            setIsDialogOpen(true);
+            
+            // Clean URL
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, '', newUrl);
+        }
+    }
+  }, [integrations]);
 
   // Clear available when dialog closes
   useEffect(() => {
@@ -341,10 +371,10 @@ const IntegrationsPage = () => {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-orange-500" />
+              <Plug className="h-5 w-5" />
               Manage {selectedIntegration?.name} Connections
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-xs">
               View and manage your active connections. Disconnecting will stop Beetle from accessing repositories associated with that connection.
             </DialogDescription>
           </DialogHeader>
@@ -366,7 +396,7 @@ const IntegrationsPage = () => {
                             <p className="font-medium text-sm">{inst.displayName || inst.login}</p>
                             <p className="text-xs text-muted-foreground">
                                 {inst.type || 'Account'} 
-                                {inst.status === 'disconnected' && <span className="ml-2 text-red-500">(Disconnected)</span>}
+                                {inst.status === 'disconnected' && <span className="ml-2 text-red-700">(Disconnected)</span>}
                             </p>
                          </div>
                     </div>
@@ -386,7 +416,7 @@ const IntegrationsPage = () => {
                         <Button 
                             variant="outline" 
                             size="sm"
-                            className="border-red-500 text-red-500 hover:bg-transparent hover:text-red-600"
+                            className="border-red-700 text-red-700 hover:bg-transparent hover:text-red-800"
                             onClick={() => handleDisconnectItem(
                                 selectedIntegration.id, 
                                 selectedIntegration.id === 'github' ? inst.installationId! : inst.workspaceSlug!
@@ -403,16 +433,6 @@ const IntegrationsPage = () => {
           </div>
           
           <div className="mt-4 border-t pt-4">
-              <Button 
-                variant="outline" 
-                className="w-full gap-2"
-                onClick={handleAddNew}
-                disabled={isLoadingAvailable}
-              >
-                  {isLoadingAvailable ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                  Add New Connection
-              </Button>
-              
               {availableWorkspaces.length > 0 && (
                   <div className="mt-4 flex flex-col gap-3 max-h-[300px] overflow-y-auto animate-in slide-in-from-top-2">
                        <p className="text-xs font-medium text-muted-foreground uppercase">Available Workspaces</p>
@@ -448,8 +468,16 @@ const IntegrationsPage = () => {
               )}
           </div>
 
-          <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Close</Button>
+          <DialogFooter className="mt-4 flex items-center justify-end gap-2">
+            <Button 
+                variant="default" // Changed to default for emphasis
+                className="gap-2"
+                onClick={handleAddNew}
+                disabled={isLoadingAvailable}
+            >
+                  {isLoadingAvailable ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  Add New Connection
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
