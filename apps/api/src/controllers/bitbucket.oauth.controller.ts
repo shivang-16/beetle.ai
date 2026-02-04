@@ -429,6 +429,10 @@ export const resyncWorkspace = async (req: Request, res: Response) => {
             return res.status(404).json({ message: 'No connected Bitbucket workspace found' });
         }
 
+        if (workspace.userId.toString() !== userId.toString()) {
+            return res.status(403).json({ message: 'Forbidden: You do not own this workspace' });
+        }
+
         const tokenResult = await getBitbucketAccessToken(workspace.workspaceSlug);
         if (!tokenResult.success || !tokenResult.accessToken) {
             return res.status(401).json({ message: 'Failed to refresh access token. Please reconnect.' });

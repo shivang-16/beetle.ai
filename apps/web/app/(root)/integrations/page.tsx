@@ -2,10 +2,10 @@
 
 import React, { useEffect, useState } from "react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { getIntegrationsAction, disconnectInstallationAction, reconnectIntegrationAction, reconnectInstallationAction } from "@/_actions/integrations";
+import { getIntegrationsAction, disconnectInstallationAction, reconnectIntegrationAction, reconnectInstallationAction, getAvailableBitbucketWorkspacesAction, connectBitbucketWorkspaceAction } from "@/_actions/integrations";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Github, Link2, Unlink, AlertTriangle } from "lucide-react";
+import { Github, Link2, Unlink, AlertTriangle, Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -38,12 +38,31 @@ interface Integration {
   count: number;
 }
 
+interface AvailableWorkspace {
+  uuid: string;
+  slug: string;
+  name: string;
+  avatarUrl?: string;
+  type: string;
+}
+
 const IntegrationsPage = () => {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedIntegration, setSelectedIntegration] = useState<Integration | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [reconnectingId, setReconnectingId] = useState<string | null>(null);
+  const [availableWorkspaces, setAvailableWorkspaces] = useState<AvailableWorkspace[]>([]);
+  const [isLoadingAvailable, setIsLoadingAvailable] = useState(false);
+  const [isConnectingNew, setIsConnectingNew] = useState<string | null>(null);
+
+  // Clear available when dialog closes
+  useEffect(() => {
+    if (!isDialogOpen) {
+        setAvailableWorkspaces([]);
+        setIsLoadingAvailable(false);
+    }
+  }, [isDialogOpen]);
 
   const fetchIntegrations = async () => {
     try {
@@ -161,6 +180,52 @@ const IntegrationsPage = () => {
     } catch (error) {
         console.error("Error reconnecting:", error);
         toast.error("An error occurred");
+    }
+  };
+
+  const handleAddNew = async () => {
+    if (!selectedIntegration) return;
+
+    if (selectedIntegration.id === 'github') {
+         window.location.href = selectedIntegration.url;
+         return;
+    }
+
+    if (selectedIntegration.id === 'bitbucket') {
+        setIsLoadingAvailable(true);
+        // Clean previous
+        setAvailableWorkspaces([]);
+        
+        const result = await getAvailableBitbucketWorkspacesAction();
+        setIsLoadingAvailable(false);
+        
+        if (result.success) {
+            setAvailableWorkspaces(result.data);
+            if (result.data.length === 0) {
+                 toast.info("No additional workspaces found.");
+            }
+        } else if (result.needAuth) {
+             // Redirect to OAuth if we can't fetch (token expired or no token)
+             window.location.href = selectedIntegration.url;
+        } else {
+            toast.error(result.message);
+        }
+    }
+  };
+
+  const handleConnectWorkspace = async (slug: string) => {
+    setIsConnectingNew(slug);
+    const result = await connectBitbucketWorkspaceAction(slug);
+    setIsConnectingNew(null);
+
+    if (result.success) {
+        toast.success("Workspace connected");
+        // Remove from available and close dialog to force refresh
+        setAvailableWorkspaces(prev => prev.filter(w => w.slug !== slug));
+        setIsDialogOpen(false);
+        fetchIntegrations();
+    } else {
+        toast.error(result.message);
     }
   };
 
@@ -335,6 +400,52 @@ const IntegrationsPage = () => {
              {selectedIntegration?.installations.length === 0 && (
                  <p className="text-center text-muted-foreground py-4">No connections found.</p>
              )}
+          </div>
+          
+          <div className="mt-4 border-t pt-4">
+              <Button 
+                variant="outline" 
+                className="w-full gap-2"
+                onClick={handleAddNew}
+                disabled={isLoadingAvailable}
+              >
+                  {isLoadingAvailable ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  Add New Connection
+              </Button>
+              
+              {availableWorkspaces.length > 0 && (
+                  <div className="mt-4 flex flex-col gap-3 max-h-[300px] overflow-y-auto animate-in slide-in-from-top-2">
+                       <p className="text-xs font-medium text-muted-foreground uppercase">Available Workspaces</p>
+                       {availableWorkspaces.map((ws, idx) => (
+                           <div key={idx} className="flex items-center justify-between p-3 border rounded-lg bg-card/50">
+                                <div className="flex items-center gap-3">
+                                     <div className="h-8 w-8 rounded-full overflow-hidden bg-secondary">
+                                        {ws.avatarUrl ? (
+                                            <img src={ws.avatarUrl} alt={ws.slug} className="h-full w-full object-cover" />
+                                        ) : (
+                                            <div className="h-full w-full flex items-center justify-center text-xs font-bold">
+                                                {ws.slug.substring(0, 2).toUpperCase()}
+                                            </div>
+                                        )}
+                                     </div>
+                                     <div>
+                                        <p className="font-medium text-sm">{ws.name || ws.slug}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {ws.type || 'workspace'}
+                                        </p>
+                                     </div>
+                                </div>
+                                <Button 
+                                    size="sm"
+                                    onClick={() => handleConnectWorkspace(ws.slug)}
+                                    disabled={isConnectingNew !== null}
+                                >
+                                    {isConnectingNew === ws.slug ? <Loader2 className="h-4 w-4 animate-spin" /> : "Connect"}
+                                </Button>
+                           </div>
+                       ))}
+                  </div>
+              )}
           </div>
 
           <DialogFooter className="mt-4">
