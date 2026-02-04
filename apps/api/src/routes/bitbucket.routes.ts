@@ -5,6 +5,7 @@ import {
   disconnectWorkspace,
   getWorkspaceInfo
 } from '../controllers/bitbucket.oauth.controller.js';
+import { getAvailableBitbucketWorkspaces, connectBitbucketWorkspace } from '../controllers/integrations.controller.js';
 import { handleBitbucketWebhook } from '../controllers/bitbucket.webhook.controller.js';
 import { checkAuth } from '../middlewares/checkAuth.js';
 
@@ -32,6 +33,16 @@ router.get('/oauth/callback', handleOAuthCallback);
  * Get connected workspace info
  */
 router.get('/workspace', checkAuth, getWorkspaceInfo);
+
+/**
+ * Get available workspaces (not yet connected)
+ */
+router.get('/workspaces/available', checkAuth, getAvailableBitbucketWorkspaces);
+
+/**
+ * Connect a specific workspace
+ */
+router.post('/workspaces/connect', checkAuth, connectBitbucketWorkspace);
 
 /**
  * Disconnect Bitbucket workspace

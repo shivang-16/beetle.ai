@@ -9,6 +9,7 @@ import { Bitbucket_Workspace } from '../models/bitbucket_workspace.model.js';
 import { Github_Repository } from '../models/github_repostries.model.js';
 import User from '../models/user.model.js';
 import crypto from 'crypto';
+import { getBitbucketAccessToken } from '../utils/bitbucketTokenManager.js';
 
 /**
  * Initiate Bitbucket OAuth flow
@@ -303,7 +304,10 @@ async function fetchBitbucketWorkspaces(accessToken: string): Promise<any[]> {
 /**
  * Sync repositories for a Bitbucket workspace
  */
-async function syncBitbucketRepositories(
+/**
+ * Sync repositories for a Bitbucket workspace
+ */
+export async function syncBitbucketRepositories(
   userId: string,
   workspaceId: string,
   workspaceSlug: string,
@@ -312,7 +316,7 @@ async function syncBitbucketRepositories(
 ): Promise<number> {
   try {
     const response = await fetch(
-      `https://api.bitbucket.org/2.0/repositories/${workspaceSlug}`,
+      `https://api.bitbucket.org/2.0/repositories/${workspaceSlug}?pagelen=100`,
       {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
@@ -332,7 +336,29 @@ async function syncBitbucketRepositories(
     }
 
     const data: any = await response.json();
-    const repos = data.values || [];
+    let repos = data.values || [];
+    
+    // Handle pagination if needed (fetching all pages)
+    let nextUrl = data.next;
+    while (nextUrl) {
+        try {
+            const nextResp = await fetch(nextUrl, {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Accept': 'application/json'
+                }
+            });
+            if (nextResp.ok) {
+                const nextData: any = await nextResp.json();
+                repos = [...repos, ...(nextData.values || [])];
+                nextUrl = nextData.next;
+            } else {
+                nextUrl = null;
+            }
+        } catch (e) {
+            nextUrl = null;
+        }
+    }
 
     if (repos.length === 0) {
       logger.info('No repositories found in Bitbucket workspace', { workspaceSlug });
@@ -357,8 +383,11 @@ async function syncBitbucketRepositories(
             teamId: teamId,
             trackGithubIssues: false,
             trackGithubPullRequests: true,
-            raiseIssues: false,
-            autoFixBugs: false,
+            // Only set defaults on insert
+            $setOnInsert: {
+               raiseIssues: false,
+               autoFixBugs: false,
+            }
           },
           { upsert: true, new: true }
         );
@@ -384,6 +413,45 @@ async function syncBitbucketRepositories(
     return 0;
   }
 }
+
+/**
+ * Manual sync endpoint
+ */
+export const resyncWorkspace = async (req: Request, res: Response) => {
+    try {
+        const userId = req.user?._id;
+        if (!userId) {
+            return res.status(401).json({ message: 'Unauthorized' });
+        }
+
+        const workspace = await Bitbucket_Workspace.findOne({ userId });
+        if (!workspace) {
+            return res.status(404).json({ message: 'No connected Bitbucket workspace found' });
+        }
+
+        if (workspace.userId.toString() !== userId.toString()) {
+            return res.status(403).json({ message: 'Forbidden: You do not own this workspace' });
+        }
+
+        const tokenResult = await getBitbucketAccessToken(workspace.workspaceSlug);
+        if (!tokenResult.success || !tokenResult.accessToken) {
+            return res.status(401).json({ message: 'Failed to refresh access token. Please reconnect.' });
+        }
+
+        const count = await syncBitbucketRepositories(
+            userId,
+            String(workspace._id),
+            workspace.workspaceSlug,
+            tokenResult.accessToken,
+            workspace.teamId
+        );
+
+        res.json({ success: true, count, message: `Synced ${count} repositories` });
+    } catch (error) {
+        logger.error('Error manually syncing workspace', { error });
+        res.status(500).json({ message: 'Sync failed' });
+    }
+};
 
 /**
  * Create a workspace-level webhook for PR events

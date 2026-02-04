@@ -89,3 +89,35 @@ export const reconnectInstallationAction = async (type: string, id: string | num
     return { success: false, message: error instanceof Error ? error.message : "Unknown error" };
   }
 };
+
+export const getAvailableBitbucketWorkspacesAction = async () => {
+  try {
+    const response = await apiGet("/api/bitbucket/workspaces/available");
+    if (!response.ok) {
+        // If 401/403, we might return specific needAuth flag
+        if (response.status === 401 || response.status === 403) {
+             return { success: false, needAuth: true, message: "Authentication required" };
+        }
+        const error = await response.text();
+        throw new Error(error || "Failed to fetch workspaces");
+    }
+    return await response.json();
+  } catch (error) {
+    logger.error("Error in getAvailableBitbucketWorkspacesAction", { error });
+    return { success: false, message: error instanceof Error ? error.message : "Unknown error" };
+  }
+};
+
+export const connectBitbucketWorkspaceAction = async (workspaceSlug: string) => {
+  try {
+    const response = await apiPost("/api/bitbucket/workspaces/connect", { workspaceSlug });
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(error || "Failed to connect workspace");
+    }
+    return await response.json();
+  } catch (error) {
+    logger.error("Error in connectBitbucketWorkspaceAction", { error, workspaceSlug });
+    return { success: false, message: error instanceof Error ? error.message : "Unknown error" };
+  }
+};

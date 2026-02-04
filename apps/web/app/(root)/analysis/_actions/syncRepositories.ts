@@ -24,7 +24,7 @@ export const syncRepositories = async (teamId?: string): Promise<SyncRepositorie
 
     // Call the new sync endpoint that handles all installations
     // Pass teamId if provided so newly created repos can be added to the team
-    const syncResponse = await apiPost("/api/github/sync", { teamId });
+    const syncResponse = await apiPost("/api/integrations/sync", { teamId });
     
     if (!syncResponse.ok) {
       throw new Error(`Sync request failed: ${syncResponse.status}`);

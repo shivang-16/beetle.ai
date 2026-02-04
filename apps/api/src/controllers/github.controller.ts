@@ -1454,42 +1454,17 @@ export const getIssueStates = async (
   }
 };
 
-export const syncRepositories = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const userId = req.user?._id;
-    const teamId = req.team?.id;
-
-    if (!userId) {
-      return next(new CustomError("User not authenticated", 401));
-    }
-
-    logger.debug("Syncing repositories for all user installations", { userId, teamId });
+/**
+ * Sync GitHub repositories for a user
+ * Returns stats about the sync operation
+ */
+export const syncGithubRepositories = async (userId: string, teamId?: string) => {
+    logger.debug("Syncing GitHub repositories", { userId, teamId });
 
     // Find all GitHub installations for this user
-    const installations = await Github_Installation.find({ userId: userId });
+    const installations = await Github_Installation.find({ userId: userId, status: 'connected' });
 
-    if (installations.length === 0) {
-      return res.json({
-        success: true,
-        message: "No GitHub installations found for user",
-        data: {
-          updated: 0,
-          created: 0,
-          removed: 0,
-          totalRepositories: 0,
-          totalInstallations: 0,
-          addedToTeam: 0,
-          errors: []
-        }
-      });
-    }
-
-    logger.debug("Found installations", { 
-      count: installations.length,
-      installationIds: installations.map(i => i.installationId)
-    });
-
-    const overallSyncResults = {
+    const results = {
       updated: 0,
       created: 0,
       removed: 0,
@@ -1498,6 +1473,10 @@ export const syncRepositories = async (req: Request, res: Response, next: NextFu
       addedToTeam: 0,
       errors: [] as string[]
     };
+
+    if (installations.length === 0) {
+      return results;
+    }
 
     // Process each installation
     for (const installation of installations) {
@@ -1524,22 +1503,9 @@ export const syncRepositories = async (req: Request, res: Response, next: NextFu
           // Check if we have more pages
           hasMorePages = installationRepos.repositories.length === 100;
           page++;
-          
-          logger.debug("Fetched repositories page", { 
-            page: page - 1,
-            count: installationRepos.repositories.length,
-            totalSoFar: allRepositories.length,
-            totalCount: installationRepos.total_count,
-            installationId: installation.installationId
-          });
         }
 
-        logger.debug("Fetched all repositories from GitHub", { 
-          totalCount: allRepositories.length,
-          installationId: installation.installationId
-        });
-
-        overallSyncResults.totalRepositories += allRepositories.length;
+        results.totalRepositories += allRepositories.length;
 
         // Process each repository
         for (const repo of allRepositories) {
@@ -1585,7 +1551,7 @@ export const syncRepositories = async (req: Request, res: Response, next: NextFu
                 // Add teamId if repo doesn't have one and we have one to assign
                 if (needsTeamId) {
                   updateData.teamId = teamId;
-                  overallSyncResults.addedToTeam++;
+                  results.addedToTeam++;
                 }
 
                 await Github_Repository.findByIdAndUpdate(
@@ -1593,51 +1559,21 @@ export const syncRepositories = async (req: Request, res: Response, next: NextFu
                   updateData,
                   { new: true }
                 );
-                overallSyncResults.updated++;
-                logger.debug("Updated repository (changes detected)", { 
-                  repositoryId: repo.id, 
-                  fullName: repo.full_name,
-                  installationId: installation.installationId,
-                  addedTeamId: needsTeamId,
-                  changes: {
-                     fullName: existingRepo.fullName !== repo.full_name,
-                     private: existingRepo.private !== repo.private,
-                     defaultBranch: existingRepo.defaultBranch !== (repo.default_branch || 'main'),
-                     installationId: existingRepo.github_installationId.toString() !== installation._id?.toString(),
-                     teamId: needsTeamId
-                   }
-                });
-              } else {
-                logger.debug("Repository unchanged, skipping update", { 
-                  repositoryId: repo.id, 
-                  fullName: repo.full_name,
-                  installationId: installation.installationId
-                });
+                results.updated++;
               }
             } else {
               // Create new repository
               const newRepo = new Github_Repository(repoData);
               await newRepo.save();
-              overallSyncResults.created++;
+              results.created++;
               if (teamId) {
-                overallSyncResults.addedToTeam++;
+                results.addedToTeam++;
               }
-              logger.debug("Created new repository", { 
-                repositoryId: repo.id, 
-                fullName: repo.full_name,
-                installationId: installation.installationId,
-                teamId: teamId || null
-              });
             }
           } catch (repoError) {
-            const errorMessage = `Failed to sync repository ${repo.full_name} (installation ${installation.installationId}): ${repoError instanceof Error ? repoError.message : repoError}`;
-            overallSyncResults.errors.push(errorMessage);
-            logger.error("Error syncing repository", { 
-              repositoryId: repo.id, 
-              fullName: repo.full_name, 
-              installationId: installation.installationId,
-              error: errorMessage 
-            });
+            const errorMessage = `Failed to sync repository ${repo.full_name}: ${repoError instanceof Error ? repoError.message : repoError}`;
+            results.errors.push(errorMessage);
+            logger.error("Error syncing repository", { repositoryId: repo.id, error: errorMessage });
           }
         }
 
@@ -1649,64 +1585,21 @@ export const syncRepositories = async (req: Request, res: Response, next: NextFu
         });
 
         if (removedRepos.length > 0) {
-          overallSyncResults.removed += removedRepos.length;
-          logger.info("Found inaccessible repositories for installation", { 
-            installationId: installation.installationId,
-            count: removedRepos.length,
-            repositories: removedRepos.map(r => r.fullName)
-          });
-
-          // Uncomment to actually remove repositories
+          results.removed += removedRepos.length;
           await Github_Repository.deleteMany({
             github_installationId: installation._id,
             repositoryId: { $nin: currentRepoIds }
           });
         }
 
-        logger.debug("Installation sync completed", { 
-          installationId: installation.installationId,
-          repositoriesProcessed: allRepositories.length
-        });
-
       } catch (installationError) {
         const errorMessage = `Failed to sync installation ${installation.installationId}: ${installationError instanceof Error ? installationError.message : installationError}`;
-        overallSyncResults.errors.push(errorMessage);
-        logger.error("Error syncing installation", { 
-          installationId: installation.installationId,
-          error: errorMessage 
-        });
+        results.errors.push(errorMessage);
+        logger.error("Error syncing installation", { installationId: installation.installationId, error: errorMessage });
       }
     }
 
-    logger.info("All installations sync completed", { 
-      userId,
-      totalInstallations: overallSyncResults.totalInstallations,
-      updated: overallSyncResults.updated, 
-      created: overallSyncResults.created, 
-      removed: overallSyncResults.removed,
-      totalRepositories: overallSyncResults.totalRepositories,
-      errors: overallSyncResults.errors.length 
-    });
-
-    // Log team assignment results if teamId was provided
-    if (teamId) {
-      logger.info("Team assignment completed during sync", { 
-        teamId, 
-        reposAddedToTeam: overallSyncResults.addedToTeam
-      });
-    }
-
-    res.json({
-      success: true,
-      message: `Repositories synchronized successfully across ${overallSyncResults.totalInstallations} installation(s)`,
-      data: overallSyncResults
-    });
-
-  } catch (error: any) {
-    logger.error("Error syncing repositories", { 
-      error: error instanceof Error ? error.message : error,
-      userId: req.user?._id
-    });
-    next(new CustomError("Failed to sync repositories", 500));
-  }
+    return results;
 };
+
+
