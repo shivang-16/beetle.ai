@@ -192,6 +192,23 @@ export const handleOAuthCallback = async (req: Request, res: Response) => {
             });
             // Don't throw here, as we successfully saved the workspace
         }
+
+        // Create workspace webhook
+        try {
+            await createWorkspaceWebhook(
+              workspaceDoc.workspaceSlug,
+              access_token,
+              String(workspaceDoc._id)
+            );
+            logger.info('Bitbucket workspace webhook created', { 
+                workspaceSlug: workspaceDoc.workspaceSlug 
+            });
+        } catch (webhookErr) {
+             logger.warn('Failed to create workspace webhook', {
+                error: webhookErr instanceof Error ? webhookErr.message : webhookErr,
+                workspaceSlug: workspaceDoc.workspaceSlug
+             });
+        }
         return workspaceDoc.workspaceSlug;
       } catch (wsError) {
         logger.error(`Failed to process workspace ${wsData.slug}`, { error: wsError });

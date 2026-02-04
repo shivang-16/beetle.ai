@@ -432,7 +432,7 @@ export class BitbucketPRCommentService {
       '>',
       `> **Severity**: \`${severityLabel}\` · [Change](https://beetleai.dev/settings) · **Custom Rules**: [Define](https://beetleai.dev/custom-context) · **PR Summary**: [Config](https://beetleai.dev/settings)`,
       '>',
-      '> **Tips**: Comment `@beetle` to run manually · `@beetle stop` to cancel · [Documentation](https://docs.beetleai.dev)',
+      '> **Tips**: [See how to interact with Beetle](https://beetleai.dev/interact)',
     ].join('\n');
   }
 
