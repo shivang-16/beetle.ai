@@ -9,8 +9,6 @@ import { Sandbox } from '@e2b/code-interpreter';
 import { appendToRedisBuffer, finalizeAnalysisAndPersist } from "../utils/analysisStreamStore.js";
 import { logger } from "../utils/logger.js";
 import mongoose from "mongoose";
-import Team from "../models/team.model.js";
-import User from "../models/user.model.js";
 
 export const createAnalysis = async (
   req: Request,
@@ -86,11 +84,6 @@ export const createAnalysis = async (
     // Create analysis record with 'running' status
     const analysis = await Analysis.create({
       _id: analysisId,
-      analysis_type,
-      userId,
-      teamId: teamId && teamId !== 'null' ? teamId : undefined,
-      repoUrl,
-      github_repositoryId,
       sandboxId: "", // Will be updated when sandbox is created
       model: selectedModel,
       prompt,
