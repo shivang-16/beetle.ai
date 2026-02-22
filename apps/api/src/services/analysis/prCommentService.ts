@@ -153,6 +153,18 @@ processedContent = processedContent.replace(
       );
     }
 
+    // Step 4.5: Clean up Mermaid blocks to ensure GitHub compatibility
+    processedContent = processedContent.replace(/```mermaid\s*\n([\s\S]*?)\n```/g, (match, mermaidContent) => {
+      let cleanMermaid = mermaidContent
+        .replace(/^[ \t]*%%.*$/gm, '') // Remove full-line %% comments (safe)
+        .replace(/`/g, '') // Remove stray backticks
+        .replace(/\*\*/g, '') // Remove markdown bold asterisks (safe)
+        .replace(/<br\s*\/?>/gi, ' ') // Replace HTML breaks with space
+        .trim();
+        
+      return '```mermaid\n' + cleanMermaid + '\n```';
+    });
+
     processedContent = processedContent.replace(
   /<details>[\s\S]*?<\/details>/g,
   (detailsBlock) => {
