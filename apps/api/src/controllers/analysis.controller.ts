@@ -91,7 +91,7 @@ export const createAnalysis = async (
       teamId: teamId && teamId !== 'null' ? teamId : undefined,
       repoUrl,
       github_repositoryId,
-      sandboxId: "", // Will be updated when sandbox is created
+      sandboxId: "", 
       model: selectedModel,
       prompt,
       status,
@@ -137,7 +137,6 @@ export const startAnalysis = async (
   res: Response,
   next: NextFunction
 ) => {
-   // Hoisted context for streaming persistence
   let clientAborted = false;
   let userId!: string;
   let repoUrl: string = "";
