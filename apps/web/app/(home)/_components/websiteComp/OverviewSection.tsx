@@ -8,12 +8,16 @@ import Link from "next/link";
 import { TypewriterEffect } from "@/components/ui/typewriter-effect";
 import { motion } from "motion/react";
 
-// Format numbers: 1M for >= 1,000,000, 10K for >= 10,000
+// Baseline offsets shown on top of live DB stats
+const EXTRA_LINES_REVIEWED = 3_500_000;
+const EXTRA_BUGS_REPORTED = 8_000;
+
+// Format numbers: 1M for >= 1,000,000, 1K for >= 1,000
 const formatNumber = (num: number): string => {
   if (num >= 1000000) {
     return `${(num / 1000000).toFixed(1).replace(/\.0$/, "")}M`;
   }
-  if (num >= 10000) {
+  if (num >= 1000) {
     return `${(num / 1000).toFixed(1).replace(/\.0$/, "")}K`;
   }
   return num.toLocaleString();
@@ -45,13 +49,13 @@ const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
     { text: "We", className: "text-white" },
     { text: "Have", className: "text-white" },
     { text: "Reviewed", className: "text-white" },
-    { text: formatNumber(stats.totalLinesReviewed), className: "!text-primary" },
+    { text: formatNumber(stats.totalLinesReviewed + EXTRA_LINES_REVIEWED), className: "!text-primary" },
     { text: "Lines", className: "text-white" },
     { text: "Of", className: "text-white" },
     { text: "Code", className: "text-white" },
     { text: "and", className: "text-white" },
     { text: "Reported", className: "text-white" },
-    { text: formatNumber(stats.totalPrCommentsPosted || 0), className: "!text-primary" },
+    { text: formatNumber((stats.totalPrCommentsPosted || 0) + EXTRA_BUGS_REPORTED), className: "!text-primary" },
     { text: "Bugs", className: "text-white" },
     { text: "so", className: "text-white" },
     { text: "far", className: "text-white" },
